@@ -24,8 +24,8 @@ if test "$PHP_RAR" != "no"; then
   PHP_REQUIRE_CXX
   AC_DEFINE(HAVE_RAR, 1, [Whether you have rar support])
   PHP_SUBST(RAR_SHARED_LIBADD)  
-  PHP_ADD_BUILD_DIR($ext_builddir/unrar)  
   PHP_ADD_LIBRARY_WITH_PATH(stdc++, "", RAR_SHARED_LIBADD)
 
   PHP_NEW_EXTENSION(rar, rar.cpp $unrar_sources, $ext_shared,,-I@ext_srcdir@/unrar)  
+  PHP_ADD_BUILD_DIR($ext_builddir/unrar)  
 fi
