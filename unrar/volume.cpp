@@ -56,7 +56,13 @@ bool MergeArchive(Archive &Arc,ComprDataIO *DataIO,bool ShowFileName,char Comman
     }
     if (Cmd->ChangeVolProc!=NULL)
     {
+#ifdef _WIN_32
+      _EBX=_ESP;
+#endif
       int RetCode=Cmd->ChangeVolProc(NextName,RAR_VOL_ASK);
+#ifdef _WIN_32
+      _ESP=_EBX;
+#endif
       if (RetCode==0)
       {
         Cmd->DllError=ERAR_EOPEN;
@@ -106,7 +112,13 @@ bool MergeArchive(Archive &Arc,ComprDataIO *DataIO,bool ShowFileName,char Comman
     return(false);
   if (Cmd->ChangeVolProc!=NULL)
   {
+#ifdef _WIN_32
+    _EBX=_ESP;
+#endif
     int RetCode=Cmd->ChangeVolProc(NextName,RAR_VOL_NOTIFY);
+#ifdef _WIN_32
+    _ESP=_EBX;
+#endif
     if (RetCode==0)
       return(false);
   }

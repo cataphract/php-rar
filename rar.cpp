@@ -26,6 +26,7 @@
 
 /* $Id$ */
 
+extern "C" {
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -33,6 +34,7 @@
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
+}
 
 #if HAVE_RAR
 extern "C" {
@@ -334,10 +336,6 @@ PHP_FUNCTION(rar_open)
 
 	convert_to_string_ex(filename);
 
-	if (PG(safe_mode) && (!php_checkuid(Z_STRVAL_PP(filename), NULL, CHECKUID_CHECK_FILE_AND_DIR))) {
-		RETURN_FALSE;
-	}
-	
 	if (php_check_open_basedir(Z_STRVAL_PP(filename) TSRMLS_CC)) {
 		RETURN_FALSE;
 	}
@@ -385,7 +383,7 @@ PHP_FUNCTION(rar_list)
 		WRONG_PARAM_COUNT;
 	}
 
-	if (!_rar_get_file_resource(file,&rar TSRMLS_CC)) {
+	if (!_rar_get_file_resource(file,&rar)) {
 		RETURN_FALSE;
 	}
 
@@ -429,7 +427,7 @@ PHP_FUNCTION(rar_entry_get)
 		WRONG_PARAM_COUNT;
 	}
 
-	if (!_rar_get_file_resource(file,&rar TSRMLS_CC)) {
+	if (!_rar_get_file_resource(file,&rar)) {
 		RETURN_FALSE;
 	}
 
@@ -468,7 +466,7 @@ PHP_FUNCTION(rar_close)
 		WRONG_PARAM_COUNT;
 	}
 
-	if (!_rar_get_file_resource(file,&rar TSRMLS_CC)) {
+	if (!_rar_get_file_resource(file,&rar)) {
 		RETURN_FALSE;
 	}
 
@@ -504,21 +502,13 @@ PHP_METHOD(rarentry, extract)
 	convert_to_string_ex(path);
 	path_str = Z_STRVAL_PP(path);
 
-	if (Z_STRLEN_PP(path) && PG(safe_mode) && (!php_checkuid(Z_STRVAL_PP(path), NULL, CHECKUID_CHECK_FILE_AND_DIR))) {
-		RETURN_FALSE;
-	}
-	
-	if (Z_STRLEN_PP(path) && php_check_open_basedir(Z_STRVAL_PP(path) TSRMLS_CC)) {
+	if (php_check_open_basedir(Z_STRVAL_PP(path) TSRMLS_CC)) {
 		RETURN_FALSE;
 	}
 	
 	if (ac == 2) {
 		convert_to_string_ex(filename);
 		extract_to_file = Z_STRVAL_PP(filename);
-
-		if (PG(safe_mode) && (!php_checkuid(Z_STRVAL_PP(filename), NULL, CHECKUID_CHECK_FILE_AND_DIR))) {
-			RETURN_FALSE;
-		}
 		
 		if (php_check_open_basedir(Z_STRVAL_PP(filename) TSRMLS_CC)) {
 			RETURN_FALSE;
