@@ -2,7 +2,7 @@ dnl $Id$
 dnl config.m4 for extension rar
 
 PHP_ARG_ENABLE(rar, whether to enable rar support,
-[  --enable-rar           Enable rar support])
+[  --enable-rar            Enable rar support])
 
 unrar_sources="unrar/rar.cpp unrar/strlist.cpp unrar/strfn.cpp \
 			   unrar/pathfn.cpp unrar/int64.cpp unrar/savepos.cpp \
