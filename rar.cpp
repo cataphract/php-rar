@@ -334,6 +334,10 @@ PHP_FUNCTION(rar_open)
 
 	convert_to_string_ex(filename);
 
+	if (PG(safe_mode) && (!php_checkuid(Z_STRVAL_PP(filename), NULL, CHECKUID_CHECK_FILE_AND_DIR))) {
+		RETURN_FALSE;
+	}
+	
 	if (php_check_open_basedir(Z_STRVAL_PP(filename) TSRMLS_CC)) {
 		RETURN_FALSE;
 	}
@@ -500,13 +504,21 @@ PHP_METHOD(rarentry, extract)
 	convert_to_string_ex(path);
 	path_str = Z_STRVAL_PP(path);
 
-	if (php_check_open_basedir(Z_STRVAL_PP(path) TSRMLS_CC)) {
+	if (Z_STRLEN_PP(path) && PG(safe_mode) && (!php_checkuid(Z_STRVAL_PP(path), NULL, CHECKUID_CHECK_FILE_AND_DIR))) {
+		RETURN_FALSE;
+	}
+	
+	if (Z_STRLEN_PP(path) && php_check_open_basedir(Z_STRVAL_PP(path) TSRMLS_CC)) {
 		RETURN_FALSE;
 	}
 	
 	if (ac == 2) {
 		convert_to_string_ex(filename);
 		extract_to_file = Z_STRVAL_PP(filename);
+
+		if (PG(safe_mode) && (!php_checkuid(Z_STRVAL_PP(filename), NULL, CHECKUID_CHECK_FILE_AND_DIR))) {
+			RETURN_FALSE;
+		}
 		
 		if (php_check_open_basedir(Z_STRVAL_PP(filename) TSRMLS_CC)) {
 			RETURN_FALSE;
