@@ -26,7 +26,6 @@
 
 /* $Id$ */
 
-extern "C" {
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -34,7 +33,6 @@ extern "C" {
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
-}
 
 #if HAVE_RAR
 extern "C" {
