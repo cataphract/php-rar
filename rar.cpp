@@ -335,6 +335,10 @@ PHP_FUNCTION(rar_open)
 	}
 
 	convert_to_string_ex(filename);
+
+	if (php_check_open_basedir(Z_STRVAL_PP(filename) TSRMLS_CC)) {
+		RETURN_FALSE;
+	}
 	
 	rar = (rar_file_t *) emalloc(sizeof(rar_file_t));
 	rar->list_handle = (RAROpenArchiveData *) emalloc(sizeof(RAROpenArchiveData));
@@ -497,10 +501,18 @@ PHP_METHOD(rarentry, extract)
 
 	convert_to_string_ex(path);
 	path_str = Z_STRVAL_PP(path);
+
+	if (php_check_open_basedir(Z_STRVAL_PP(path) TSRMLS_CC)) {
+		RETURN_FALSE;
+	}
 	
 	if (ac == 2) {
 		convert_to_string_ex(filename);
 		extract_to_file = Z_STRVAL_PP(filename);
+		
+		if (php_check_open_basedir(Z_STRVAL_PP(filename) TSRMLS_CC)) {
+			RETURN_FALSE;
+		}
 	}
 	
 	if ((tmp_name = _rar_entry_get_property(entry_obj, "name", sizeof("name") TSRMLS_CC)) == NULL) {
