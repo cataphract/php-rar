@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<package>
+    <name>rar</name>
+    <summary>rar extension</summary>
+    <description>
+	Rar is a powerful and effective archiver, which was 
+	created by Eugene Roshal and became rather popular quite fast. 
+	This extension gives you possibility to read Rar archives.
+    </description>
+    <license>PHP License</license>
+    <maintainers>
+        <maintainer>
+	    <user>tony2001</user>
+	    <name>Antony Dovgal</name>
+	    <email>tony2001@phpclub.net</email>
+        </maintainer>
+	</maintainers>
+	<release>
+		<version>0.1</version>
+		<date>2004-06-11</date>
+		<state>alpha</state>
+		<notes>
+			1) Initial release
+		</notes>
+	</release>
+	<filelist>
+        <dir role="src" name="/">
+			<file role="doc">CREDITS</file>
+			<file role="doc">example.php</file>
+
+			<file role="src">config.m4</file>
+			<file role="src">php_rar.h</file>
+			<file role="src">rar.cpp</file>
+			
+			<dir role="src" name="/unrar/">
+
+				<file role="doc">LICENSE.txt</file>
+				<file role="doc">README.txt</file>
+
+				<file role="src">arccmt.cpp</file>
+				<file role="src">archive.cpp</file>
+				<file role="src">archive.hpp</file>
+				<file role="src">arcread.cpp</file>
+				<file role="src">array.hpp</file>
+				<file role="src">beosea.cpp</file>
+				<file role="src">cmddata.cpp</file>
+				<file role="src">cmddata.hpp</file>
+				<file role="src">coder.cpp</file>
+				<file role="src">coder.hpp</file>
+				<file role="src">compress.hpp</file>
+				<file role="src">consio.cpp</file>
+				<file role="src">consio.hpp</file>
+				<file role="src">crc.cpp</file>
+				<file role="src">crc.hpp</file>
+				<file role="src">crypt.cpp</file>
+				<file role="src">crypt.hpp</file>
+				<file role="src">dll.cpp</file>
+				<file role="src">dll.def</file>
+				<file role="src">dll.hpp</file>
+				<file role="src">encname.cpp</file>
+				<file role="src">encname.hpp</file>
+				<file role="src">errhnd.cpp</file>
+				<file role="src">errhnd.hpp</file>
+				<file role="src">extinfo.cpp</file>
+				<file role="src">extinfo.hpp</file>
+				<file role="src">extract.cpp</file>
+				<file role="src">extract.hpp</file>
+				<file role="src">filcreat.cpp</file>
+				<file role="src">filcreat.hpp</file>
+				<file role="src">file.cpp</file>
+				<file role="src">filefn.cpp</file>
+				<file role="src">filefn.hpp</file>
+				<file role="src">file.hpp</file>
+				<file role="src">filestr.cpp</file>
+				<file role="src">filestr.hpp</file>
+				<file role="src">find.cpp</file>
+				<file role="src">find.hpp</file>
+				<file role="src">getbits.cpp</file>
+				<file role="src">getbits.hpp</file>
+				<file role="src">global.cpp</file>
+				<file role="src">global.hpp</file>
+				<file role="src">headers.hpp</file>
+				<file role="src">int64.cpp</file>
+				<file role="src">int64.hpp</file>
+				<file role="src">isnt.cpp</file>
+				<file role="src">isnt.hpp</file>
+				<file role="src">list.cpp</file>
+				<file role="src">list.hpp</file>
+				<file role="src">loclang.hpp</file>
+				<file role="src">log.cpp</file>
+				<file role="src">log.hpp</file>
+				<file role="src">match.cpp</file>
+				<file role="src">match.hpp</file>
+				<file role="src">memfree.hpp</file>
+				<file role="src">model.cpp</file>
+				<file role="src">model.hpp</file>
+				<file role="src">msc.dep</file>
+				<file role="src">options.cpp</file>
+				<file role="src">options.hpp</file>
+				<file role="src">os2ea.cpp</file>
+				<file role="src">os.hpp</file>
+				<file role="src">pathfn.cpp</file>
+				<file role="src">pathfn.hpp</file>
+				<file role="src">rar.cpp</file>
+				<file role="src">rardefs.hpp</file>
+				<file role="src">rarfn.hpp</file>
+				<file role="src">rar.hpp</file>
+				<file role="src">rarlang.hpp</file>
+				<file role="src">raros.hpp</file>
+				<file role="src">rartypes.hpp</file>
+				<file role="src">rarvm.cpp</file>
+				<file role="src">rarvm.hpp</file>
+				<file role="src">rarvmtbl.cpp</file>
+				<file role="src">rawread.cpp</file>
+				<file role="src">rawread.hpp</file>
+				<file role="src">rdwrfn.cpp</file>
+				<file role="src">rdwrfn.hpp</file>
+				<file role="src">recvol.cpp</file>
+				<file role="src">recvol.hpp</file>
+				<file role="src">resource.cpp</file>
+				<file role="src">resource.hpp</file>
+				<file role="src">rijndael.cpp</file>
+				<file role="src">rijndael.hpp</file>
+				<file role="src">rs.cpp</file>
+				<file role="src">rs.hpp</file>
+				<file role="src">savepos.cpp</file>
+				<file role="src">savepos.hpp</file>
+				<file role="src">scantree.cpp</file>
+				<file role="src">scantree.hpp</file>
+				<file role="src">sha1.cpp</file>
+				<file role="src">sha1.hpp</file>
+				<file role="src">smallfn.cpp</file>
+				<file role="src">smallfn.hpp</file>
+				<file role="src">strfn.cpp</file>
+				<file role="src">strfn.hpp</file>
+				<file role="src">strlist.cpp</file>
+				<file role="src">strlist.hpp</file>
+				<file role="src">suballoc.cpp</file>
+				<file role="src">suballoc.hpp</file>
+				<file role="src">system.cpp</file>
+				<file role="src">system.hpp</file>
+				<file role="src">timefn.cpp</file>
+				<file role="src">timefn.hpp</file>
+				<file role="src">ulinks.cpp</file>
+				<file role="src">ulinks.hpp</file>
+				<file role="src">unicode.cpp</file>
+				<file role="src">unicode.hpp</file>
+				<file role="src">unpack15.cpp</file>
+				<file role="src">unpack20.cpp</file>
+				<file role="src">unpack.cpp</file>
+				<file role="src">unpack.hpp</file>
+				<file role="src">uowners.cpp</file>
+				<file role="src">version.hpp</file>
+				<file role="src">volume.cpp</file>
+				<file role="src">volume.hpp</file>
+				<file role="src">win32acl.cpp</file>
+				<file role="src">win32stm.cpp</file>
+			</dir>
+        </dir>
+	</filelist>
+</package>
