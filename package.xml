@@ -16,13 +16,27 @@
         </maintainer>
 	</maintainers>
 	<release>
-		<version>0.1</version>
-		<date>2004-06-11</date>
-		<state>alpha</state>
+		<version>0.2</version>
+		<date>2004-12-02</date>
+		<state>beta</state>
 		<notes>
-			1) Initial release
+			1) Added open_basedir and safe_mode checks.
+			2) Fixed Win32 build issues (thanks to Edin).
+			Currently only 5.x builds are available.
+			3) Added OS constants.
+			4) Fixed 0 bugs. There are no bugs, wee =)
 		</notes>
 	</release>
+	<changelog>
+		<release>
+			<version>0.1</version>
+			<date>2004-06-11</date>
+			<state>alpha</state>
+			<notes>
+				1) Initial release
+			</notes>
+		</release>
+	</changelog>
 	<filelist>
         <dir role="src" name="/">
 			<file role="doc">CREDITS</file>
