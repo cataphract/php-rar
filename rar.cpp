@@ -383,7 +383,7 @@ PHP_FUNCTION(rar_list)
 		WRONG_PARAM_COUNT;
 	}
 
-	if (!_rar_get_file_resource(file,&rar)) {
+	if (!_rar_get_file_resource(file,&rar TSRMLS_CC)) {
 		RETURN_FALSE;
 	}
 
@@ -427,7 +427,7 @@ PHP_FUNCTION(rar_entry_get)
 		WRONG_PARAM_COUNT;
 	}
 
-	if (!_rar_get_file_resource(file,&rar)) {
+	if (!_rar_get_file_resource(file,&rar TSRMLS_CC)) {
 		RETURN_FALSE;
 	}
 
@@ -466,7 +466,7 @@ PHP_FUNCTION(rar_close)
 		WRONG_PARAM_COUNT;
 	}
 
-	if (!_rar_get_file_resource(file,&rar)) {
+	if (!_rar_get_file_resource(file,&rar TSRMLS_CC)) {
 		RETURN_FALSE;
 	}
 
