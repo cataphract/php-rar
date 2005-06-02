@@ -263,9 +263,7 @@ static zval **_rar_entry_get_property(zval *id, char *name, int namelen TSRMLS_D
 /* </internal> */
 
 #ifdef COMPILE_DL_RAR
-extern "C" {
 ZEND_GET_MODULE(rar)
-}
 #endif
 
 /* {{{ PHP_MINIT_FUNCTION
