@@ -30,13 +30,13 @@
 #include "config.h"
 #endif
 
-#if HAVE_RAR
-
 extern "C" {
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
 }
+
+#if HAVE_RAR
 
 #include "php_rar.h"
 #include "unrar/rar.hpp"
