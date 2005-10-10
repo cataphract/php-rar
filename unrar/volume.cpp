@@ -56,7 +56,13 @@ bool MergeArchive(Archive &Arc,ComprDataIO *DataIO,bool ShowFileName,char Comman
     }
     if (Cmd->ChangeVolProc!=NULL)
     {
+#ifdef _WIN_32
+      _EBX=_ESP;
+#endif
       int RetCode=Cmd->ChangeVolProc(NextName,RAR_VOL_ASK);
+#ifdef _WIN_32
+      _ESP=_EBX;
+#endif
       if (RetCode==0)
       {
         Cmd->DllError=ERAR_EOPEN;
@@ -106,7 +112,13 @@ bool MergeArchive(Archive &Arc,ComprDataIO *DataIO,bool ShowFileName,char Comman
     return(false);
   if (Cmd->ChangeVolProc!=NULL)
   {
+#ifdef _WIN_32
+    _EBX=_ESP;
+#endif
     int RetCode=Cmd->ChangeVolProc(NextName,RAR_VOL_NOTIFY);
+#ifdef _WIN_32
+    _ESP=_EBX;
+#endif
     if (RetCode==0)
       return(false);
   }
@@ -140,6 +152,10 @@ bool MergeArchive(Archive &Arc,ComprDataIO *DataIO,bool ShowFileName,char Comman
       DataIO->UnpVolume=(hd->Flags & LHD_SPLIT_AFTER);
       DataIO->SetPackedSizeToRead(hd->FullPackSize);
     }
+#ifdef SFX_MODULE
+    DataIO->UnpArcSize=Arc.FileLength();
+    DataIO->CurUnpRead=0;
+#endif
     DataIO->PackedCRC=0xffffffff;
 //    DataIO->SetFiles(&Arc,NULL);
   }

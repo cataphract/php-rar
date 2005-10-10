@@ -20,6 +20,9 @@ void ListArchive(CommandData *Cmd)
   while (Cmd->GetArcName(ArcName,ArcNameW,sizeof(ArcName)))
   {
     Archive Arc(Cmd);
+#ifdef _WIN_32
+    Arc.RemoveSequentialFlag();
+#endif
     if (!Arc.WOpen(ArcName,ArcNameW))
       continue;
     bool FileMatched=true;
@@ -76,6 +79,10 @@ void ListArchive(CommandData *Cmd)
                 TotalPackSize+=Arc.NewLhd.FullPackSize;
                 if (Technical)
                   ListSymLink(Arc);
+#ifndef SFX_MODULE
+                if (Verbose)
+                  Arc.ViewFileComment();
+#endif
               }
               break;
 #ifndef SFX_MODULE
@@ -107,11 +114,19 @@ void ListArchive(CommandData *Cmd)
             char PackSizeText[20];
             itoa(TotalPackSize,PackSizeText);
         
-            mprintf("\n%5lu %16s %8s %3d%%\n",FileCount,UnpSizeText,
+            mprintf("\n%5lu %16s %8s %3d%%",FileCount,UnpSizeText,
                     PackSizeText,ToPercent(TotalPackSize,TotalUnpSize));
             SumFileCount+=FileCount;
             SumUnpSize+=TotalUnpSize;
             SumPackSize+=TotalPackSize;
+#ifndef SFX_MODULE
+            if (Arc.EndArcHead.Flags & EARC_VOLNUMBER)
+            {
+              mprintf("       ");
+              mprintf(St(MVolumeNumber),Arc.EndArcHead.VolNumber+1);
+            }
+#endif
+            mprintf("\n");
           }
           else
             mprintf(St(MListNoFiles));
@@ -177,10 +192,10 @@ void ListFileHeader(FileHeader &hd,bool Verbose,bool Technical,bool &TitleShown,
 
 #ifdef UNICODE_SUPPORTED
   char ConvertedName[NM];
-  if ((hd.Flags & LHD_UNICODE)!=0 && *hd.FileNameW!=0)
+  if ((hd.Flags & LHD_UNICODE)!=0 && *hd.FileNameW!=0 && UnicodeEnabled())
   {
-    WideToChar(hd.FileNameW,ConvertedName);
-    Name=ConvertedName;
+    if (WideToChar(hd.FileNameW,ConvertedName) && *ConvertedName!=0)
+      Name=ConvertedName;
   }
 #endif
 
@@ -196,7 +211,10 @@ void ListFileHeader(FileHeader &hd,bool Verbose,bool Technical,bool &TitleShown,
     mprintf("%-12s",PointToName(Name));
 
   char UnpSizeText[20],PackSizeText[20];
-  itoa(hd.FullUnpSize,UnpSizeText);
+  if (hd.FullUnpSize==INT64MAX)
+    strcpy(UnpSizeText,"?");
+  else
+    itoa(hd.FullUnpSize,UnpSizeText);
   itoa(hd.FullPackSize,PackSizeText);
 
   mprintf(" %8s %8s ",UnpSizeText,PackSizeText);
@@ -221,7 +239,7 @@ void ListFileHeader(FileHeader &hd,bool Verbose,bool Technical,bool &TitleShown,
   else
     ListFileAttr(hd.FileAttr,hd.HostOS);
 
-  mprintf(" %8.8lX",hd.FileCRC);
+  mprintf(" %8.8X",hd.FileCRC);
   mprintf(" m%d",hd.Method-0x30);
   if ((hd.Flags & LHD_WINDOWMASK)<=6*32)
     mprintf("%c",((hd.Flags&LHD_WINDOWMASK)>>5)+'a');
@@ -229,12 +247,13 @@ void ListFileHeader(FileHeader &hd,bool Verbose,bool Technical,bool &TitleShown,
     mprintf(" ");
   mprintf(" %d.%d",hd.UnpVer/10,hd.UnpVer%10);
 
-  static char *RarOS[]={
+  static const char *RarOS[]={
     "DOS","OS/2","Win95/NT","Unix","MacOS","BeOS","WinCE","","",""
   };
 
   if (Technical)
-    mprintf("\n%22s %8s %4s",RarOS[hd.HostOS],
+    mprintf("\n%22s %8s %4s",
+            (hd.HostOS<sizeof(RarOS)/sizeof(RarOS[0]) ? RarOS[hd.HostOS]:""),
             (hd.Flags & LHD_SOLID) ? St(MYes):St(MNo),
             (hd.Flags & LHD_VERSION) ? St(MYes):St(MNo));
 }
@@ -261,13 +280,14 @@ void ListFileAttr(uint A,int HostOS)
     case HOST_OS2:
     case HOST_WIN32:
     case HOST_MACOS:
-      mprintf("  %c%c%c%c%c%c  ",
+      mprintf(" %c%c%c%c%c%c%c  ",
               (A & 0x08) ? 'V' : '.',
               (A & 0x10) ? 'D' : '.',
               (A & 0x01) ? 'R' : '.',
               (A & 0x02) ? 'H' : '.',
               (A & 0x04) ? 'S' : '.',
-              (A & 0x20) ? 'A' : '.');
+              (A & 0x20) ? 'A' : '.',
+              (A & 0x800) ? 'C' : '.');
       break;
     case HOST_UNIX:
     case HOST_BEOS:
@@ -332,7 +352,7 @@ void ListOldSubHeader(Archive &Arc)
 
 void ListNewSubHeader(CommandData *Cmd,Archive &Arc,bool Technical)
 {
-  if (Arc.SubHead.CmpName(SUBHEAD_TYPE_CMT) &&
+  if (Technical && Arc.SubHead.CmpName(SUBHEAD_TYPE_CMT) &&
       (Arc.SubHead.Flags & LHD_SPLIT_BEFORE)==0 && !Cmd->DisableComment)
   {
     Array<byte> CmtData;
