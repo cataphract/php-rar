@@ -1,49 +1,82 @@
 #include "rar.hpp"
 
-void WideToChar(const wchar *Src,char *Dest,int DestSize)
+#if defined(_EMX) && !defined(_DJGPP)
+#include "unios2.cpp"
+#endif
+
+bool WideToChar(const wchar *Src,char *Dest,int DestSize)
 {
+  bool RetCode=true;
 #ifdef _WIN_32
-  WideCharToMultiByte(CP_ACP,0,Src,-1,Dest,DestSize,NULL,NULL);
+  if (WideCharToMultiByte(CP_ACP,0,Src,-1,Dest,DestSize,NULL,NULL)==0)
+    RetCode=false;
 #else
 #ifdef _APPLE
   WideToUtf(Src,Dest,DestSize);
 #else
 #ifdef MBFUNCTIONS
   if (wcstombs(Dest,Src,DestSize)==-1)
-    *Dest=0;
+    RetCode=false;
 #else
-  for (int I=0;I<DestSize;I++)
+  if (UnicodeEnabled())
   {
-    Dest[I]=(char)Src[I];
-    if (Src[I]==0)
-      break;
+#if defined(_EMX) && !defined(_DJGPP)
+    int len=Min(strlenw(Src)+1,DestSize-1);
+    if (uni_fromucs((UniChar*)Src,len,Dest,(size_t*)&DestSize)==-1 ||
+        DestSize>len*2)
+      RetCode=false;
+    Dest[DestSize]=0;
+#endif
   }
+  else
+    for (int I=0;I<DestSize;I++)
+    {
+      Dest[I]=(char)Src[I];
+      if (Src[I]==0)
+        break;
+    }
 #endif
 #endif
 #endif
+  return(RetCode);
 }
 
 
-void CharToWide(const char *Src,wchar *Dest,int DestSize)
+bool CharToWide(const char *Src,wchar *Dest,int DestSize)
 {
+  bool RetCode=true;
 #ifdef _WIN_32
-  MultiByteToWideChar(CP_ACP,0,Src,-1,Dest,DestSize);
+  if (MultiByteToWideChar(CP_ACP,0,Src,-1,Dest,DestSize)==0)
+    RetCode=false;
 #else
 #ifdef _APPLE
   UtfToWide(Src,Dest,DestSize);
 #else
 #ifdef MBFUNCTIONS
-  mbstowcs(Dest,Src,DestSize);
+  if (mbstowcs(Dest,Src,DestSize)==-1)
+    RetCode=false;
 #else
-  for (int I=0;I<DestSize;I++)
+  if (UnicodeEnabled())
   {
-    Dest[I]=(wchar_t)Src[I];
-    if (Src[I]==0)
-      break;
+#if defined(_EMX) && !defined(_DJGPP)
+    int len=Min(strlen(Src)+1,DestSize-1);
+    if (uni_toucs((char*)Src,len,(UniChar*)Dest,(size_t*)&DestSize)==-1 ||
+        DestSize>len)
+      DestSize=0;
+    RetCode=false;
+#endif
   }
+  else
+    for (int I=0;I<DestSize;I++)
+    {
+      Dest[I]=(wchar_t)Src[I];
+      if (Src[I]==0)
+        break;
+    }
 #endif
 #endif
 #endif
+  return(RetCode);
 }
 
 
@@ -131,6 +164,20 @@ void UtfToWide(const char *Src,wchar *Dest,int DestSize)
   *Dest=0;
 }
 #endif
+
+
+bool UnicodeEnabled()
+{
+#ifdef UNICODE_SUPPORTED
+  #ifdef _EMX
+    return(uni_ready);
+  #else
+    return(true);
+  #endif
+#else
+  return(false);
+#endif
+}
 
 
 int strlenw(const wchar *str)
@@ -346,6 +393,21 @@ void SupportDBCS::Init()
 char* SupportDBCS::charnext(const char *s)
 {
   return (char *)(IsLeadByte[*s] ? s+2:s+1);
+}
+
+
+uint SupportDBCS::strlend(const char *s)
+{
+  uint Length=0;
+  while (*s!=0)
+  {
+    if (IsLeadByte[*s])
+      s+=2;
+    else
+      s++;
+    Length++;
+  }
+  return(Length);
 }
 
 

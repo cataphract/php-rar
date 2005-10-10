@@ -4,8 +4,6 @@
 #include "raros.hpp"
 #include "os.hpp"
 
-#define RARDLL
-#define SILENT
 
 #ifdef RARDLL
 #include "dll.hpp"

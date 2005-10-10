@@ -311,10 +311,11 @@ bool EnumConfigPaths(char *Path,int Number)
     char *EnvStr=getenv("HOME");
     if (EnvStr==NULL)
       return(false);
-    strcpy(Path,EnvStr);
+    strncpy(Path,EnvStr,NM);
+    Path[NM-1]=0;
     return(true);
   }
-  static char *AltPath[]={
+  static const char *AltPath[]={
     "/etc","/usr/lib","/usr/local/lib","/usr/local/etc"
   };
   Number--;
@@ -336,13 +337,13 @@ bool EnumConfigPaths(char *Path,int Number)
 
 
 #ifndef SFX_MODULE
-void GetConfigName(const char *Name,char *FullName)
+void GetConfigName(const char *Name,char *FullName,bool CheckExist)
 {
   for (int I=0;EnumConfigPaths(FullName,I);I++)
   {
     AddEndSlash(FullName);
     strcat(FullName,Name);
-    if (WildFileExist(FullName))
+    if (!CheckExist || WildFileExist(FullName))
       break;
   }
 }
@@ -427,7 +428,7 @@ bool IsNameUsable(const char *Name)
   if (Name[0] && Name[1] && strchr(Name+2,':')!=NULL)
     return(false);
 #endif
-  return(*Name!=0 && strpbrk(Name,"?*<>|")==NULL);
+  return(*Name!=0 && strpbrk(Name,"?*<>|\"")==NULL);
 }
 
 
@@ -449,10 +450,16 @@ void MakeNameUsable(char *Name,bool Extended)
 }
 
 
-char* UnixSlashToDos(char *SrcName,char *DestName)
+char* UnixSlashToDos(char *SrcName,char *DestName,uint MaxLength)
 {
   if (DestName!=NULL && DestName!=SrcName)
-    strcpy(DestName,SrcName);
+    if (strlen(SrcName)>=MaxLength)
+    {
+      *DestName=0;
+      return(DestName);
+    }
+    else
+      strcpy(DestName,SrcName);
   for (char *s=SrcName;*s!=0;s=charnext(s))
   {
     if (*s=='/')
@@ -465,10 +472,16 @@ char* UnixSlashToDos(char *SrcName,char *DestName)
 }
 
 
-char* DosSlashToUnix(char *SrcName,char *DestName)
+char* DosSlashToUnix(char *SrcName,char *DestName,uint MaxLength)
 {
   if (DestName!=NULL && DestName!=SrcName)
-    strcpy(DestName,SrcName);
+    if (strlen(SrcName)>=MaxLength)
+    {
+      *DestName=0;
+      return(DestName);
+    }
+    else
+      strcpy(DestName,SrcName);
   for (char *s=SrcName;*s!=0;s=charnext(s))
   {
     if (*s=='\\')
@@ -603,6 +616,17 @@ char* VolNameToFirstName(const char *VolName,char *FirstName,bool NewNumbering)
 
 
 
+wchar* GetWideName(const char *Name,const wchar *NameW,wchar *DestW)
+{
+  if (NameW!=NULL && *NameW!=0)
+  {
+    if (DestW!=NameW)
+      strcpyw(DestW,NameW);
+  }
+  else
+    CharToWide(Name,DestW);
+  return(DestW);
+}
 
 
 

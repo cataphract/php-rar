@@ -49,7 +49,7 @@ void CreatePath(const char *Path,const wchar *PathW,bool SkipLastName)
   uint DirAttr=0777;
 #endif
 #ifdef UNICODE_SUPPORTED
-  bool Wide=PathW!=NULL && *PathW!=0;
+  bool Wide=PathW!=NULL && *PathW!=0 && UnicodeEnabled();
 #else
   bool Wide=false;
 #endif
@@ -76,6 +76,15 @@ void CreatePath(const char *Path,const wchar *PathW,bool SkipLastName)
         WideToChar(DirPtrW,DirName);
       else
       {
+#ifndef DBCS_SUPPORTED
+        if (*s!=CPATHDIVIDER)
+          for (const char *n=s;*n!=0 && n-Path<NM;n++)
+            if (*n==CPATHDIVIDER)
+            {
+              s=n;
+              break;
+            }
+#endif
         strncpy(DirName,Path,s-Path);
         DirName[s-Path]=0;
       }
@@ -97,12 +106,17 @@ void CreatePath(const char *Path,const wchar *PathW,bool SkipLastName)
 
 void SetDirTime(const char *Name,RarTime *ftm,RarTime *ftc,RarTime *fta)
 {
+#ifdef _WIN_32
   bool sm=ftm!=NULL && ftm->IsSet();
   bool sc=ftc!=NULL && ftc->IsSet();
-  bool sa=ftc!=NULL && fta->IsSet();
-#ifdef _WIN_32
+  bool sa=fta!=NULL && fta->IsSet();
+
   if (!WinNT())
     return;
+  unsigned int DirAttr=GetFileAttr(Name);
+  bool ResetAttr=(DirAttr!=0xffffffff && (DirAttr & FA_RDONLY)!=0);
+  if (ResetAttr)
+    SetFileAttr(Name,NULL,0);
   HANDLE hFile=CreateFile(Name,GENERIC_WRITE,FILE_SHARE_READ|FILE_SHARE_WRITE,
                           NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS,NULL);
   if (hFile==INVALID_HANDLE_VALUE)
@@ -116,6 +130,8 @@ void SetDirTime(const char *Name,RarTime *ftm,RarTime *ftc,RarTime *fta)
     fta->GetWin32(&fa);
   SetFileTime(hFile,sc ? &fc:NULL,sa ? &fa:NULL,sm ? &fm:NULL);
   CloseHandle(hFile);
+  if (ResetAttr)
+    SetFileAttr(Name,NULL,DirAttr);
 #endif
 #if defined(_UNIX) || defined(_EMX)
   File::SetCloseFileTimeByName(Name,ftm,fta);
@@ -153,7 +169,7 @@ Int64 GetFreeDisk(const char *Name)
 
   if (pGetDiskFreeSpaceEx==NULL)
   {
-	HMODULE hKernel=GetModuleHandle("kernel32.dll");
+    HMODULE hKernel=GetModuleHandle("kernel32.dll");
     if (hKernel!=NULL)
       pGetDiskFreeSpaceEx=(GETDISKFREESPACEEX)GetProcAddress(hKernel,"GetDiskFreeSpaceExA");
   }
@@ -460,7 +476,8 @@ uint CalcFileCRC(File *SrcFile,Int64 Size)
   SrcFile->Seek(0,SEEK_SET);
   while ((ReadSize=SrcFile->Read(&Data[0],int64to32(Size==INT64ERR ? Int64(BufSize):Min(Int64(BufSize),Size))))!=0)
   {
-    if ((++BlockCount & 15)==0)
+    ++BlockCount;
+    if ((BlockCount & 15)==0)
     {
       Wait();
     }
@@ -501,3 +518,23 @@ bool DelDir(const char *Name,const wchar *NameW)
 {
   return(rmdir(Name)==0);
 }
+
+
+#if defined(_WIN_32) && !defined(_WIN_CE)
+bool SetFileCompression(char *Name,wchar *NameW,bool State)
+{
+  wchar FileNameW[NM];
+  GetWideName(Name,NameW,FileNameW);
+  HANDLE hFile=CreateFileW(FileNameW,FILE_READ_DATA|FILE_WRITE_DATA,
+                 FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,
+                 FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_SEQUENTIAL_SCAN,NULL);
+  if (hFile==INVALID_HANDLE_VALUE)
+    return(false);
+  SHORT NewState=State ? COMPRESSION_FORMAT_DEFAULT:COMPRESSION_FORMAT_NONE;
+  DWORD Result;
+  int RetCode=DeviceIoControl(hFile,FSCTL_SET_COMPRESSION,&NewState,
+                              sizeof(NewState),NULL,0,&Result,NULL);
+  CloseHandle(hFile);
+  return(RetCode!=0);
+}
+#endif
