@@ -16,18 +16,26 @@
         </maintainer>
 	</maintainers>
 	<release>
-		<version>0.2</version>
-		<date>2004-12-02</date>
+		<version>0.3</version>
+		<date>2005-10-10</date>
 		<state>beta</state>
 		<notes>
-			1) Added open_basedir and safe_mode checks.
-			2) Fixed Win32 build issues (thanks to Edin).
-			Currently only 5.x builds are available.
-			3) Added OS constants.
-			4) Fixed 0 bugs. There are no bugs, wee =)
+			1) Updated bundled unrar to version 3.5.4 (fixes compile errors with GCC4).
 		</notes>
 	</release>
 	<changelog>
+		<release>
+			<version>0.2</version>
+			<date>2004-12-02</date>
+			<state>beta</state>
+			<notes>
+				1) Added open_basedir and safe_mode checks.
+				2) Fixed Win32 build issues (thanks to Edin).
+				Currently only 5.x builds are available.
+				3) Added OS constants.
+				4) Fixed 0 bugs. There are no bugs, wee =)
+			</notes>
+		</release>
 		<release>
 			<version>0.1</version>
 			<date>2004-06-11</date>
