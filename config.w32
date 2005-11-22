@@ -16,7 +16,7 @@ if (PHP_RAR != "no") {
 		getbits.cpp sha1.cpp extinfo.cpp extract.cpp \
 		volume.cpp find.cpp unpack.cpp cmddata.cpp \
 		dll.cpp filestr.cpp recvol.cpp rs.cpp \
-		scantree.cpp", "rar");	
+		scantree.cpp list.cpp", "rar");	
 
         if (!PHP_RAR_SHARED) {
                 ADD_DEF_FILE(configure_module_dirname + "\\unrar\\dll.def");
