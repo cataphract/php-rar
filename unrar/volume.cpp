@@ -56,12 +56,16 @@ bool MergeArchive(Archive &Arc,ComprDataIO *DataIO,bool ShowFileName,char Comman
     }
     if (Cmd->ChangeVolProc!=NULL)
     {
+#if fmk_0
 #ifdef _WIN_32
       _EBX=_ESP;
 #endif
+#endif
       int RetCode=Cmd->ChangeVolProc(NextName,RAR_VOL_ASK);
+#if fmk_0
 #ifdef _WIN_32
       _ESP=_EBX;
+#endif
 #endif
       if (RetCode==0)
       {
@@ -112,12 +116,16 @@ bool MergeArchive(Archive &Arc,ComprDataIO *DataIO,bool ShowFileName,char Comman
     return(false);
   if (Cmd->ChangeVolProc!=NULL)
   {
+#if fmk_0
 #ifdef _WIN_32
     _EBX=_ESP;
 #endif
+#endif
     int RetCode=Cmd->ChangeVolProc(NextName,RAR_VOL_NOTIFY);
+#if fmk_0
 #ifdef _WIN_32
     _ESP=_EBX;
+#endif
 #endif
     if (RetCode==0)
       return(false);

@@ -118,12 +118,16 @@ void ComprDataIO::UnpWrite(byte *Addr,uint Count)
       ErrHandler.Exit(RAR_USER_BREAK);
     if (Cmd->ProcessDataProc!=NULL)
     {
+#if fmk_0
 #ifdef _WIN_32
       _EBX=_ESP;
 #endif
+#endif
       int RetCode=Cmd->ProcessDataProc(Addr,Count);
+#if fmk_0
 #ifdef _WIN_32
       _ESP=_EBX;
+#endif
 #endif
       if (RetCode==0)
         ErrHandler.Exit(RAR_USER_BREAK);
