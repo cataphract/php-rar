@@ -234,7 +234,6 @@ PHP_FUNCTION(rar_open)
 {
 	zval **filename, **password;
 	rar_file_t *rar = NULL;
-	struct RARHeaderData entry;
 	int ac = ZEND_NUM_ARGS(), result = 0;
 
 	if (ac < 1 || ac > 2 || zend_get_parameters_ex(ac, &filename, &password) == FAILURE) {
@@ -390,13 +389,11 @@ PHP_FUNCTION(rar_close)
    Extract file from the archive */
 PHP_METHOD(rarentry, extract)
 {
-	zval **rarfile, **path, **filename, **tmp, **tmp_name;
+	zval **path, **filename, **tmp, **tmp_name;
 	rar_file_t *rar = NULL;
-	char filename_str[260];
 	char *path_str = NULL, *extract_to_file = NULL;
 	int ac = ZEND_NUM_ARGS(), resource_type = 0, result = 0, process_result = 0;
 	zval *entry_obj = getThis();
-	unsigned long data_len;
 	struct RARHeaderData entry;
 	void *extract_data;
 	
@@ -481,7 +478,7 @@ PHP_METHOD(rarentry, extract)
    Return entry name */
 PHP_METHOD(rarentry, getName)
 {
-	zval **rarfile, **tmp;
+	zval **tmp;
 	rar_file_t *rar = NULL;
 	zval *entry_obj = getThis();
 	
@@ -498,7 +495,7 @@ PHP_METHOD(rarentry, getName)
    Return unpacked size of the entry */
 PHP_METHOD(rarentry, getUnpackedSize)
 {
-	zval **rarfile, **tmp;
+	zval **tmp;
 	rar_file_t *rar = NULL;
 	zval *entry_obj = getThis();
 	
@@ -515,7 +512,7 @@ PHP_METHOD(rarentry, getUnpackedSize)
    Return packed size of the entry */
 PHP_METHOD(rarentry, getPackedSize)
 {
-	zval **rarfile, **tmp;
+	zval **tmp;
 	rar_file_t *rar = NULL;
 	zval *entry_obj = getThis();
 	
@@ -532,7 +529,7 @@ PHP_METHOD(rarentry, getPackedSize)
    Return host OS of the entry */
 PHP_METHOD(rarentry, getHostOs)
 {
-	zval **rarfile, **tmp;
+	zval **tmp;
 	rar_file_t *rar = NULL;
 	zval *entry_obj = getThis();
 	
@@ -549,7 +546,7 @@ PHP_METHOD(rarentry, getHostOs)
    Return modification time of the entry */
 PHP_METHOD(rarentry, getFileTime)
 {
-	zval **rarfile, **tmp;
+	zval **tmp;
 	rar_file_t *rar = NULL;
 	zval *entry_obj = getThis();
 	
@@ -566,7 +563,7 @@ PHP_METHOD(rarentry, getFileTime)
    Return CRC of the entry */
 PHP_METHOD(rarentry, getCrc)
 {
-	zval **rarfile, **tmp;
+	zval **tmp;
 	rar_file_t *rar = NULL;
 	zval *entry_obj = getThis();
 	
@@ -583,7 +580,7 @@ PHP_METHOD(rarentry, getCrc)
    Return attributes of the entry */
 PHP_METHOD(rarentry, getAttr)
 {
-	zval **rarfile, **tmp;
+	zval **tmp;
 	rar_file_t *rar = NULL;
 	zval *entry_obj = getThis();
 	
@@ -600,7 +597,7 @@ PHP_METHOD(rarentry, getAttr)
    Return version of the archiver, used to create this entry */
 PHP_METHOD(rarentry, getVersion)
 {
-	zval **rarfile, **tmp;
+	zval **tmp;
 	rar_file_t *rar = NULL;
 	zval *entry_obj = getThis();
 	
@@ -617,7 +614,7 @@ PHP_METHOD(rarentry, getVersion)
    Return packing method */
 PHP_METHOD(rarentry, getMethod)
 {
-	zval **rarfile, **tmp;
+	zval **tmp;
 	rar_file_t *rar = NULL;
 	zval *entry_obj = getThis();
 	
