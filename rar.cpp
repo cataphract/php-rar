@@ -30,6 +30,10 @@
 #include "config.h"
 #endif
 
+#ifdef PHP_WIN32
+# include <math.h>
+#endif
+
 extern "C" {
 #include "php.h"
 #include "php_ini.h"
@@ -44,52 +48,6 @@ extern "C" {
 static int le_rar_file;
 #define le_rar_file_name "Rar"
 static zend_class_entry *rar_class_entry_ptr;
-
-/* {{{ rar_functions[]
- *
- */
-function_entry rar_functions[] = {
-	PHP_FE(rar_open,	NULL)
-	PHP_FE(rar_list,	NULL)
-	PHP_FE(rar_entry_get,	NULL)
-	PHP_FE(rar_close,	NULL)
-	{NULL, NULL, NULL}
-};
-
-static zend_function_entry php_rar_class_functions[] = {
-	PHP_ME(rarentry,		extract,			NULL,	0)
-	PHP_ME(rarentry,		getName,			NULL,	0)
-	PHP_ME(rarentry,		getUnpackedSize,	NULL,	0)
-	PHP_ME(rarentry,		getPackedSize,		NULL,	0)
-	PHP_ME(rarentry,		getHostOs,			NULL,	0)
-	PHP_ME(rarentry,		getFileTime,		NULL,	0)
-	PHP_ME(rarentry,		getCrc,				NULL,	0)
-	PHP_ME(rarentry,		getAttr,			NULL,	0)
-	PHP_ME(rarentry,		getVersion,			NULL,	0)
-	PHP_ME(rarentry,		getMethod,			NULL,	0)
-	{NULL, NULL, NULL}
-};
-/* }}} */
-
-/* {{{ rar_module_entry
- */
-zend_module_entry rar_module_entry = {
-#if ZEND_MODULE_API_NO >= 20010901
-	STANDARD_MODULE_HEADER,
-#endif
-	"rar",
-	rar_functions,
-	PHP_MINIT(rar),
-	PHP_MSHUTDOWN(rar),
-	PHP_RINIT(rar),		/* Replace with NULL if there's nothing to do at request start */
-	PHP_RSHUTDOWN(rar),	/* Replace with NULL if there's nothing to do at request end */
-	PHP_MINFO(rar),
-#if ZEND_MODULE_API_NO >= 20010901
-	"0.1", /* Replace with version number for your extension */
-#endif
-	STANDARD_MODULE_PROPERTIES
-};
-/* }}} */
 
 /* {{{ internal functions protos */
 static void _rar_file_list_dtor(zend_rsrc_list_entry * TSRMLS_DC);
@@ -263,63 +221,10 @@ static zval **_rar_entry_get_property(zval *id, char *name, int namelen TSRMLS_D
 /* </internal> */
 
 #ifdef COMPILE_DL_RAR
+BEGIN_EXTERN_C()
 ZEND_GET_MODULE(rar)
+END_EXTERN_C()
 #endif
-
-/* {{{ PHP_MINIT_FUNCTION
- */
-PHP_MINIT_FUNCTION(rar)
-{
-	zend_class_entry rar_class_entry;	
-	INIT_CLASS_ENTRY(rar_class_entry, "RarEntry", php_rar_class_functions);
-	rar_class_entry_ptr = zend_register_internal_class(&rar_class_entry TSRMLS_CC);	
-
-	le_rar_file = zend_register_list_destructors_ex(_rar_file_list_dtor, NULL, le_rar_file_name, module_number);
-	
-	REGISTER_LONG_CONSTANT("RAR_HOST_MSDOS",	HOST_MSDOS,	CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("RAR_HOST_OS2",		HOST_OS2,	CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("RAR_HOST_WIN32",	HOST_WIN32,	CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("RAR_HOST_UNIX",		HOST_UNIX,	CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("RAR_HOST_MACOS",	HOST_MACOS,	CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("RAR_HOST_BEOS",		HOST_BEOS,	CONST_CS | CONST_PERSISTENT);
-	return SUCCESS;
-}
-/* }}} */
-
-/* {{{ PHP_MSHUTDOWN_FUNCTION
- */
-PHP_MSHUTDOWN_FUNCTION(rar)
-{
-	return SUCCESS;
-}
-/* }}} */
-
-/* {{{ PHP_RINIT_FUNCTION
- */
-PHP_RINIT_FUNCTION(rar)
-{
-	return SUCCESS;
-}
-/* }}} */
-
-/* {{{ PHP_RSHUTDOWN_FUNCTION
- */
-PHP_RSHUTDOWN_FUNCTION(rar)
-{
-	return SUCCESS;
-}
-/* }}} */
-
-/* {{{ PHP_MINFO_FUNCTION
- */
-PHP_MINFO_FUNCTION(rar)
-{
-	php_info_print_table_start();
-	php_info_print_table_header(2, "Rar support", "enabled");
-	php_info_print_table_row(2, "Revision", "$Revision$");
-	php_info_print_table_end();
-}
-/* }}} */
 
 /* module functions */
 
@@ -723,6 +628,83 @@ PHP_METHOD(rarentry, getMethod)
 	convert_to_long_ex(tmp);
 	RETURN_LONG(Z_LVAL_PP(tmp));
 }
+/* }}} */
+
+/* {{{ rar_functions[]
+ *
+ */
+function_entry rar_functions[] = {
+	PHP_FE(rar_open,	NULL)
+	PHP_FE(rar_list,	NULL)
+	PHP_FE(rar_entry_get,	NULL)
+	PHP_FE(rar_close,	NULL)
+	{NULL, NULL, NULL}
+};
+
+static zend_function_entry php_rar_class_functions[] = {
+	PHP_ME(rarentry,		extract,			NULL,	0)
+	PHP_ME(rarentry,		getName,			NULL,	0)
+	PHP_ME(rarentry,		getUnpackedSize,	NULL,	0)
+	PHP_ME(rarentry,		getPackedSize,		NULL,	0)
+	PHP_ME(rarentry,		getHostOs,			NULL,	0)
+	PHP_ME(rarentry,		getFileTime,		NULL,	0)
+	PHP_ME(rarentry,		getCrc,				NULL,	0)
+	PHP_ME(rarentry,		getAttr,			NULL,	0)
+	PHP_ME(rarentry,		getVersion,			NULL,	0)
+	PHP_ME(rarentry,		getMethod,			NULL,	0)
+	{NULL, NULL, NULL}
+};
+/* }}} */
+
+/* {{{ PHP_MINIT_FUNCTION
+ */
+PHP_MINIT_FUNCTION(rar)
+{
+	zend_class_entry rar_class_entry;	
+	INIT_CLASS_ENTRY(rar_class_entry, "RarEntry", php_rar_class_functions);
+	rar_class_entry_ptr = zend_register_internal_class(&rar_class_entry TSRMLS_CC);	
+
+	le_rar_file = zend_register_list_destructors_ex(_rar_file_list_dtor, NULL, le_rar_file_name, module_number);
+	
+	REGISTER_LONG_CONSTANT("RAR_HOST_MSDOS",	HOST_MSDOS,	CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RAR_HOST_OS2",		HOST_OS2,	CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RAR_HOST_WIN32",	HOST_WIN32,	CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RAR_HOST_UNIX",		HOST_UNIX,	CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RAR_HOST_MACOS",	HOST_MACOS,	CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("RAR_HOST_BEOS",		HOST_BEOS,	CONST_CS | CONST_PERSISTENT);
+	return SUCCESS;
+}
+/* }}} */
+
+/* {{{ PHP_MINFO_FUNCTION
+ */
+PHP_MINFO_FUNCTION(rar)
+{
+	php_info_print_table_start();
+	php_info_print_table_header(2, "Rar support", "enabled");
+	php_info_print_table_row(2, "Revision", "$Revision$");
+	php_info_print_table_end();
+}
+/* }}} */
+
+/* {{{ rar_module_entry
+ */
+zend_module_entry rar_module_entry = {
+#if ZEND_MODULE_API_NO >= 20010901
+	STANDARD_MODULE_HEADER,
+#endif
+	"rar",
+	rar_functions,
+	PHP_MINIT(rar),
+	NULL,
+	NULL,
+	NULL,
+	PHP_MINFO(rar),
+#if ZEND_MODULE_API_NO >= 20010901
+	"0.1", /* Replace with version number for your extension */
+#endif
+	STANDARD_MODULE_PROPERTIES
+};
 /* }}} */
 
 #endif /* HAVE_RAR */
