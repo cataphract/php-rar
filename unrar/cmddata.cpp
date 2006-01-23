@@ -1051,7 +1051,7 @@ void CommandData::ProcessCommand()
         Extract.DoExtract(this);
       }
       break;
-#if !defined(GUI) && !defined(SILENT)
+#if !defined(RARDLL) && !defined(SILENT)
     case 'V':
     case 'L':
       ListArchive(this);
