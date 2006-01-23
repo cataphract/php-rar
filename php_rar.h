@@ -53,17 +53,6 @@ PHP_FUNCTION(rar_list);
 PHP_FUNCTION(rar_entry_get);
 PHP_FUNCTION(rar_close);
 
-PHP_METHOD(rarentry, extract);
-PHP_METHOD(rarentry, getName);
-PHP_METHOD(rarentry, getUnpackedSize);
-PHP_METHOD(rarentry, getPackedSize);
-PHP_METHOD(rarentry, getHostOs);
-PHP_METHOD(rarentry, getFileTime);
-PHP_METHOD(rarentry, getCrc);
-PHP_METHOD(rarentry, getAttr);
-PHP_METHOD(rarentry, getVersion);
-PHP_METHOD(rarentry, getMethod);
-
 typedef struct rar {
 	int							id;
 	int							entry_count;
