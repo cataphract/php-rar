@@ -63,7 +63,7 @@ void ErrorHandler::ReadError(const char *FileName)
 
 bool ErrorHandler::AskRepeatRead(const char *FileName)
 {
-#if !defined(SILENT) && !defined(SFX_MODULE) && !defined(_WIN_CE)
+#if !defined(SILENT) && !defined(SFX_MODULE) && !defined(_WIN_CE) && !defined(GUI)
   if (!Silent)
   {
     mprintf("\n");
@@ -102,7 +102,7 @@ void ErrorHandler::WriteErrorFAT(const char *FileName)
 
 bool ErrorHandler::AskRepeatWrite(const char *FileName)
 {
-#if !defined(SILENT) && !defined(_WIN_CE)
+#if !defined(SILENT) && !defined(_WIN_CE) && !defined(GUI)
   if (!Silent)
   {
     mprintf("\n");
@@ -125,6 +125,15 @@ void ErrorHandler::SeekError(const char *FileName)
 #endif
 #if !defined(SILENT) || defined(RARDLL)
   Throw(RAR_FATAL_ERROR);
+#endif
+}
+
+
+void ErrorHandler::GeneralErrMsg(const char *Msg)
+{
+#ifndef SILENT
+  Log(NULL,"%s",Msg);
+  SysErrMsg();
 #endif
 }
 
@@ -319,7 +328,8 @@ void ErrorHandler::Throw(int Code)
 
 void ErrorHandler::SysErrMsg()
 {
-#if defined(_WIN_32) && !defined(SFX_MODULE) && !defined(SILENT)
+#if !defined(SFX_MODULE) && !defined(SILENT)
+#ifdef _WIN_32
     #define STRCHR strchr
     #define ERRCHAR char
   ERRCHAR  *lpMsgBuf=NULL;
@@ -349,4 +359,16 @@ void ErrorHandler::SysErrMsg()
   }
   LocalFree( lpMsgBuf );
 #endif
+
+#if defined(_UNIX) || defined(_EMX)
+  char *err=strerror(errno);
+  if (err!=NULL)
+    Log(NULL,"\n%s",err);
+#endif
+
+#endif
 }
+
+
+
+

@@ -1,7 +1,5 @@
 #include "rar.hpp"
 
-static void GetFirstNewVolName(const char *ArcName,char *VolName,
-  Int64 VolSize,Int64 TotalSize);
 
 
 
@@ -56,16 +54,12 @@ bool MergeArchive(Archive &Arc,ComprDataIO *DataIO,bool ShowFileName,char Comman
     }
     if (Cmd->ChangeVolProc!=NULL)
     {
-#if fmk_0
-#ifdef _WIN_32
+#if defined(_WIN_32) && !defined(_MSC_VER) && !defined(__MINGW32__)
       _EBX=_ESP;
 #endif
-#endif
       int RetCode=Cmd->ChangeVolProc(NextName,RAR_VOL_ASK);
-#if fmk_0
-#ifdef _WIN_32
+#if defined(_WIN_32) && !defined(_MSC_VER) && !defined(__MINGW32__)
       _ESP=_EBX;
-#endif
 #endif
       if (RetCode==0)
       {
@@ -89,7 +83,6 @@ bool MergeArchive(Archive &Arc,ComprDataIO *DataIO,bool ShowFileName,char Comman
 #ifndef GUI
     if (!Cmd->VolumePause && !IsRemovable(NextName))
     {
-      Log(Arc.FileName,St(MAbsNextVol),NextName);
       FailedOpen=true;
       break;
     }
@@ -105,6 +98,9 @@ bool MergeArchive(Archive &Arc,ComprDataIO *DataIO,bool ShowFileName,char Comman
   }
   if (FailedOpen)
   {
+#if !defined(SILENT) && !defined(_WIN_CE)
+      Log(Arc.FileName,St(MAbsNextVol),NextName);
+#endif
     Arc.Open(Arc.FileName,Arc.FileNameW);
     Arc.Seek(PosBeforeClose,SEEK_SET);
     return(false);
@@ -116,24 +112,22 @@ bool MergeArchive(Archive &Arc,ComprDataIO *DataIO,bool ShowFileName,char Comman
     return(false);
   if (Cmd->ChangeVolProc!=NULL)
   {
-#if fmk_0
-#ifdef _WIN_32
+#if defined(_WIN_32) && !defined(_MSC_VER) && !defined(__MINGW32__)
     _EBX=_ESP;
 #endif
-#endif
     int RetCode=Cmd->ChangeVolProc(NextName,RAR_VOL_NOTIFY);
-#if fmk_0
-#ifdef _WIN_32
+#if defined(_WIN_32) && !defined(_MSC_VER) && !defined(__MINGW32__)
     _ESP=_EBX;
-#endif
 #endif
     if (RetCode==0)
       return(false);
   }
 #endif
 
+#ifndef GUI
   if (Command=='T' || Command=='X' || Command=='E')
     mprintf(St(Command=='T' ? MTestVol:MExtrVol),Arc.FileName);
+#endif
   if (SplitHeader)
     Arc.SearchBlock(HeaderType);
   else
@@ -146,7 +140,20 @@ bool MergeArchive(Archive &Arc,ComprDataIO *DataIO,bool ShowFileName,char Comman
 #ifndef GUI
   if (ShowFileName)
   {
-    mprintf(St(MExtrPoints),IntNameToExt(Arc.NewLhd.FileName));
+    char OutName[NM];
+    IntToExt(Arc.NewLhd.FileName,OutName);
+#ifdef UNICODE_SUPPORTED
+    bool WideName=(Arc.NewLhd.Flags & LHD_UNICODE) && UnicodeEnabled();
+    if (WideName)
+    {
+      wchar NameW[NM];
+      ConvertPath(Arc.NewLhd.FileNameW,NameW);
+      char Name[NM];
+      if (WideToChar(NameW,Name) && IsNameUsable(Name))
+        strcpy(OutName,Name);
+    }
+#endif
+    mprintf(St(MExtrPoints),OutName);
     if (!Cmd->DisablePercentage)
       mprintf("     ");
   }
