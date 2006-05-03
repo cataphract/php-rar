@@ -251,10 +251,10 @@ PHP_FUNCTION(rar_open)
 	}
 	
 	rar = (rar_file_t *) emalloc(sizeof(rar_file_t));
-	rar->list_handle = (RAROpenArchiveData *) emalloc(sizeof(RAROpenArchiveData));
+	rar->list_handle = (RAROpenArchiveData *) ecalloc(1, sizeof(RAROpenArchiveData));
 	rar->list_handle->ArcName = estrndup(Z_STRVAL_PP(filename), Z_STRLEN_PP(filename));
 	rar->list_handle->OpenMode = RAR_OM_LIST;
-	rar->extract_handle = (RAROpenArchiveData *) emalloc(sizeof(RAROpenArchiveData));
+	rar->extract_handle = (RAROpenArchiveData *) ecalloc(1, sizeof(RAROpenArchiveData));
 	rar->extract_handle->ArcName = estrndup(Z_STRVAL_PP(filename), Z_STRLEN_PP(filename));
 	rar->extract_handle->OpenMode = RAR_OM_EXTRACT;
 	rar->password = NULL;
