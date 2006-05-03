@@ -4,7 +4,7 @@
 ARG_ENABLE("rar", "Rar support", "no");
 
 if (PHP_RAR != "no") {
-	EXTENSION("rar", "rar.cpp", PHP_RAR_SHARED, "-DRARDLL");
+	EXTENSION("rar", "rar.cpp", PHP_RAR_SHARED, "-DRARDLL -DGUI -DSILENT");
 	ADD_SOURCES(configure_module_dirname + "/unrar", "rar.cpp \
 		strlist.cpp strfn.cpp pathfn.cpp int64.cpp \
 		savepos.cpp global.cpp file.cpp filefn.cpp \
