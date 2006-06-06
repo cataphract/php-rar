@@ -16,8 +16,8 @@
   </maintainer>
  </maintainers>
  <release>
-  <version>0.3</version>
-  <date>2006-05-04</date>
+  <version>0.3.0</version>
+  <date>2006-06-06</date>
   <state>beta</state>
   <notes>
     - Updated bundled unrar to version 3.6.2 (fixes compile errors with GCC4).
