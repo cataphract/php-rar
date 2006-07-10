@@ -56,9 +56,7 @@ bool FileCreate(RAROptions *Cmd,File *NewFile,char *Name,wchar *NameW,
       }
       if (Choice==5)
       {
-#ifndef GUI
         mprintf(St(MAskNewName));
-#endif
 
         char NewName[NM];
 #ifdef  _WIN_32

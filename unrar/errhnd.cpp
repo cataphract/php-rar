@@ -63,7 +63,7 @@ void ErrorHandler::ReadError(const char *FileName)
 
 bool ErrorHandler::AskRepeatRead(const char *FileName)
 {
-#if !defined(SILENT) && !defined(SFX_MODULE) && !defined(_WIN_CE) && !defined(GUI)
+#if !defined(SILENT) && !defined(SFX_MODULE) && !defined(_WIN_CE)
   if (!Silent)
   {
     mprintf("\n");
@@ -102,7 +102,7 @@ void ErrorHandler::WriteErrorFAT(const char *FileName)
 
 bool ErrorHandler::AskRepeatWrite(const char *FileName)
 {
-#if !defined(SILENT) && !defined(_WIN_CE) && !defined(GUI)
+#if !defined(SILENT) && !defined(_WIN_CE)
   if (!Silent)
   {
     mprintf("\n");
