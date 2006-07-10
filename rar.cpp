@@ -45,6 +45,16 @@ extern "C" {
 #include "php_rar.h"
 #include "unrar/rar.hpp"
 
+/* PHP4 compat {{{ */
+#ifndef PHP_METHOD
+#define ZEND_MN(name) zim_##name
+#define PHP_METHOD(classname, name)    ZEND_NAMED_FUNCTION(ZEND_MN(classname##_##name))
+#define ZEND_FENTRY(zend_name, name, arg_info, flags)   { #zend_name, name, arg_info},
+#define PHP_ME(classname, name, arg_info, flags)   ZEND_FENTRY(name, ZEND_MN(classname##_##name), arg_info, flags)
+#endif
+/* }}} */
+
+
 static int le_rar_file;
 #define le_rar_file_name "Rar"
 static zend_class_entry *rar_class_entry_ptr;
