@@ -65,9 +65,7 @@ void ExtractBeEA(Archive &Arc,char *FileName)
     AttrPos+=10+NameSize+Size;
   }
   close(fd);
-#ifndef GUI
   mprintf(St(MShowEA));
-#endif
 }
 
 
@@ -110,8 +108,6 @@ void ExtractBeEANew(Archive &Arc,char *FileName)
     AttrPos+=10+NameSize+Size;
   }
   close(fd);
-#ifndef GUI
   mprintf(St(MShowEA));
-#endif
 }
 

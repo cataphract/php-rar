@@ -175,9 +175,7 @@ void ComprDataIO::ShowUnpRead(Int64 ArcPos,Int64 ArcSize)
       int CurPercent=ToPercent(ArcPos,ArcSize);
       if (!Cmd->DisablePercentage && CurPercent!=LastPercent)
       {
-#ifndef GUI
         mprintf("\b\b\b\b%3d%%",CurPercent);
-#endif
         LastPercent=CurPercent;
       }
     }

@@ -28,8 +28,22 @@ void CmdExtract::DoExtract(CommandData *Cmd)
   Cmd->ArcNames->Rewind();
   while (Cmd->GetArcName(ArcName,ArcNameW,sizeof(ArcName)))
   {
-    while (ExtractArchive(Cmd)==EXTRACT_ARC_REPEAT)
-      ;
+    while (true)
+    {
+      char PrevCmdPassword[MAXPASSWORD];
+      strcpy(PrevCmdPassword,Cmd->Password);
+
+      EXTRACT_ARC_CODE Code=ExtractArchive(Cmd);
+
+/*
+      restore Cmd->Password which could be changed in IsArchive() call
+      for next header encrypted archive
+*/
+      strcpy(Cmd->Password,PrevCmdPassword);
+
+      if (Code!=EXTRACT_ARC_REPEAT)
+        break;
+    }
     if (FindFile::FastFind(ArcName,ArcNameW,&FD))
       DataIO.ProcessedArcSize+=FD.Size;
   }
@@ -38,9 +52,7 @@ void CmdExtract::DoExtract(CommandData *Cmd)
   {
     if (!PasswordCancelled)
     {
-#ifndef GUI
       mprintf(St(MExtrNoFiles));
-#endif
     }
     ErrHandler.SetErrorCode(RAR_WARNING);
   }
@@ -143,6 +155,7 @@ EXTRACT_ARC_CODE CmdExtract::ExtractArchive(CommandData *Cmd)
       else
         break;
   }
+
   return(EXTRACT_ARC_NEXT);
 }
 
@@ -430,7 +443,10 @@ bool CmdExtract::ExtractCurrentFile(CommandData *Cmd,Archive &Arc,int HeaderSize
     else
       strcat(DestFileName,ExtrName);
 
-    if (AbsPaths && DestFileName[1]=='_' && IsPathDiv(DestFileName[2]))
+    char DiskLetter=toupper(DestFileName[0]);
+
+    if (AbsPaths && DestFileName[1]=='_' && IsPathDiv(DestFileName[2]) &&
+        DiskLetter>='A' && DiskLetter<='Z')
       DestFileName[1]=':';
 
 #ifndef SFX_MODULE

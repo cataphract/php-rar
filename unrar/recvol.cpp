@@ -253,12 +253,12 @@ bool RecVolumes::Restore(RAROptions *Cmd,const char *Name,
 
   if (MissingVolumes>FoundRecVolumes)
   {
-#if !defined(SILENT) && !defined(GUI) 
+#ifndef SILENT
     mprintf(St(MRecVolCannotFix));
 #endif
     return(false);
   }
-#if !defined(SILENT) && !defined(GUI) 
+#ifndef SILENT
   mprintf(St(MReconstructing));
 #endif
 
@@ -298,7 +298,7 @@ bool RecVolumes::Restore(RAROptions *Cmd,const char *Name,
       }
     if (MaxRead==0)
       break;
-#if !defined(SILENT) && !defined(GUI) 
+#ifndef SILENT
     int CurPercent=ToPercent(ProcessedSize,RecFileSize);
     if (!Cmd->DisablePercentage && CurPercent!=LastPercent)
     {

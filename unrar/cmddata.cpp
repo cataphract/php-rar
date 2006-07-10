@@ -599,6 +599,9 @@ void CommandData::ProcessSwitch(char *Switch)
           Threads=atoi(Switch+2);
           if (Threads>MaxSearchThreads)
             BadSwitch(Switch);
+          else
+          {
+          }
           break;
 #endif
         default:
@@ -802,9 +805,7 @@ void CommandData::ProcessSwitch(char *Switch)
 #ifndef SFX_MODULE
 void CommandData::BadSwitch(char *Switch)
 {
-#ifndef GUI
   mprintf(St(MUnknownOption),Switch);
-#endif
   ErrHandler.Exit(RAR_USER_ERROR);
 }
 #endif

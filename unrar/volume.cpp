@@ -124,10 +124,8 @@ bool MergeArchive(Archive &Arc,ComprDataIO *DataIO,bool ShowFileName,char Comman
   }
 #endif
 
-#ifndef GUI
   if (Command=='T' || Command=='X' || Command=='E')
     mprintf(St(Command=='T' ? MTestVol:MExtrVol),Arc.FileName);
-#endif
   if (SplitHeader)
     Arc.SearchBlock(HeaderType);
   else

@@ -18,7 +18,7 @@ unrar_sources="unrar/rar.cpp unrar/strlist.cpp unrar/strfn.cpp \
 			   unrar/volume.cpp unrar/find.cpp \
 			   unrar/unpack.cpp unrar/cmddata.cpp unrar/dll.cpp \
 			   unrar/filestr.cpp unrar/recvol.cpp unrar/rs.cpp \
-			   unrar/scantree.cpp"
+			   unrar/scantree.cpp unrar/log.cpp"
 
 if test "$PHP_RAR" != "no"; then
   PHP_REQUIRE_CXX
