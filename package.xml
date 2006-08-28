@@ -20,7 +20,7 @@
   <date>2006-07-10</date>
   <state>beta</state>
   <notes>
-    - Updated bundled unrar to version 3.6.6.
+    - Updated bundled unrar to version 3.6.8.
     - Fixed PHP4 compatibility.
   </notes>
  </release>
