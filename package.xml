@@ -63,6 +63,12 @@
    <file role="src">config.m4</file>
    <file role="src">php_rar.h</file>
    <file role="src">rar.cpp</file>
+   <file role="test">tests/001.phpt</file>
+   <file role="test">tests/002.phpt</file>
+   <file role="test">tests/003.phpt</file>
+   <file role="test">tests/004.phpt</file>
+   <file role="test">tests/latest_winrar.rar</file>
+   <file role="test">tests/linux_rar.rar</file>
 
    <dir role="src" name="/unrar/">
 
@@ -123,7 +129,6 @@
     <file role="src">log.hpp</file>
     <file role="src">match.cpp</file>
     <file role="src">match.hpp</file>
-    <file role="src">memfree.hpp</file>
     <file role="src">model.cpp</file>
     <file role="src">model.hpp</file>
     <file role="src">msc.dep</file>
