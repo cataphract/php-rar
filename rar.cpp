@@ -56,7 +56,7 @@ extern "C" {
 
 
 static int le_rar_file;
-#define le_rar_file_name "Rar"
+#define le_rar_file_name "Rar file"
 static zend_class_entry *rar_class_entry_ptr;
 
 /* {{{ internal functions protos */
@@ -69,6 +69,15 @@ static zval **_rar_entry_get_property(zval *, char *, int TSRMLS_DC);
 /* }}} */
 
 /* <internal> */
+
+#define RAR_GET_PROPERTY(var, prop_name) \
+	if (!entry_obj) { \
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "this method cannot be called statically"); \
+		RETURN_FALSE; \
+	} \
+	if ((var = _rar_entry_get_property(entry_obj, prop_name, sizeof(prop_name) TSRMLS_CC)) == NULL) { \
+		RETURN_FALSE; \
+	}
 
 static void _rar_file_list_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC) /* {{{ */
 {
@@ -95,14 +104,13 @@ static void _rar_file_list_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC) /* {{{ */
 }
 /* }}} */
 
-static int _rar_get_file_resource(zval **zval_file, rar_file_t **rar_file TSRMLS_DC) /* {{{ */
+static int _rar_get_file_resource(zval *zval_file, rar_file_t **rar_file TSRMLS_DC) /* {{{ */
 {
-	*rar_file = (rar_file_t *) zend_fetch_resource(zval_file TSRMLS_CC, -1, le_rar_file_name, NULL, 1, le_rar_file);
+	*rar_file = (rar_file_t *) zend_fetch_resource(&zval_file TSRMLS_CC, -1, le_rar_file_name, NULL, 1, le_rar_file);
 
 	if (*rar_file) {
 		return 1;
 	}
-	php_error_docref(NULL TSRMLS_CC, E_WARNING, "cannot find Rar file resource");
 	return 0;
 }
 /* }}} */
@@ -221,7 +229,7 @@ static zval **_rar_entry_get_property(zval *id, char *name, int namelen TSRMLS_D
 	zval **tmp;
 
 	if (zend_hash_find(Z_OBJPROP_P(id), name, namelen, (void **)&tmp) == FAILURE) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to find property %s", name);
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to find property '%s'", name);
 		return NULL;
 	}
 	return tmp;
@@ -242,30 +250,28 @@ END_EXTERN_C()
    Open Rar archive and return resource */
 PHP_FUNCTION(rar_open)
 {
-	zval **filename, **password;
+	char *filename, *password = NULL;
+	int filename_len, password_len = 0;
 	rar_file_t *rar = NULL;
-	int ac = ZEND_NUM_ARGS(), result = 0;
 
-	if (ac < 1 || ac > 2 || zend_get_parameters_ex(ac, &filename, &password) == FAILURE) {
-		WRONG_PARAM_COUNT;
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|s", &filename, &filename_len, &password, &password_len) == FAILURE) {
+		return;
 	}
 
-	convert_to_string_ex(filename);
-
-	if (PG(safe_mode) && (!php_checkuid(Z_STRVAL_PP(filename), NULL, CHECKUID_CHECK_FILE_AND_DIR))) {
+	if (PG(safe_mode) && (!php_checkuid(filename, NULL, CHECKUID_CHECK_FILE_AND_DIR))) {
 		RETURN_FALSE;
 	}
 	
-	if (php_check_open_basedir(Z_STRVAL_PP(filename) TSRMLS_CC)) {
+	if (php_check_open_basedir(filename TSRMLS_CC)) {
 		RETURN_FALSE;
 	}
 	
 	rar = (rar_file_t *) emalloc(sizeof(rar_file_t));
 	rar->list_handle = (RAROpenArchiveData *) ecalloc(1, sizeof(RAROpenArchiveData));
-	rar->list_handle->ArcName = estrndup(Z_STRVAL_PP(filename), Z_STRLEN_PP(filename));
+	rar->list_handle->ArcName = estrndup(filename, filename_len);
 	rar->list_handle->OpenMode = RAR_OM_LIST;
 	rar->extract_handle = (RAROpenArchiveData *) ecalloc(1, sizeof(RAROpenArchiveData));
-	rar->extract_handle->ArcName = estrndup(Z_STRVAL_PP(filename), Z_STRLEN_PP(filename));
+	rar->extract_handle->ArcName = estrndup(filename, filename_len);
 	rar->extract_handle->OpenMode = RAR_OM_EXTRACT;
 	rar->password = NULL;
 	rar->entries = NULL;
@@ -273,13 +279,13 @@ PHP_FUNCTION(rar_open)
 
 	rar->list_data = RAROpenArchive(rar->list_handle);
 	if (rar->list_data != NULL && rar->list_handle->OpenResult == 0) {
-		if (ac == 2) {
-			rar->password = estrndup(Z_STRVAL_PP(password), Z_STRLEN_PP(password));
+		if (password_len) {
+			rar->password = estrndup(password, password_len);
 		}
 		rar->id = zend_list_insert(rar,le_rar_file);
 		RETURN_RESOURCE(rar->id);
-	}
-	else {
+	} else {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "failed to open %s", filename);
 		efree(rar->list_handle->ArcName);
 		efree(rar->list_handle);
 		efree(rar->extract_handle->ArcName);
@@ -294,16 +300,15 @@ PHP_FUNCTION(rar_open)
    Return entries from the rar archive */
 PHP_FUNCTION(rar_list)
 {
-	zval **file;
+	zval *file;
 	rar_file_t *rar = NULL;
-	int i = 0;
-	int ac = ZEND_NUM_ARGS(), result = 0;
+	int i, result;
 
-	if (ac < 1 || ac > 1 || zend_get_parameters_ex(ac, &file) == FAILURE) {
-		WRONG_PARAM_COUNT;
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &file) == FAILURE) {
+		return;
 	}
 
-	if (!_rar_get_file_resource(file,&rar TSRMLS_CC)) {
+	if (!_rar_get_file_resource(file, &rar TSRMLS_CC)) {
 		RETURN_FALSE;
 	}
 
@@ -327,10 +332,6 @@ PHP_FUNCTION(rar_list)
 		
 		zend_hash_next_index_insert(Z_ARRVAL_P(return_value), &tmp, sizeof(zval*), NULL);
 	}
-	if (!return_value) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "failed to list files from RAR archive");
-		RETURN_FALSE;	
-	}
 }
 /* }}} */
 
@@ -338,16 +339,16 @@ PHP_FUNCTION(rar_list)
    Return entry from the rar archive */
 PHP_FUNCTION(rar_entry_get)
 {
-	zval **file, **filename;
+	zval *file;
+	char *filename;
 	rar_file_t *rar = NULL;
-	int result = 0, i = 0;
-	int ac = ZEND_NUM_ARGS();
+	int result, i, filename_len;
 
-	if (ac < 2 || ac > 2 || zend_get_parameters_ex(ac, &file, &filename) == FAILURE) {
-		WRONG_PARAM_COUNT;
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rs", &file, &filename, &filename_len) == FAILURE) {
+		return;
 	}
 
-	if (!_rar_get_file_resource(file,&rar TSRMLS_CC)) {
+	if (!_rar_get_file_resource(file, &rar TSRMLS_CC)) {
 		RETURN_FALSE;
 	}
 
@@ -359,7 +360,7 @@ PHP_FUNCTION(rar_entry_get)
 	}
 
 	for(i = 0; i < rar->entry_count; i++){
-		if (strcmp(rar->entries[i]->FileName, Z_STRVAL_PP(filename)) == 0) {
+		if (strcmp(rar->entries[i]->FileName, filename) == 0) {
 			object_init_ex(return_value, rar_class_entry_ptr);
 			add_property_resource(return_value, "rarfile", rar->id);
 			_rar_entry_to_zval(rar->entries[i], return_value TSRMLS_CC);
@@ -367,7 +368,7 @@ PHP_FUNCTION(rar_entry_get)
 		}		
 	}
 	if (!return_value) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "cannot find such file in RAR archive");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "cannot find such file in Rar archive");
 		RETURN_FALSE;	
 	}
 }
@@ -377,16 +378,15 @@ PHP_FUNCTION(rar_entry_get)
    Close Rar archive and free all resources */
 PHP_FUNCTION(rar_close)
 {
-	zval **file;
+	zval *file;
 	rar_file_t *rar = NULL;
 	int file_counter = 0;
-	int ac = ZEND_NUM_ARGS();
 
-	if (ac < 1 || ac > 1 || zend_get_parameters_ex(ac, &file) == FAILURE) {
-		WRONG_PARAM_COUNT;
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &file) == FAILURE) {
+		return;
 	}
 
-	if (!_rar_get_file_resource(file,&rar TSRMLS_CC)) {
+	if (!_rar_get_file_resource(file, &rar TSRMLS_CC)) {
 		RETURN_FALSE;
 	}
 
@@ -399,56 +399,41 @@ PHP_FUNCTION(rar_close)
    Extract file from the archive */
 PHP_METHOD(rarentry, extract)
 {
-	zval **path, **filename, **tmp, **tmp_name;
+	char *path, *filename = NULL;
+	int path_len, filename_len = 0;
+	zval **tmp, **tmp_name;
 	rar_file_t *rar = NULL;
-	char *path_str = NULL, *extract_to_file = NULL;
-	int ac = ZEND_NUM_ARGS(), resource_type = 0, result = 0, process_result = 0;
+	int resource_type, result, process_result;
 	zval *entry_obj = getThis();
 	struct RARHeaderData entry;
 	void *extract_data;
 	
-	if (ac < 1 || ac > 2 || zend_get_parameters_ex(ac, &path, &filename) == FAILURE ) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|s", &path, &path_len, &filename, &filename_len) == FAILURE ) {
 		WRONG_PARAM_COUNT;
 	}
 
-	if ((tmp = _rar_entry_get_property(entry_obj, "rarfile", sizeof("rarfile") TSRMLS_CC)) == NULL) {
-		RETURN_FALSE;
-	}
+	RAR_GET_PROPERTY(tmp, "rarfile");
+	ZEND_FETCH_RESOURCE(rar, rar_file_t *, tmp, -1, "Rar file", le_rar_file);
 
-	rar = (rar_file_t *) zend_list_find(Z_LVAL_PP(tmp), &resource_type);
-
-	convert_to_string_ex(path);
-	path_str = Z_STRVAL_PP(path);
-
-	if (Z_STRLEN_PP(path) && PG(safe_mode) && (!php_checkuid(Z_STRVAL_PP(path), NULL, CHECKUID_CHECK_FILE_AND_DIR))) {
+	if (path_len && PG(safe_mode) && (!php_checkuid(path, NULL, CHECKUID_CHECK_FILE_AND_DIR))) {
 		RETURN_FALSE;
 	}
 	
-	if (Z_STRLEN_PP(path) && php_check_open_basedir(Z_STRVAL_PP(path) TSRMLS_CC)) {
+	if (path && php_check_open_basedir(path TSRMLS_CC)) {
 		RETURN_FALSE;
 	}
 	
-	if (ac == 2) {
-		convert_to_string_ex(filename);
-		extract_to_file = Z_STRVAL_PP(filename);
-
-		if (PG(safe_mode) && (!php_checkuid(Z_STRVAL_PP(filename), NULL, CHECKUID_CHECK_FILE_AND_DIR))) {
+	if (filename_len) {
+		if (PG(safe_mode) && (!php_checkuid(filename, NULL, CHECKUID_CHECK_FILE_AND_DIR))) {
 			RETURN_FALSE;
 		}
 		
-		if (php_check_open_basedir(Z_STRVAL_PP(filename) TSRMLS_CC)) {
+		if (php_check_open_basedir(filename TSRMLS_CC)) {
 			RETURN_FALSE;
 		}
 	}
 	
-	if ((tmp_name = _rar_entry_get_property(entry_obj, "name", sizeof("name") TSRMLS_CC)) == NULL) {
-		RETURN_FALSE;
-	}
-
-	if (!rar || resource_type != le_rar_file) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Rar resource identifier not found");
-		RETURN_FALSE;
-	}
+	RAR_GET_PROPERTY(tmp_name, "name");
 
 	extract_data = RAROpenArchive(rar->extract_handle);
 	
@@ -456,18 +441,16 @@ PHP_METHOD(rarentry, extract)
 		if (rar->password) {
 			RARSetPassword(extract_data, rar->password);
 		}
-	}
-	else {
+	} else {
 		_rar_handle_error(rar->extract_handle->OpenResult TSRMLS_CC);
 		RETURN_FALSE;
 	}
 
 	while ((result = RARReadHeader(extract_data, &entry)) == 0) {
 		if (strncmp(entry.FileName,Z_STRVAL_PP(tmp_name), sizeof(entry.FileName)) == 0) {
-			process_result = RARProcessFile(extract_data, RAR_EXTRACT, path_str, extract_to_file);
+			process_result = RARProcessFile(extract_data, RAR_EXTRACT, path, filename);
 			RETURN_TRUE;
-		}
-		else {
+		} else {
 			process_result = RARProcessFile(extract_data, RAR_SKIP, NULL, NULL);
 		}
 		if (_rar_handle_error(process_result TSRMLS_CC) == FAILURE) {
@@ -492,9 +475,7 @@ PHP_METHOD(rarentry, getName)
 	rar_file_t *rar = NULL;
 	zval *entry_obj = getThis();
 	
-	if ((tmp = _rar_entry_get_property(entry_obj, "name", sizeof("name") TSRMLS_CC)) == NULL) {
-		RETURN_FALSE;
-	}
+	RAR_GET_PROPERTY(tmp, "name");
 
 	convert_to_string_ex(tmp);
 	RETURN_STRINGL(Z_STRVAL_PP(tmp), Z_STRLEN_PP(tmp), 1);
@@ -509,9 +490,7 @@ PHP_METHOD(rarentry, getUnpackedSize)
 	rar_file_t *rar = NULL;
 	zval *entry_obj = getThis();
 	
-	if ((tmp = _rar_entry_get_property(entry_obj, "unpacked_size", sizeof("unpacked_size") TSRMLS_CC)) == NULL) {
-		RETURN_FALSE;
-	}
+	RAR_GET_PROPERTY(tmp, "unpacked_size");
 
 	convert_to_long_ex(tmp);
 	RETURN_LONG(Z_LVAL_PP(tmp));
@@ -526,9 +505,7 @@ PHP_METHOD(rarentry, getPackedSize)
 	rar_file_t *rar = NULL;
 	zval *entry_obj = getThis();
 	
-	if ((tmp = _rar_entry_get_property(entry_obj, "packed_size", sizeof("packed_size") TSRMLS_CC)) == NULL) {
-		RETURN_FALSE;
-	}
+	RAR_GET_PROPERTY(tmp, "packed_size");
 
 	convert_to_long_ex(tmp);
 	RETURN_LONG(Z_LVAL_PP(tmp));
@@ -543,9 +520,7 @@ PHP_METHOD(rarentry, getHostOs)
 	rar_file_t *rar = NULL;
 	zval *entry_obj = getThis();
 	
-	if ((tmp = _rar_entry_get_property(entry_obj, "host_os", sizeof("host_os") TSRMLS_CC)) == NULL) {
-		RETURN_FALSE;
-	}
+	RAR_GET_PROPERTY(tmp, "host_os");
 
 	convert_to_long_ex(tmp);
 	RETURN_LONG(Z_LVAL_PP(tmp));
@@ -560,9 +535,7 @@ PHP_METHOD(rarentry, getFileTime)
 	rar_file_t *rar = NULL;
 	zval *entry_obj = getThis();
 	
-	if ((tmp = _rar_entry_get_property(entry_obj, "file_time", sizeof("file_time") TSRMLS_CC)) == NULL) {
-		RETURN_FALSE;
-	}
+	RAR_GET_PROPERTY(tmp, "file_time");
 
 	convert_to_string_ex(tmp);
 	RETURN_STRINGL(Z_STRVAL_PP(tmp), Z_STRLEN_PP(tmp), 1);
@@ -577,9 +550,7 @@ PHP_METHOD(rarentry, getCrc)
 	rar_file_t *rar = NULL;
 	zval *entry_obj = getThis();
 	
-	if ((tmp = _rar_entry_get_property(entry_obj, "crc", sizeof("crc") TSRMLS_CC)) == NULL) {
-		RETURN_FALSE;
-	}
+	RAR_GET_PROPERTY(tmp, "crc");
 
 	convert_to_string_ex(tmp);
 	RETURN_STRINGL(Z_STRVAL_PP(tmp), Z_STRLEN_PP(tmp), 1);
@@ -594,9 +565,7 @@ PHP_METHOD(rarentry, getAttr)
 	rar_file_t *rar = NULL;
 	zval *entry_obj = getThis();
 	
-	if ((tmp = _rar_entry_get_property(entry_obj, "attr", sizeof("attr") TSRMLS_CC)) == NULL) {
-		RETURN_FALSE;
-	}
+	RAR_GET_PROPERTY(tmp, "attr");
 
 	convert_to_long_ex(tmp);
 	RETURN_LONG(Z_LVAL_PP(tmp));
@@ -611,9 +580,7 @@ PHP_METHOD(rarentry, getVersion)
 	rar_file_t *rar = NULL;
 	zval *entry_obj = getThis();
 	
-	if ((tmp = _rar_entry_get_property(entry_obj, "version", sizeof("version") TSRMLS_CC)) == NULL) {
-		RETURN_FALSE;
-	}
+	RAR_GET_PROPERTY(tmp, "version");
 
 	convert_to_long_ex(tmp);
 	RETURN_LONG(Z_LVAL_PP(tmp));
@@ -628,9 +595,7 @@ PHP_METHOD(rarentry, getMethod)
 	rar_file_t *rar = NULL;
 	zval *entry_obj = getThis();
 	
-	if ((tmp = _rar_entry_get_property(entry_obj, "method", sizeof("method") TSRMLS_CC)) == NULL) {
-		RETURN_FALSE;
-	}
+	RAR_GET_PROPERTY(tmp, "method");
 
 	convert_to_long_ex(tmp);
 	RETURN_LONG(Z_LVAL_PP(tmp));
@@ -648,17 +613,21 @@ function_entry rar_functions[] = {
 	{NULL, NULL, NULL}
 };
 
+#ifndef ZEND_ENGINE_2
+#define ZEND_ACC_PUBLIC 0
+#endif
+
 static zend_function_entry php_rar_class_functions[] = {
-	PHP_ME(rarentry,		extract,			NULL,	0)
-	PHP_ME(rarentry,		getName,			NULL,	0)
-	PHP_ME(rarentry,		getUnpackedSize,	NULL,	0)
-	PHP_ME(rarentry,		getPackedSize,		NULL,	0)
-	PHP_ME(rarentry,		getHostOs,			NULL,	0)
-	PHP_ME(rarentry,		getFileTime,		NULL,	0)
-	PHP_ME(rarentry,		getCrc,				NULL,	0)
-	PHP_ME(rarentry,		getAttr,			NULL,	0)
-	PHP_ME(rarentry,		getVersion,			NULL,	0)
-	PHP_ME(rarentry,		getMethod,			NULL,	0)
+	PHP_ME(rarentry,		extract,			NULL,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getName,			NULL,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getUnpackedSize,	NULL,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getPackedSize,		NULL,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getHostOs,			NULL,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getFileTime,		NULL,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getCrc,				NULL,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getAttr,			NULL,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getVersion,			NULL,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getMethod,			NULL,	ZEND_ACC_PUBLIC)
 	{NULL, NULL, NULL}
 };
 /* }}} */

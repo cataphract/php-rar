@@ -13,11 +13,19 @@ $rar_file2 = rar_open(dirname(__FILE__).'/latest_winrar.rar');
 $entry2 = rar_entry_get($rar_file2, '2.txt');
 var_dump($entry2);
 
+$rar_file3 = rar_open(dirname(__FILE__).'/no_such_file.rar'); 
+$entry3 = rar_entry_get($rar_file3, '2.txt');
+var_dump($entry3);
+
+$fp = fopen(__FILE__, "r");
+var_dump(rar_entry_get($fp, '2.txt'));
+
+echo "Done\n";
 ?>
 --EXPECTF--
 object(RarEntry)#%d (10) {
   ["rarfile"]=>
-  resource(%d) of type (Rar)
+  resource(%d) of type (Rar file)
   ["name"]=>
   string(30) "test file with whitespaces.txt"
   ["unpacked_size"]=>
@@ -39,7 +47,7 @@ object(RarEntry)#%d (10) {
 }
 object(RarEntry)#%d (10) {
   ["rarfile"]=>
-  resource(%d) of type (Rar)
+  resource(%d) of type (Rar file)
   ["name"]=>
   string(5) "2.txt"
   ["unpacked_size"]=>
@@ -60,5 +68,11 @@ object(RarEntry)#%d (10) {
   int(53)
 }
 
+Warning: rar_open(): failed to open %s in %s on line %d
 
+Warning: rar_entry_get() expects parameter 1 to be resource, boolean given in %s on line %d
+NULL
 
+Warning: rar_entry_get(): supplied resource is not a valid Rar file resource in %s on line %d
+bool(false)
+Done

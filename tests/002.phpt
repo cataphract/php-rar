@@ -13,13 +13,21 @@ $rar_file2 = rar_open(dirname(__FILE__).'/latest_winrar.rar');
 $list2 = rar_list($rar_file2);
 var_dump($list2);
 
+$rar_file3 = rar_open(dirname(__FILE__).'/no_such_file.rar'); 
+$list3 = rar_list($rar_file3);
+var_dump($list3);
+
+$fp = fopen(__FILE__, "r");
+var_dump(rar_list($fp));
+
+echo "Done\n";
 ?>
 --EXPECTF--
 array(2) {
   [0]=>
   object(RarEntry)#%d (10) {
     ["rarfile"]=>
-    resource(%d) of type (Rar)
+    resource(%d) of type (Rar file)
     ["name"]=>
     string(9) "plain.txt"
     ["unpacked_size"]=>
@@ -42,7 +50,7 @@ array(2) {
   [1]=>
   object(RarEntry)#%d (10) {
     ["rarfile"]=>
-    resource(%d) of type (Rar)
+    resource(%d) of type (Rar file)
     ["name"]=>
     string(30) "test file with whitespaces.txt"
     ["unpacked_size"]=>
@@ -67,7 +75,7 @@ array(2) {
   [0]=>
   object(RarEntry)#%d (10) {
     ["rarfile"]=>
-    resource(%d) of type (Rar)
+    resource(%d) of type (Rar file)
     ["name"]=>
     string(5) "1.txt"
     ["unpacked_size"]=>
@@ -90,7 +98,7 @@ array(2) {
   [1]=>
   object(RarEntry)#%d (10) {
     ["rarfile"]=>
-    resource(%d) of type (Rar)
+    resource(%d) of type (Rar file)
     ["name"]=>
     string(5) "2.txt"
     ["unpacked_size"]=>
@@ -112,3 +120,11 @@ array(2) {
   }
 }
 
+Warning: rar_open(): failed to open %s in %s on line %d
+
+Warning: rar_list() expects parameter 1 to be resource, boolean given in %s on line %d
+NULL
+
+Warning: rar_list(): supplied resource is not a valid Rar file resource in %s on line %d
+bool(false)
+Done
