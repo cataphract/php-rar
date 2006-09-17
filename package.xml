@@ -16,15 +16,24 @@
   </maintainer>
  </maintainers>
  <release>
-  <version>0.3.1</version>
-  <date>2006-08-28</date>
+  <version>0.3.2</version>
+  <date>2006-09-18</date>
   <state>beta</state>
   <notes>
-    - Updated bundled unrar to version 3.6.8.
-    - Fixed PHP4 compatibility.
+   - Updated to use new parameter parsing API.
+   - rar_open() throws an error when it fails to open the specified file.
   </notes>
  </release>
  <changelog>
+  <release>
+   <version>0.3.1</version>
+   <date>2006-08-28</date>
+   <state>beta</state>
+   <notes>
+     - Updated bundled unrar to version 3.6.8.
+     - Fixed PHP4 compatibility.
+   </notes>
+  </release>
   <release>
    <version>0.3.0</version>
    <date>2006-06-06</date>
