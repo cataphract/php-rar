@@ -409,7 +409,7 @@ PHP_METHOD(rarentry, extract)
 	void *extract_data;
 	
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|s", &path, &path_len, &filename, &filename_len) == FAILURE ) {
-		WRONG_PARAM_COUNT;
+		return;
 	}
 
 	RAR_GET_PROPERTY(tmp, "rarfile");
@@ -419,7 +419,7 @@ PHP_METHOD(rarentry, extract)
 		RETURN_FALSE;
 	}
 	
-	if (path && php_check_open_basedir(path TSRMLS_CC)) {
+	if (php_check_open_basedir(path TSRMLS_CC)) {
 		RETURN_FALSE;
 	}
 	
