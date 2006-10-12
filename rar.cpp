@@ -328,6 +328,7 @@ PHP_FUNCTION(rar_list)
 		object_init_ex(tmp, rar_class_entry_ptr);
 
 		add_property_resource(tmp, "rarfile", rar->id);
+		zend_list_addref(rar->id);
 		_rar_entry_to_zval(rar->entries[i], tmp TSRMLS_CC);
 		
 		zend_hash_next_index_insert(Z_ARRVAL_P(return_value), &tmp, sizeof(zval*), NULL);
@@ -363,6 +364,7 @@ PHP_FUNCTION(rar_entry_get)
 		if (strcmp(rar->entries[i]->FileName, filename) == 0) {
 			object_init_ex(return_value, rar_class_entry_ptr);
 			add_property_resource(return_value, "rarfile", rar->id);
+			zend_list_addref(rar->id);
 			_rar_entry_to_zval(rar->entries[i], return_value TSRMLS_CC);
 			break;
 		}		
