@@ -16,14 +16,22 @@
   </maintainer>
  </maintainers>
  <release>
-  <version>0.3.3</version>
-  <date>2006-10-12</date>
+  <version>0.3.4</version>
+  <date>2007-02-28</date>
   <state>beta</state>
   <notes>
-   - Fixed PECL bug #9002 (rar_list() invalidates rar resource)
+   - Upgraded bundled UnRar to version 3.7.3.
   </notes>
  </release>
  <changelog>
+  <release>
+   <version>0.3.3</version>
+   <date>2006-10-12</date>
+   <state>beta</state>
+   <notes>
+    - Fixed PECL bug #9002 (rar_list() invalidates rar resource)
+   </notes>
+  </release>
   <release>
    <version>0.3.2</version>
    <date>2006-09-18</date>
