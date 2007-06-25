@@ -451,21 +451,27 @@ PHP_METHOD(rarentry, extract)
 	while ((result = RARReadHeader(extract_data, &entry)) == 0) {
 		if (strncmp(entry.FileName,Z_STRVAL_PP(tmp_name), sizeof(entry.FileName)) == 0) {
 			process_result = RARProcessFile(extract_data, RAR_EXTRACT, path, filename);
-			RETURN_TRUE;
+			RETVAL_TRUE;
+			goto cleanup;
 		} else {
 			process_result = RARProcessFile(extract_data, RAR_SKIP, NULL, NULL);
 		}
 		if (_rar_handle_error(process_result TSRMLS_CC) == FAILURE) {
-			RETURN_FALSE;
+			RETVAL_FALSE;
+			goto cleanup;
 		}
 	}
 
 	if (_rar_handle_error(result TSRMLS_CC) == FAILURE) {
-		RETURN_FALSE;
+		RETVAL_FALSE;
+		goto cleanup;
 	}
 
 	php_error_docref(NULL TSRMLS_CC, E_WARNING, "Can't find file %s in archive %s", Z_STRVAL_PP(tmp_name), rar->extract_handle->ArcName);
-	RETURN_FALSE;
+	RETVAL_FALSE;
+
+cleanup:
+	RARCloseArchive(extract_data);
 }
 /* }}} */
 
