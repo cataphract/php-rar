@@ -1,225 +1,251 @@
-<?xml version="1.0" encoding="ISO-8859-1" ?>
-<package>
+<?xml version="1.0" encoding="UTF-8"?>
+<package packagerversion="1.5.4" version="2.0" xmlns="http://pear.php.net/dtd/package-2.0" xmlns:tasks="http://pear.php.net/dtd/tasks-1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0
+http://pear.php.net/dtd/tasks-1.0.xsd
+http://pear.php.net/dtd/package-2.0
+http://pear.php.net/dtd/package-2.0.xsd">
  <name>rar</name>
+ <channel>pecl.php.net</channel>
  <summary>rar extension</summary>
- <description>
-  Rar is a powerful and effective archiver, which was 
-  created by Eugene Roshal and became rather popular quite fast. 
-  This extension gives you possibility to read Rar archives.
+ <description>PHP extension for reading Rar archives using bundled unRAR library.
  </description>
- <license>PHP License</license>
- <maintainers>
-  <maintainer>
-   <user>tony2001</user>
-   <name>Antony Dovgal</name>
-   <email>tony2001@phpclub.net</email>
-  </maintainer>
- </maintainers>
- <release>
-  <version>0.3.4</version>
-  <date>2007-02-28</date>
-  <state>beta</state>
-  <notes>
-   - Upgraded bundled UnRar to version 3.7.3.
-  </notes>
- </release>
+ <lead>
+  <name>Antony Dovgal</name>
+  <user>tony2001</user>
+  <email>tony@daylessday.org</email>
+  <active>yes</active>
+ </lead>
+ <date>2007-08-15</date>
+ <time>01:40:26</time>
+ <version>
+  <release>1.0.0</release>
+  <api>1.0.0</api>
+ </version>
+ <stability>
+  <release>stable</release>
+  <api>stable</api>
+ </stability>
+ <license uri="http://www.php.net/license">PHP License</license>
+ <notes>- Upgraded bundled UnRar to version 3.7.6.
+- Updated source code to use new parameter parsing API.
+- Fixed PECL bug #9002 (rar_list invalidates rar resource)
+- Fixed PECL bug #11430 (rar_extract() doesn't close handles gracefully)
+- rar_open() now throws an error when failed to open the specified file.
+ </notes>
+ <contents>
+  <dir name="/">
+   <dir name="tests">
+    <file name="001.phpt" role="test" />
+    <file name="002.phpt" role="test" />
+    <file name="003.phpt" role="test" />
+    <file name="004.phpt" role="test" />
+    <file name="latest_winrar.rar" role="test" />
+    <file name="linux_rar.rar" role="test" />
+   </dir> <!-- /tests -->
+   <dir name="unrar">
+    <file name="arccmt.cpp" role="src" />
+    <file name="archive.cpp" role="src" />
+    <file name="archive.hpp" role="src" />
+    <file name="arcread.cpp" role="src" />
+    <file name="array.hpp" role="src" />
+    <file name="beosea.cpp" role="src" />
+    <file name="cmddata.cpp" role="src" />
+    <file name="cmddata.hpp" role="src" />
+    <file name="coder.cpp" role="src" />
+    <file name="coder.hpp" role="src" />
+    <file name="compress.hpp" role="src" />
+    <file name="consio.cpp" role="src" />
+    <file name="consio.hpp" role="src" />
+    <file name="crc.cpp" role="src" />
+    <file name="crc.hpp" role="src" />
+    <file name="crypt.cpp" role="src" />
+    <file name="crypt.hpp" role="src" />
+    <file name="dll.cpp" role="src" />
+    <file name="dll.def" role="src" />
+    <file name="dll.hpp" role="src" />
+    <file name="encname.cpp" role="src" />
+    <file name="encname.hpp" role="src" />
+    <file name="errhnd.cpp" role="src" />
+    <file name="errhnd.hpp" role="src" />
+    <file name="extinfo.cpp" role="src" />
+    <file name="extinfo.hpp" role="src" />
+    <file name="extract.cpp" role="src" />
+    <file name="extract.hpp" role="src" />
+    <file name="filcreat.cpp" role="src" />
+    <file name="filcreat.hpp" role="src" />
+    <file name="file.cpp" role="src" />
+    <file name="file.hpp" role="src" />
+    <file name="filefn.cpp" role="src" />
+    <file name="filefn.hpp" role="src" />
+    <file name="filestr.cpp" role="src" />
+    <file name="filestr.hpp" role="src" />
+    <file name="find.cpp" role="src" />
+    <file name="find.hpp" role="src" />
+    <file name="getbits.cpp" role="src" />
+    <file name="getbits.hpp" role="src" />
+    <file name="global.cpp" role="src" />
+    <file name="global.hpp" role="src" />
+    <file name="headers.hpp" role="src" />
+    <file name="int64.cpp" role="src" />
+    <file name="int64.hpp" role="src" />
+    <file name="isnt.cpp" role="src" />
+    <file name="isnt.hpp" role="src" />
+    <file name="LICENSE.txt" role="doc" />
+    <file name="list.cpp" role="src" />
+    <file name="list.hpp" role="src" />
+    <file name="loclang.hpp" role="src" />
+    <file name="log.cpp" role="src" />
+    <file name="log.hpp" role="src" />
+    <file name="match.cpp" role="src" />
+    <file name="match.hpp" role="src" />
+    <file name="model.cpp" role="src" />
+    <file name="model.hpp" role="src" />
+    <file name="msc.dep" role="src" />
+    <file name="options.cpp" role="src" />
+    <file name="options.hpp" role="src" />
+    <file name="os.hpp" role="src" />
+    <file name="os2ea.cpp" role="src" />
+    <file name="pathfn.cpp" role="src" />
+    <file name="pathfn.hpp" role="src" />
+    <file name="rar.cpp" role="src" />
+    <file name="rar.hpp" role="src" />
+    <file name="rardefs.hpp" role="src" />
+    <file name="rarfn.hpp" role="src" />
+    <file name="rarlang.hpp" role="src" />
+    <file name="raros.hpp" role="src" />
+    <file name="rartypes.hpp" role="src" />
+    <file name="rarvm.cpp" role="src" />
+    <file name="rarvm.hpp" role="src" />
+    <file name="rarvmtbl.cpp" role="src" />
+    <file name="rawread.cpp" role="src" />
+    <file name="rawread.hpp" role="src" />
+    <file name="rdwrfn.cpp" role="src" />
+    <file name="rdwrfn.hpp" role="src" />
+    <file name="README.txt" role="doc" />
+    <file name="recvol.cpp" role="src" />
+    <file name="recvol.hpp" role="src" />
+    <file name="resource.cpp" role="src" />
+    <file name="resource.hpp" role="src" />
+    <file name="rijndael.cpp" role="src" />
+    <file name="rijndael.hpp" role="src" />
+    <file name="rs.cpp" role="src" />
+    <file name="rs.hpp" role="src" />
+    <file name="savepos.cpp" role="src" />
+    <file name="savepos.hpp" role="src" />
+    <file name="scantree.cpp" role="src" />
+    <file name="scantree.hpp" role="src" />
+    <file name="sha1.cpp" role="src" />
+    <file name="sha1.hpp" role="src" />
+    <file name="smallfn.cpp" role="src" />
+    <file name="smallfn.hpp" role="src" />
+    <file name="strfn.cpp" role="src" />
+    <file name="strfn.hpp" role="src" />
+    <file name="strlist.cpp" role="src" />
+    <file name="strlist.hpp" role="src" />
+    <file name="suballoc.cpp" role="src" />
+    <file name="suballoc.hpp" role="src" />
+    <file name="system.cpp" role="src" />
+    <file name="system.hpp" role="src" />
+    <file name="timefn.cpp" role="src" />
+    <file name="timefn.hpp" role="src" />
+    <file name="ulinks.cpp" role="src" />
+    <file name="ulinks.hpp" role="src" />
+    <file name="unicode.cpp" role="src" />
+    <file name="unicode.hpp" role="src" />
+    <file name="unios2.cpp" role="src" />
+    <file name="unpack.cpp" role="src" />
+    <file name="unpack.hpp" role="src" />
+    <file name="unpack15.cpp" role="src" />
+    <file name="unpack20.cpp" role="src" />
+    <file name="uowners.cpp" role="src" />
+    <file name="version.hpp" role="src" />
+    <file name="volume.cpp" role="src" />
+    <file name="volume.hpp" role="src" />
+    <file name="win32acl.cpp" role="src" />
+    <file name="win32stm.cpp" role="src" />
+   </dir> <!-- /unrar -->
+   <file name="config.m4" role="src" />
+   <file name="CREDITS" role="doc" />
+   <file name="example.php" role="doc" />
+   <file name="php_rar.h" role="src" />
+   <file name="rar.cpp" role="src" />
+  </dir> <!-- / -->
+ </contents>
+ <dependencies>
+  <required>
+   <php>
+    <min>4.0.0</min>
+   </php>
+   <pearinstaller>
+    <min>1.4.0b1</min>
+   </pearinstaller>
+  </required>
+ </dependencies>
+ <providesextension>rar</providesextension>
+ <extsrcrelease />
  <changelog>
   <release>
-   <version>0.3.3</version>
-   <date>2006-10-12</date>
-   <state>beta</state>
-   <notes>
-    - Fixed PECL bug #9002 (rar_list() invalidates rar resource)
-   </notes>
-  </release>
-  <release>
-   <version>0.3.2</version>
-   <date>2006-09-18</date>
-   <state>beta</state>
-   <notes>
-    - Updated to use new parameter parsing API.
-    - rar_open() throws an error when it fails to open the specified file.
-   </notes>
-  </release>
-  <release>
-   <version>0.3.1</version>
+   <version>
+    <release>0.3.1</release>
+    <api>0.3.1</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
    <date>2006-08-28</date>
-   <state>beta</state>
-   <notes>
-     - Updated bundled unrar to version 3.6.8.
-     - Fixed PHP4 compatibility.
+   <license uri="http://www.php.net/license">PHP License</license>
+   <notes>- Updated bundled unrar to version 3.6.8.
+- Fixed PHP4 compatibility.
    </notes>
   </release>
   <release>
-   <version>0.3.0</version>
+   <version>
+    <release>0.3.0</release>
+    <api>0.3.0</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
    <date>2006-06-06</date>
-   <state>beta</state>
-   <notes>
-     - Updated bundled unrar to version 3.6.2 (fixes compile errors with GCC4).
-     - Several minor fixes.
+   <license uri="http://www.php.net/license">PHP License</license>
+   <notes>- Updated bundled unrar to version 3.6.2 (fixes compile errors with GCC4).
+- Several minor fixes.
    </notes>
   </release>
   <release>
-   <version>0.2</version>
+   <version>
+    <release>0.2</release>
+    <api>0.2</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
    <date>2004-12-02</date>
-   <state>beta</state>
-   <notes>
-    1) Added open_basedir and safe_mode checks.
-    2) Fixed Win32 build issues (thanks to Edin).
-    Currently only 5.x builds are available.
-    3) Added OS constants.
-    4) Fixed 0 bugs. There are no bugs, wee =)
+   <license uri="http://www.php.net/license">PHP License</license>
+   <notes>1) Added open_basedir and safe_mode checks.
+2) Fixed Win32 build issues (thanks to Edin).
+Currently only 5.x builds are available.
+3) Added OS constants.
+4) Fixed 0 bugs. There are no bugs, wee =)
    </notes>
   </release>
   <release>
-   <version>0.1</version>
+   <version>
+    <release>0.1</release>
+    <api>0.1</api>
+   </version>
+   <stability>
+    <release>alpha</release>
+    <api>alpha</api>
+   </stability>
    <date>2004-06-11</date>
-   <state>alpha</state>
-   <notes>
-    1) Initial release
+   <license uri="http://www.php.net/license">PHP License</license>
+   <notes>1) Initial release
    </notes>
   </release>
  </changelog>
- <filelist>
-  <dir role="src" name="/">
-   <file role="doc">CREDITS</file>
-   <file role="doc">example.php</file>
-
-   <file role="src">config.m4</file>
-   <file role="src">php_rar.h</file>
-   <file role="src">rar.cpp</file>
-   <file role="test">tests/001.phpt</file>
-   <file role="test">tests/002.phpt</file>
-   <file role="test">tests/003.phpt</file>
-   <file role="test">tests/004.phpt</file>
-   <file role="test">tests/latest_winrar.rar</file>
-   <file role="test">tests/linux_rar.rar</file>
-
-   <dir role="src" name="/unrar/">
-
-    <file role="doc">LICENSE.txt</file>
-    <file role="doc">README.txt</file>
-
-    <file role="src">arccmt.cpp</file>
-    <file role="src">archive.cpp</file>
-    <file role="src">archive.hpp</file>
-    <file role="src">arcread.cpp</file>
-    <file role="src">array.hpp</file>
-    <file role="src">beosea.cpp</file>
-    <file role="src">cmddata.cpp</file>
-    <file role="src">cmddata.hpp</file>
-    <file role="src">coder.cpp</file>
-    <file role="src">coder.hpp</file>
-    <file role="src">compress.hpp</file>
-    <file role="src">consio.cpp</file>
-    <file role="src">consio.hpp</file>
-    <file role="src">crc.cpp</file>
-    <file role="src">crc.hpp</file>
-    <file role="src">crypt.cpp</file>
-    <file role="src">crypt.hpp</file>
-    <file role="src">dll.cpp</file>
-    <file role="src">dll.def</file>
-    <file role="src">dll.hpp</file>
-    <file role="src">encname.cpp</file>
-    <file role="src">encname.hpp</file>
-    <file role="src">errhnd.cpp</file>
-    <file role="src">errhnd.hpp</file>
-    <file role="src">extinfo.cpp</file>
-    <file role="src">extinfo.hpp</file>
-    <file role="src">extract.cpp</file>
-    <file role="src">extract.hpp</file>
-    <file role="src">filcreat.cpp</file>
-    <file role="src">filcreat.hpp</file>
-    <file role="src">file.cpp</file>
-    <file role="src">filefn.cpp</file>
-    <file role="src">filefn.hpp</file>
-    <file role="src">file.hpp</file>
-    <file role="src">filestr.cpp</file>
-    <file role="src">filestr.hpp</file>
-    <file role="src">find.cpp</file>
-    <file role="src">find.hpp</file>
-    <file role="src">getbits.cpp</file>
-    <file role="src">getbits.hpp</file>
-    <file role="src">global.cpp</file>
-    <file role="src">global.hpp</file>
-    <file role="src">headers.hpp</file>
-    <file role="src">int64.cpp</file>
-    <file role="src">int64.hpp</file>
-    <file role="src">isnt.cpp</file>
-    <file role="src">isnt.hpp</file>
-    <file role="src">list.cpp</file>
-    <file role="src">list.hpp</file>
-    <file role="src">loclang.hpp</file>
-    <file role="src">log.cpp</file>
-    <file role="src">log.hpp</file>
-    <file role="src">match.cpp</file>
-    <file role="src">match.hpp</file>
-    <file role="src">model.cpp</file>
-    <file role="src">model.hpp</file>
-    <file role="src">msc.dep</file>
-    <file role="src">options.cpp</file>
-    <file role="src">options.hpp</file>
-    <file role="src">os2ea.cpp</file>
-    <file role="src">os.hpp</file>
-    <file role="src">pathfn.cpp</file>
-    <file role="src">pathfn.hpp</file>
-    <file role="src">rar.cpp</file>
-    <file role="src">rardefs.hpp</file>
-    <file role="src">rarfn.hpp</file>
-    <file role="src">rar.hpp</file>
-    <file role="src">rarlang.hpp</file>
-    <file role="src">raros.hpp</file>
-    <file role="src">rartypes.hpp</file>
-    <file role="src">rarvm.cpp</file>
-    <file role="src">rarvm.hpp</file>
-    <file role="src">rarvmtbl.cpp</file>
-    <file role="src">rawread.cpp</file>
-    <file role="src">rawread.hpp</file>
-    <file role="src">rdwrfn.cpp</file>
-    <file role="src">rdwrfn.hpp</file>
-    <file role="src">recvol.cpp</file>
-    <file role="src">recvol.hpp</file>
-    <file role="src">resource.cpp</file>
-    <file role="src">resource.hpp</file>
-    <file role="src">rijndael.cpp</file>
-    <file role="src">rijndael.hpp</file>
-    <file role="src">rs.cpp</file>
-    <file role="src">rs.hpp</file>
-    <file role="src">savepos.cpp</file>
-    <file role="src">savepos.hpp</file>
-    <file role="src">scantree.cpp</file>
-    <file role="src">scantree.hpp</file>
-    <file role="src">sha1.cpp</file>
-    <file role="src">sha1.hpp</file>
-    <file role="src">smallfn.cpp</file>
-    <file role="src">smallfn.hpp</file>
-    <file role="src">strfn.cpp</file>
-    <file role="src">strfn.hpp</file>
-    <file role="src">strlist.cpp</file>
-    <file role="src">strlist.hpp</file>
-    <file role="src">suballoc.cpp</file>
-    <file role="src">suballoc.hpp</file>
-    <file role="src">system.cpp</file>
-    <file role="src">system.hpp</file>
-    <file role="src">timefn.cpp</file>
-    <file role="src">timefn.hpp</file>
-    <file role="src">ulinks.cpp</file>
-    <file role="src">ulinks.hpp</file>
-    <file role="src">unicode.cpp</file>
-    <file role="src">unicode.hpp</file>
-    <file role="src">unpack15.cpp</file>
-    <file role="src">unpack20.cpp</file>
-    <file role="src">unpack.cpp</file>
-    <file role="src">unpack.hpp</file>
-    <file role="src">uowners.cpp</file>
-    <file role="src">version.hpp</file>
-    <file role="src">volume.cpp</file>
-    <file role="src">volume.hpp</file>
-    <file role="src">win32acl.cpp</file>
-    <file role="src">win32stm.cpp</file>
-   </dir>
-  </dir>
- </filelist>
 </package>
 <!--
 vim:et:ts=1:sw=1
