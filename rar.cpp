@@ -405,7 +405,7 @@ PHP_METHOD(rarentry, extract)
 	int path_len, filename_len = 0;
 	zval **tmp, **tmp_name;
 	rar_file_t *rar = NULL;
-	int resource_type, result, process_result;
+	int result, process_result;
 	zval *entry_obj = getThis();
 	struct RARHeaderData entry;
 	void *extract_data;
