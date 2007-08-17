@@ -1,4 +1,9 @@
 #include "rar.hpp"
+/* flock() is not available on AIX */
+extern "C" {
+# include "php.h"
+# include "ext/standard/flock_compat.h"
+}
 
 static File *CreatedFiles[256];
 static int RemoveCreatedActive=0;
