@@ -258,10 +258,11 @@ PHP_FUNCTION(rar_open)
 		return;
 	}
 
+#if PHP_MAJOR_VERSION < 6
 	if (PG(safe_mode) && (!php_checkuid(filename, NULL, CHECKUID_CHECK_FILE_AND_DIR))) {
 		RETURN_FALSE;
 	}
-	
+#endif
 	if (php_check_open_basedir(filename TSRMLS_CC)) {
 		RETURN_FALSE;
 	}
@@ -417,19 +418,22 @@ PHP_METHOD(rarentry, extract)
 	RAR_GET_PROPERTY(tmp, "rarfile");
 	ZEND_FETCH_RESOURCE(rar, rar_file_t *, tmp, -1, "Rar file", le_rar_file);
 
+#if PHP_MAJOR_VERSION < 6
 	if (path_len && PG(safe_mode) && (!php_checkuid(path, NULL, CHECKUID_CHECK_FILE_AND_DIR))) {
 		RETURN_FALSE;
 	}
-	
+#endif
+
 	if (php_check_open_basedir(path TSRMLS_CC)) {
 		RETURN_FALSE;
 	}
 	
 	if (filename_len) {
+#if PHP_MAJOR_VERSION < 6
 		if (PG(safe_mode) && (!php_checkuid(filename, NULL, CHECKUID_CHECK_FILE_AND_DIR))) {
 			RETURN_FALSE;
 		}
-		
+#endif		
 		if (php_check_open_basedir(filename TSRMLS_CC)) {
 			RETURN_FALSE;
 		}
