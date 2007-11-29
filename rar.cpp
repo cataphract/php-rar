@@ -246,7 +246,7 @@ END_EXTERN_C()
 
 /* module functions */
 
-/* {{{ proto rar_open(string filename [, string password])
+/* {{{ proto resource rar_open(string filename [, string password])
    Open Rar archive and return resource */
 PHP_FUNCTION(rar_open)
 {
@@ -297,7 +297,7 @@ PHP_FUNCTION(rar_open)
 }
 /* }}} */
 
-/* {{{ proto rar_list(resource rarfile)
+/* {{{ proto array rar_list(resource rarfile)
    Return entries from the rar archive */
 PHP_FUNCTION(rar_list)
 {
@@ -337,7 +337,7 @@ PHP_FUNCTION(rar_list)
 }
 /* }}} */
 
-/* {{{ proto rar_entry_get(resource rarfile, string filename)
+/* {{{ proto object rar_entry_get(resource rarfile, string filename)
    Return entry from the rar archive */
 PHP_FUNCTION(rar_entry_get)
 {
@@ -377,7 +377,7 @@ PHP_FUNCTION(rar_entry_get)
 }
 /* }}} */
 
-/* {{{ proto rar_close(resource rarfile)
+/* {{{ proto bool rar_close(resource rarfile)
    Close Rar archive and free all resources */
 PHP_FUNCTION(rar_close)
 {
@@ -398,7 +398,7 @@ PHP_FUNCTION(rar_close)
 }
 /* }}} */
 
-/* {{{ proto RarEntry::extract(string path [, string filename ]);
+/* {{{ proto bool RarEntry::extract(string path [, string filename ])
    Extract file from the archive */
 PHP_METHOD(rarentry, extract)
 {
@@ -479,7 +479,7 @@ cleanup:
 }
 /* }}} */
 
-/* {{{ proto RarEntry::getName();
+/* {{{ proto string RarEntry::getName()
    Return entry name */
 PHP_METHOD(rarentry, getName)
 {
@@ -494,7 +494,7 @@ PHP_METHOD(rarentry, getName)
 }
 /* }}} */
 
-/* {{{ proto RarEntry::getUnpackedSize();
+/* {{{ proto int RarEntry::getUnpackedSize()
    Return unpacked size of the entry */
 PHP_METHOD(rarentry, getUnpackedSize)
 {
@@ -509,7 +509,7 @@ PHP_METHOD(rarentry, getUnpackedSize)
 }
 /* }}} */
 
-/* {{{ proto RarEntry::getPackedSize();
+/* {{{ proto int RarEntry::getPackedSize()
    Return packed size of the entry */
 PHP_METHOD(rarentry, getPackedSize)
 {
@@ -524,7 +524,7 @@ PHP_METHOD(rarentry, getPackedSize)
 }
 /* }}} */
 
-/* {{{ proto RarEntry::getHostOs();
+/* {{{ proto int RarEntry::getHostOs()
    Return host OS of the entry */
 PHP_METHOD(rarentry, getHostOs)
 {
@@ -539,7 +539,7 @@ PHP_METHOD(rarentry, getHostOs)
 }
 /* }}} */
 
-/* {{{ proto RarEntry::getFileTime();
+/* {{{ proto string RarEntry::getFileTime()
    Return modification time of the entry */
 PHP_METHOD(rarentry, getFileTime)
 {
@@ -554,7 +554,7 @@ PHP_METHOD(rarentry, getFileTime)
 }
 /* }}} */
 
-/* {{{ proto RarEntry::getCrc();
+/* {{{ proto string RarEntry::getCrc()
    Return CRC of the entry */
 PHP_METHOD(rarentry, getCrc)
 {
@@ -569,7 +569,7 @@ PHP_METHOD(rarentry, getCrc)
 }
 /* }}} */
 
-/* {{{ proto RarEntry::getAttr();
+/* {{{ proto int RarEntry::getAttr()
    Return attributes of the entry */
 PHP_METHOD(rarentry, getAttr)
 {
@@ -584,7 +584,7 @@ PHP_METHOD(rarentry, getAttr)
 }
 /* }}} */
 
-/* {{{ proto RarEntry::getVersion();
+/* {{{ proto int RarEntry::getVersion()
    Return version of the archiver, used to create this entry */
 PHP_METHOD(rarentry, getVersion)
 {
@@ -599,7 +599,7 @@ PHP_METHOD(rarentry, getVersion)
 }
 /* }}} */
 
-/* {{{ proto RarEntry::getMethod();
+/* {{{ proto int RarEntry::getMethod()
    Return packing method */
 PHP_METHOD(rarentry, getMethod)
 {
