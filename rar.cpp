@@ -668,9 +668,19 @@ PHP_MINIT_FUNCTION(rar)
  */
 PHP_MINFO_FUNCTION(rar)
 {
+	char version[256];
+
 	php_info_print_table_start();
 	php_info_print_table_header(2, "Rar support", "enabled");
 	php_info_print_table_row(2, "Revision", "$Revision$");
+
+	if (RARVER_BETA != 0) {
+		sprintf(version,"%d.%02d beta%d", RARVER_MAJOR, RARVER_MINOR, RARVER_BETA);
+	} else {
+		sprintf(version,"%d.%02d", RARVER_MAJOR, RARVER_MINOR);
+	}
+
+	php_info_print_table_row(2, "UnRAR version", version);
 	php_info_print_table_end();
 }
 /* }}} */
