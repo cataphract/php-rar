@@ -14,8 +14,8 @@ http://pear.php.net/dtd/package-2.0.xsd">
   <email>tony@daylessday.org</email>
   <active>yes</active>
  </lead>
- <date>2007-08-15</date>
- <time>22:00:00</time>
+ <date>2008-02-26</date>
+ <time>17:00:00</time>
  <version>
   <release>1.0.0</release>
   <api>1.0.0</api>
@@ -25,7 +25,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
   <api>stable</api>
  </stability>
  <license uri="http://www.php.net/license">PHP License</license>
- <notes>- Upgraded bundled UnRar to version 3.7.6.
+ <notes>- Upgraded bundled UnRar to version 3.7.8.
 - Updated source code to use new parameter parsing API.
 - Fixed PECL bug #9002 (rar_list invalidates rar resource)
 - Fixed PECL bug #11430 (rar_extract() doesn't close handles gracefully)
