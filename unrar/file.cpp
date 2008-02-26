@@ -1,9 +1,4 @@
 #include "rar.hpp"
-/* flock() is not available on AIX */
-extern "C" {
-# include "php.h"
-# include "ext/standard/flock_compat.h"
-}
 
 static File *CreatedFiles[256];
 static int RemoveCreatedActive=0;
@@ -243,10 +238,12 @@ void File::Flush()
 
 bool File::Delete()
 {
-  if (HandleType!=FILE_HANDLENORMAL || !AllowDelete)
+  if (HandleType!=FILE_HANDLENORMAL)
     return(false);
   if (hFile!=BAD_HANDLE)
     Close();
+  if (!AllowDelete)
+    return(false);
   return(DelFile(FileName,FileNameW));
 }
 
