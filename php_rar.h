@@ -20,7 +20,7 @@
   | Please, read unRAR license for full information.                     |
   | unRAR & RAR copyrights are owned by Eugene Roshal                    |
   +----------------------------------------------------------------------+
-  | Author: Antony Dovgal <tony2001@phpclub.net>                         |
+  | Author: Antony Dovgal <tony@daylessday.org>                          |
   +----------------------------------------------------------------------+
 */
 
