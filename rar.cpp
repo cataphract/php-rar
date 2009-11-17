@@ -43,7 +43,18 @@ extern "C" {
 #if HAVE_RAR
 
 #include "php_rar.h"
-#include "unrar/rar.hpp"
+/* causes linking errors (multiple definitions) in functions
+   that were requested inlining but were not inlined by the compiler */
+/* #include "unrar/rar.hpp */
+/* only these includes are necessary anyway: */
+#include "unrar/dll.hpp"
+#include "unrar/version.hpp"
+/* And these definitions, which should probably be moved to a header.
+   These are in unrar/headers.hpp, but that header depends on several other */
+enum HOST_SYSTEM {
+  HOST_MSDOS=0,HOST_OS2=1,HOST_WIN32=2,HOST_UNIX=3,HOST_MACOS=4,
+  HOST_BEOS=5,HOST_MAX
+};
 
 /* PHP4 compat {{{ */
 #ifndef PHP_METHOD
