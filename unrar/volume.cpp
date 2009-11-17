@@ -3,6 +3,13 @@
 
 
 
+#if defined(RARDLL) && defined(_MSC_VER) && !defined(_M_X64)
+// Disable the run time stack check for unrar.dll, so we can manipulate
+// with ChangeVolProc call type below. Run time check would intercept
+// a wrong ESP before we restore it.
+#pragma runtime_checks( "s", off )
+#endif
+
 bool MergeArchive(Archive &Arc,ComprDataIO *DataIO,bool ShowFileName,char Command)
 {
   RAROptions *Cmd=Arc.GetRAROptions();
@@ -18,40 +25,18 @@ bool MergeArchive(Archive &Arc,ComprDataIO *DataIO,bool ShowFileName,char Comman
     Log(Arc.FileName,St(MDataBadCRC),hd->FileName,Arc.FileName);
   }
 
-  Int64 PosBeforeClose=Arc.Tell();
+  int64 PosBeforeClose=Arc.Tell();
+
+  if (DataIO!=NULL)
+    DataIO->ProcessedArcSize+=Arc.FileLength();
+
   Arc.Close();
 
   char NextName[NM];
   wchar NextNameW[NM];
-  *NextNameW=0;
   strcpy(NextName,Arc.FileName);
-  NextVolumeName(NextName,(Arc.NewMhd.Flags & MHD_NEWNUMBERING)==0 || Arc.OldFormat);
-
-  if (*Arc.FileNameW!=0)
-  {
-    // Copy incremented trailing low ASCII volume name part to Unicode name.
-    // It is simpler than also implementing Unicode version of NextVolumeName.
-
-    strcpyw(NextNameW,Arc.FileNameW);
-    char *NumPtr=GetVolNumPart(NextName);
-
-    // moving to first digit in volume number
-    while (NumPtr>NextName && isdigit(*NumPtr) && isdigit(*(NumPtr-1)))
-      NumPtr--;
-
-    // also copy the first character before volume number,
-    // because it can be changed when going from .r99 to .s00
-    if (NumPtr>NextName)
-      NumPtr--;
-
-    int CharsToCopy=strlen(NextName)-(NumPtr-NextName);
-    int DestPos=strlenw(NextNameW)-CharsToCopy;
-    if (DestPos>0)
-    {
-      CharToWide(NumPtr,NextNameW+DestPos,ASIZE(NextNameW)-DestPos-1);
-      NextNameW[ASIZE(NextNameW)-1]=0;
-    }
-  }
+  strcpyw(NextNameW,Arc.FileNameW);
+  NextVolumeName(NextName,NextNameW,ASIZE(NextName),(Arc.NewMhd.Flags & MHD_NEWNUMBERING)==0 || Arc.OldFormat);
 
 #if !defined(SFX_MODULE) && !defined(RARDLL)
   bool RecoveryDone=false;
@@ -60,22 +45,33 @@ bool MergeArchive(Archive &Arc,ComprDataIO *DataIO,bool ShowFileName,char Comman
 
   while (!Arc.Open(NextName,NextNameW))
   {
+    // We need to open a new volume which size was not calculated
+    // in total size before, so we cannot calculate the total progress
+    // anymore. Let's reset the total size to zero and stop 
+    // the total progress.
+    if (DataIO!=NULL)
+      DataIO->TotalArcSize=0;
+
     if (!OldSchemeTested)
     {
+      // Checking for new style volumes renamed by user to old style
+      // name format. Some users did it for unknown reason.
       char AltNextName[NM];
+      wchar AltNextNameW[NM];
       strcpy(AltNextName,Arc.FileName);
-      NextVolumeName(AltNextName,true);
+      strcpyw(AltNextNameW,Arc.FileNameW);
+      NextVolumeName(AltNextName,AltNextNameW,ASIZE(AltNextName),true);
       OldSchemeTested=true;
-      if (Arc.Open(AltNextName))
+      if (Arc.Open(AltNextName,AltNextNameW))
       {
         strcpy(NextName,AltNextName);
-        *NextNameW=0;
+        strcpyw(NextNameW,AltNextNameW);
         break;
       }
     }
 #ifdef RARDLL
     if (Cmd->Callback==NULL && Cmd->ChangeVolProc==NULL ||
-        Cmd->Callback!=NULL && Cmd->Callback(UCM_CHANGEVOLUME,Cmd->UserData,(LONG)NextName,RAR_VOL_ASK)==-1)
+        Cmd->Callback!=NULL && Cmd->Callback(UCM_CHANGEVOLUME,Cmd->UserData,(LPARAM)NextName,RAR_VOL_ASK)==-1)
     {
       Cmd->DllError=ERAR_EOPEN;
       FailedOpen=true;
@@ -83,11 +79,26 @@ bool MergeArchive(Archive &Arc,ComprDataIO *DataIO,bool ShowFileName,char Comman
     }
     if (Cmd->ChangeVolProc!=NULL)
     {
-#if defined(_WIN_32) && !defined(_MSC_VER) && !defined(__MINGW32__)
+      // Here we preserve ESP value. It is necessary for those developers,
+      // who still define ChangeVolProc callback as "C" type function,
+      // even though in year 2001 we announced in unrar.dll whatsnew.txt
+      // that it will be PASCAL type (for compatibility with Visual Basic).
+#if defined(_MSC_VER)
+#ifndef _M_X64
+      __asm mov ebx,esp
+#endif
+#elif defined(_WIN_32) && defined(__BORLANDC__)
       _EBX=_ESP;
 #endif
       int RetCode=Cmd->ChangeVolProc(NextName,RAR_VOL_ASK);
-#if defined(_WIN_32) && !defined(_MSC_VER) && !defined(__MINGW32__)
+
+      // Restore ESP after ChangeVolProc with wrongly defined calling
+      // convention broken it.
+#if defined(_MSC_VER)
+#ifndef _M_X64
+      __asm mov esp,ebx
+#endif
+#elif defined(_WIN_32) && defined(__BORLANDC__)
       _ESP=_EBX;
 #endif
       if (RetCode==0)
@@ -123,6 +134,7 @@ bool MergeArchive(Archive &Arc,ComprDataIO *DataIO,bool ShowFileName,char Comman
       FailedOpen=true;
       break;
     }
+
 #endif // RARDLL
     *NextNameW=0;
   }
@@ -138,7 +150,7 @@ bool MergeArchive(Archive &Arc,ComprDataIO *DataIO,bool ShowFileName,char Comman
   Arc.CheckArc(true);
 #ifdef RARDLL
   if (Cmd->Callback!=NULL &&
-      Cmd->Callback(UCM_CHANGEVOLUME,Cmd->UserData,(LONG)NextName,RAR_VOL_NOTIFY)==-1)
+      Cmd->Callback(UCM_CHANGEVOLUME,Cmd->UserData,(LPARAM)NextName,RAR_VOL_NOTIFY)==-1)
     return(false);
   if (Cmd->ChangeVolProc!=NULL)
   {
@@ -192,18 +204,28 @@ bool MergeArchive(Archive &Arc,ComprDataIO *DataIO,bool ShowFileName,char Comman
       DataIO->UnpVolume=false;
     else
     {
-      DataIO->UnpVolume=(hd->Flags & LHD_SPLIT_AFTER);
+      DataIO->UnpVolume=(hd->Flags & LHD_SPLIT_AFTER)!=0;
       DataIO->SetPackedSizeToRead(hd->FullPackSize);
     }
 #ifdef SFX_MODULE
     DataIO->UnpArcSize=Arc.FileLength();
-    DataIO->CurUnpRead=0;
 #endif
+    
+    // Reset the size of packed data read from current volume. It is used
+    // to display the total progress and preceding volumes are already
+    // compensated with ProcessedArcSize, so we need to reset this variable.
+    DataIO->CurUnpRead=0;
+
     DataIO->PackedCRC=0xffffffff;
 //    DataIO->SetFiles(&Arc,NULL);
   }
   return(true);
 }
+
+#if defined(RARDLL) && defined(_MSC_VER) && !defined(_M_X64)
+// Restore the run time stack check for unrar.dll.
+#pragma runtime_checks( "s", restore )
+#endif
 
 
 

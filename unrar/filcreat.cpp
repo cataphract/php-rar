@@ -1,7 +1,7 @@
 #include "rar.hpp"
 
 bool FileCreate(RAROptions *Cmd,File *NewFile,char *Name,wchar *NameW,
-                OVERWRITE_MODE Mode,bool *UserReject,Int64 FileSize,
+                OVERWRITE_MODE Mode,bool *UserReject,int64 FileSize,
                 uint FileTime)
 {
   if (UserReject!=NULL)
@@ -30,7 +30,7 @@ bool FileCreate(RAROptions *Cmd,File *NewFile,char *Name,wchar *NameW,
 #endif
     if (Cmd->AllYes || Mode==OVERWRITE_ALL)
       break;
-    if (Mode==OVERWRITE_ASK)
+    if (Mode==OVERWRITE_DEFAULT || Mode==OVERWRITE_FORCE_ASK)
     {
       eprintf(St(MFileExists),Name);
       int Choice=Ask(St(MYesNoAllRenQ));
@@ -66,7 +66,13 @@ bool FileCreate(RAROptions *Cmd,File *NewFile,char *Name,wchar *NameW,
         NewName[Size]=0;
         OemToChar(NewName,NewName);
 #else
-        fgets(NewName,sizeof(NewName),stdin);
+        if (fgets(NewName,sizeof(NewName),stdin)==NULL)
+        {
+          // Process fgets failure as if user answered 'No'.
+          if (UserReject!=NULL)
+            *UserReject=true;
+          return(false);
+        }
 #endif
         RemoveLF(NewName);
         if (PointToName(NewName)==NewName)
@@ -78,7 +84,7 @@ bool FileCreate(RAROptions *Cmd,File *NewFile,char *Name,wchar *NameW,
         continue;
       }
       if (Choice==6)
-        ErrHandler.Exit(RAR_USER_BREAK);
+        ErrHandler.Exit(USER_BREAK);
     }
     if (Mode==OVERWRITE_AUTORENAME)
     {
@@ -88,7 +94,7 @@ bool FileCreate(RAROptions *Cmd,File *NewFile,char *Name,wchar *NameW,
           *NameW=0;
       }
       else
-        Mode=OVERWRITE_ASK;
+        Mode=OVERWRITE_DEFAULT;
       continue;
     }
   }
@@ -111,7 +117,7 @@ bool GetAutoRenamedName(char *Name)
     Ext=Name+strlen(Name);
   for (int FileVer=1;;FileVer++)
   {
-    sprintf(NewName,"%.*s(%d)%s",Ext-Name,Name,FileVer,Ext);
+    sprintf(NewName,"%.*s(%d)%s",int(Ext-Name),Name,FileVer,Ext);
     if (!FileExist(NewName))
     {
       strcpy(Name,NewName);

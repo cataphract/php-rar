@@ -68,9 +68,9 @@ HANDLE PASCAL RAROpenArchiveEx(struct RAROpenArchiveDataEx *r)
     if (r->CmtBufSize!=0 && Data->Arc.GetComment(&CmtData,NULL))
     {
       r->Flags|=2;
-      int Size=CmtData.Size()+1;
+      size_t Size=CmtData.Size()+1;
       r->CmtState=Size>r->CmtBufSize ? ERAR_SMALL_BUF:1;
-      r->CmtSize=Min(Size,r->CmtBufSize);
+      r->CmtSize=(uint)Min(Size,r->CmtBufSize);
       memcpy(r->CmtBuf,&CmtData[0],r->CmtSize-1);
       if (Size<=r->CmtBufSize)
         r->CmtBuf[r->CmtSize-1]=0;
@@ -104,7 +104,7 @@ int PASCAL RARReadHeader(HANDLE hArcData,struct RARHeaderData *D)
   DataSet *Data=(DataSet *)hArcData;
   try
   {
-    if ((Data->HeaderSize=Data->Arc.SearchBlock(FILE_HEAD))<=0)
+    if ((Data->HeaderSize=(int)Data->Arc.SearchBlock(FILE_HEAD))<=0)
     {
       if (Data->Arc.Volume && Data->Arc.GetHeaderType()==ENDARC_HEAD &&
           (Data->Arc.EndArcHead.Flags & EARC_NEXT_VOLUME))
@@ -153,7 +153,7 @@ int PASCAL RARReadHeaderEx(HANDLE hArcData,struct RARHeaderDataEx *D)
   DataSet *Data=(DataSet *)hArcData;
   try
   {
-    if ((Data->HeaderSize=Data->Arc.SearchBlock(FILE_HEAD))<=0)
+    if ((Data->HeaderSize=(int)Data->Arc.SearchBlock(FILE_HEAD))<=0)
     {
       if (Data->Arc.Volume && Data->Arc.GetHeaderType()==ENDARC_HEAD &&
           (Data->Arc.EndArcHead.Flags & EARC_NEXT_VOLUME))
@@ -221,9 +221,10 @@ int PASCAL ProcessFile(HANDLE hArcData,int Operation,char *DestPath,char *DestNa
   try
   {
     Data->Cmd.DllError=0;
-    if (Data->OpenMode==RAR_OM_LIST || Operation==RAR_SKIP && !Data->Arc.Solid)
+    if (Data->OpenMode==RAR_OM_LIST || Data->OpenMode==RAR_OM_LIST_INCSPLIT ||
+        Operation==RAR_SKIP && !Data->Arc.Solid)
     {
-      if (/*Data->OpenMode==RAR_OM_LIST && */Data->Arc.Volume &&
+      if (Data->Arc.Volume &&
           Data->Arc.GetHeaderType()==FILE_HEAD &&
           (Data->Arc.NewLhd.Flags & LHD_SPLIT_AFTER)!=0)
         if (MergeArchive(Data->Arc,NULL,false,'L'))
@@ -265,6 +266,9 @@ int PASCAL ProcessFile(HANDLE hArcData,int Operation,char *DestPath,char *DestNa
         strncpyw(Data->Cmd.ExtrPathW,NullToEmpty(DestPathW),NM-2);
         AddEndSlash(Data->Cmd.ExtrPathW);
         strncpyw(Data->Cmd.DllDestNameW,NullToEmpty(DestNameW),NM-1);
+
+        if (*Data->Cmd.DllDestNameW!=0 && *Data->Cmd.DllDestName==0)
+          WideToChar(Data->Cmd.DllDestNameW,Data->Cmd.DllDestName);
       }
       else
       {
@@ -312,7 +316,7 @@ void PASCAL RARSetChangeVolProc(HANDLE hArcData,CHANGEVOLPROC ChangeVolProc)
 }
 
 
-void PASCAL RARSetCallback(HANDLE hArcData,UNRARCALLBACK Callback,LONG UserData)
+void PASCAL RARSetCallback(HANDLE hArcData,UNRARCALLBACK Callback,LPARAM UserData)
 {
   DataSet *Data=(DataSet *)hArcData;
   Data->Cmd.Callback=Callback;
@@ -345,19 +349,19 @@ static int RarErrorToDll(int ErrCode)
 {
   switch(ErrCode)
   {
-    case RAR_FATAL_ERROR:
+    case FATAL_ERROR:
       return(ERAR_EREAD);
-    case RAR_CRC_ERROR:
+    case CRC_ERROR:
       return(ERAR_BAD_DATA);
-    case RAR_WRITE_ERROR:
+    case WRITE_ERROR:
       return(ERAR_EWRITE);
-    case RAR_OPEN_ERROR:
+    case OPEN_ERROR:
       return(ERAR_EOPEN);
-    case RAR_CREATE_ERROR:
+    case CREATE_ERROR:
       return(ERAR_ECREATE);
-    case RAR_MEMORY_ERROR:
+    case MEMORY_ERROR:
       return(ERAR_NO_MEMORY);
-    case RAR_SUCCESS:
+    case SUCCESS:
       return(0);
     default:
       return(ERAR_UNKNOWN);

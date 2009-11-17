@@ -57,7 +57,7 @@ void Archive::CheckArc(bool EnableBroken)
   if (!IsArchive(EnableBroken))
   {
     Log(FileName,St(MBadArc),FileName);
-    ErrHandler.Exit(RAR_FATAL_ERROR);
+    ErrHandler.Exit(FATAL_ERROR);
   }
 }
 #endif
@@ -132,7 +132,7 @@ bool Archive::IsArchive(bool EnableBroken)
   else
   {
     Array<char> Buffer(MAXSFXSIZE);
-    long CurPos=int64to32(Tell());
+    long CurPos=(long)Tell();
     int ReadSize=Read(&Buffer[0],Buffer.Size()-16);
     for (int I=0;I<ReadSize;I++)
       if (Buffer[I]==0x52 && IsSignature((byte *)&Buffer[I]))
@@ -186,7 +186,7 @@ bool Archive::IsArchive(bool EnableBroken)
 #ifdef RARDLL
     Cmd->DllError=ERAR_UNKNOWN_FORMAT;
 #else
-    ErrHandler.SetErrorCode(RAR_WARNING);
+    ErrHandler.SetErrorCode(WARNING);
   #if !defined(SILENT) && !defined(SFX_MODULE)
       Log(FileName,St(MUnknownMeth),FileName);
       Log(FileName,St(MVerRequired),NewMhd.EncryptVer/10,NewMhd.EncryptVer%10);
@@ -204,10 +204,10 @@ bool Archive::IsArchive(bool EnableBroken)
   if (!SilentOpen || !Encrypted)
   {
     SaveFilePos SavePos(*this);
-    Int64 SaveCurBlockPos=CurBlockPos,SaveNextBlockPos=NextBlockPos;
+    int64 SaveCurBlockPos=CurBlockPos,SaveNextBlockPos=NextBlockPos;
 
     NotFirstVolume=false;
-    while (ReadHeader())
+    while (ReadHeader()!=0)
     {
       int HeaderType=GetHeaderType();
       if (HeaderType==NEWSUB_HEAD)

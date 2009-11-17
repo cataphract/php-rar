@@ -36,7 +36,7 @@ void ComprDataIO::Init()
 
 
 
-int ComprDataIO::UnpRead(byte *Addr,uint Count)
+int ComprDataIO::UnpRead(byte *Addr,size_t Count)
 {
   int RetCode=0,TotalRead=0;
   byte *ReadAddr;
@@ -45,11 +45,11 @@ int ComprDataIO::UnpRead(byte *Addr,uint Count)
   {
     Archive *SrcArc=(Archive *)SrcFile;
 
-    uint ReadSize=(Count>UnpPackedSize) ? int64to32(UnpPackedSize):Count;
+    size_t ReadSize=((int64)Count>UnpPackedSize) ? (size_t)UnpPackedSize:Count;
     if (UnpackFromMemory)
     {
       memcpy(Addr,UnpackFromMemoryAddr,UnpackFromMemorySize);
-      RetCode=UnpackFromMemorySize;
+      RetCode=(int)UnpackFromMemorySize;
       UnpackFromMemorySize=0;
     }
     else
@@ -59,13 +59,13 @@ int ComprDataIO::UnpRead(byte *Addr,uint Count)
       RetCode=SrcFile->Read(ReadAddr,ReadSize);
       FileHeader *hd=SubHead!=NULL ? SubHead:&SrcArc->NewLhd;
       if (hd->Flags & LHD_SPLIT_AFTER)
-        PackedCRC=CRC(PackedCRC,ReadAddr,ReadSize);
+        PackedCRC=CRC(PackedCRC,ReadAddr,RetCode);
     }
     CurUnpRead+=RetCode;
     TotalRead+=RetCode;
 #ifndef NOVOLUME
-    // these variable are not used below in NOVOLUME mode, so it is better
-    // to exclude these commands to avoid compiler warnings
+    // These variable are not used in NOVOLUME mode, so it is better
+    // to exclude commands below to avoid compiler warnings.
     ReadAddr+=RetCode;
     Count-=RetCode;
 #endif
@@ -96,7 +96,7 @@ int ComprDataIO::UnpRead(byte *Addr,uint Count)
         Decrypt.Crypt(Addr,RetCode,(Decryption==15) ? NEW_CRYPT : OLD_DECODE);
       else
         if (Decryption==20)
-          for (uint I=0;I<RetCode;I+=16)
+          for (int I=0;I<RetCode;I+=16)
             Decrypt.DecryptBlock20(&Addr[I]);
         else
 #endif
@@ -111,29 +111,53 @@ int ComprDataIO::UnpRead(byte *Addr,uint Count)
 }
 
 
-void ComprDataIO::UnpWrite(byte *Addr,uint Count)
+#if defined(RARDLL) && defined(_MSC_VER) && !defined(_M_X64)
+// Disable the run time stack check for unrar.dll, so we can manipulate
+// with ProcessDataProc call type below. Run time check would intercept
+// a wrong ESP before we restore it.
+#pragma runtime_checks( "s", off )
+#endif
+
+void ComprDataIO::UnpWrite(byte *Addr,size_t Count)
 {
+
 #ifdef RARDLL
   RAROptions *Cmd=((Archive *)SrcFile)->GetRAROptions();
   if (Cmd->DllOpMode!=RAR_SKIP)
   {
     if (Cmd->Callback!=NULL &&
-        Cmd->Callback(UCM_PROCESSDATA,Cmd->UserData,(LONG)Addr,Count)==-1)
-      ErrHandler.Exit(RAR_USER_BREAK);
+        Cmd->Callback(UCM_PROCESSDATA,Cmd->UserData,(LPARAM)Addr,Count)==-1)
+      ErrHandler.Exit(USER_BREAK);
     if (Cmd->ProcessDataProc!=NULL)
     {
-#if defined(_WIN_32) && !defined(_MSC_VER) && !defined(__MINGW32__)
+      // Here we preserve ESP value. It is necessary for those developers,
+      // who still define ProcessDataProc callback as "C" type function,
+      // even though in year 2001 we announced in unrar.dll whatsnew.txt
+      // that it will be PASCAL type (for compatibility with Visual Basic).
+#if defined(_MSC_VER)
+#ifndef _M_X64
+      __asm mov ebx,esp
+#endif
+#elif defined(_WIN_32) && defined(__BORLANDC__)
       _EBX=_ESP;
 #endif
-      int RetCode=Cmd->ProcessDataProc(Addr,Count);
-#if defined(_WIN_32) && !defined(_MSC_VER) && !defined(__MINGW32__)
+      int RetCode=Cmd->ProcessDataProc(Addr,(int)Count);
+
+      // Restore ESP after ProcessDataProc with wrongly defined calling
+      // convention broken it.
+#if defined(_MSC_VER)
+#ifndef _M_X64
+      __asm mov esp,ebx
+#endif
+#elif defined(_WIN_32) && defined(__BORLANDC__)
       _ESP=_EBX;
 #endif
       if (RetCode==0)
-        ErrHandler.Exit(RAR_USER_BREAK);
+        ErrHandler.Exit(USER_BREAK);
     }
   }
-#endif
+#endif // RARDLL
+
   UnpWrAddr=Addr;
   UnpWrSize=Count;
   if (UnpackToMemory)
@@ -160,28 +184,35 @@ void ComprDataIO::UnpWrite(byte *Addr,uint Count)
   Wait();
 }
 
+#if defined(RARDLL) && defined(_MSC_VER) && !defined(_M_X64)
+// Restore the run time stack check for unrar.dll.
+#pragma runtime_checks( "s", restore )
+#endif
 
 
 
 
 
-void ComprDataIO::ShowUnpRead(Int64 ArcPos,Int64 ArcSize)
+
+void ComprDataIO::ShowUnpRead(int64 ArcPos,int64 ArcSize)
 {
   if (ShowProgress && SrcFile!=NULL)
   {
+    if (TotalArcSize!=0)
+    {
+      // important when processing several archives or multivolume archive
+      ArcSize=TotalArcSize;
+      ArcPos+=ProcessedArcSize;
+    }
+
     Archive *SrcArc=(Archive *)SrcFile;
     RAROptions *Cmd=SrcArc->GetRAROptions();
-    if (TotalArcSize!=0)
-      ArcSize=TotalArcSize;
-    ArcPos+=ProcessedArcSize;
-    if (!SrcArc->Volume)
+
+    int CurPercent=ToPercent(ArcPos,ArcSize);
+    if (!Cmd->DisablePercentage && CurPercent!=LastPercent)
     {
-      int CurPercent=ToPercent(ArcPos,ArcSize);
-      if (!Cmd->DisablePercentage && CurPercent!=LastPercent)
-      {
-        mprintf("\b\b\b\b%3d%%",CurPercent);
-        LastPercent=CurPercent;
-      }
+      mprintf("\b\b\b\b%3d%%",CurPercent);
+      LastPercent=CurPercent;
     }
   }
 }
@@ -208,14 +239,14 @@ void ComprDataIO::SetFiles(File *SrcFile,File *DestFile)
 }
 
 
-void ComprDataIO::GetUnpackedData(byte **Data,uint *Size)
+void ComprDataIO::GetUnpackedData(byte **Data,size_t *Size)
 {
   *Data=UnpWrAddr;
   *Size=UnpWrSize;
 }
 
 
-void ComprDataIO::SetEncryption(int Method,char *Password,byte *Salt,bool Encrypt,bool HandsOffHash)
+void ComprDataIO::SetEncryption(int Method,const char *Password,const byte *Salt,bool Encrypt,bool HandsOffHash)
 {
   if (Encrypt)
   {

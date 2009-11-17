@@ -12,7 +12,7 @@ void ExtractStreams(Archive &Arc,char *FileName,wchar *FileNameW)
 #ifndef SILENT
     Log(Arc.FileName,St(MStreamBroken),FileName);
 #endif
-    ErrHandler.SetErrorCode(RAR_CRC_ERROR);
+    ErrHandler.SetErrorCode(CRC_ERROR);
     return;
   }
 
@@ -21,7 +21,7 @@ void ExtractStreams(Archive &Arc,char *FileName,wchar *FileNameW)
 #ifndef SILENT
     Log(Arc.FileName,St(MStreamUnknown),FileName);
 #endif
-    ErrHandler.SetErrorCode(RAR_WARNING);
+    ErrHandler.SetErrorCode(WARNING);
     return;
   }
 
@@ -39,7 +39,7 @@ void ExtractStreams(Archive &Arc,char *FileName,wchar *FileNameW)
 #ifndef SILENT
     Log(Arc.FileName,St(MStreamBroken),FileName);
 #endif
-    ErrHandler.SetErrorCode(RAR_CRC_ERROR);
+    ErrHandler.SetErrorCode(CRC_ERROR);
     return;
   }
 
@@ -72,7 +72,7 @@ void ExtractStreams(Archive &Arc,char *FileName,wchar *FileNameW)
 #ifndef SILENT
       Log(Arc.FileName,St(MStreamBroken),StreamName);
 #endif
-      ErrHandler.SetErrorCode(RAR_CRC_ERROR);
+      ErrHandler.SetErrorCode(CRC_ERROR);
     }
     else
       CurFile.Close();
@@ -108,14 +108,14 @@ void ExtractStreamsNew(Archive &Arc,char *FileName,wchar *FileNameW)
 
   wchar *DestName=StreamNameW+strlenw(StreamNameW);
   byte *SrcName=&Arc.SubHead.SubData[0];
-  int DestSize=Arc.SubHead.SubData.Size()/2;
+  size_t DestSize=Arc.SubHead.SubData.Size()/2;
 
-  if (strlenw(StreamNameW)+DestSize>=sizeof(StreamNameW)/sizeof(StreamNameW[0]))
+  if (strlenw(StreamNameW)+DestSize>=ASIZE(StreamNameW))
   {
 #if !defined(SILENT) && !defined(SFX_MODULE)
     Log(Arc.FileName,St(MStreamBroken),FileName);
 #endif
-    ErrHandler.SetErrorCode(RAR_CRC_ERROR);
+    ErrHandler.SetErrorCode(CRC_ERROR);
     return;
   }
 
@@ -127,7 +127,7 @@ void ExtractStreamsNew(Archive &Arc,char *FileName,wchar *FileNameW)
 #if !defined(SILENT) && !defined(SFX_MODULE)
     Log(Arc.FileName,St(MStreamBroken),FileName);
 #endif
-    ErrHandler.SetErrorCode(RAR_CRC_ERROR);
+    ErrHandler.SetErrorCode(CRC_ERROR);
     return;
   }
 

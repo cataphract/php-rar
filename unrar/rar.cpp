@@ -1,13 +1,5 @@
 #include "rar.hpp"
 
-
-#include "smallfn.cpp"
-
-#ifdef _DJGPP
-extern "C" char **__crt0_glob_function (char *arg) { return 0; }
-extern "C" void   __crt0_load_environment_file (char *progname) { }
-#endif
-
 #if !defined(GUI) && !defined(RARDLL)
 int main(int argc, char *argv[])
 {
@@ -65,7 +57,7 @@ int main(int argc, char *argv[])
       CmdLine=strchr(CmdLine+1,'\"');
     if (CmdLine!=NULL && (CmdLine=strpbrk(CmdLine," /"))!=NULL)
     {
-      while (isspace(*CmdLine))
+      while (IsSpace(*CmdLine))
         CmdLine++;
       Switch=CmdLine;
     }
@@ -118,12 +110,12 @@ int main(int argc, char *argv[])
 #ifdef ENABLE_BAD_ALLOC
   catch (bad_alloc)
   {
-    ErrHandler.SetErrorCode(RAR_MEMORY_ERROR);
+    ErrHandler.SetErrorCode(MEMORY_ERROR);
   }
 #endif
   catch (...)
   {
-    ErrHandler.SetErrorCode(RAR_FATAL_ERROR);
+    ErrHandler.SetErrorCode(FATAL_ERROR);
   }
 #endif
   File::RemoveCreated();

@@ -4,11 +4,11 @@
 #include "unios2.cpp"
 #endif
 
-bool WideToChar(const wchar *Src,char *Dest,int DestSize)
+bool WideToChar(const wchar *Src,char *Dest,size_t DestSize)
 {
   bool RetCode=true;
 #ifdef _WIN_32
-  if (WideCharToMultiByte(CP_ACP,0,Src,-1,Dest,DestSize,NULL,NULL)==0)
+  if (WideCharToMultiByte(CP_ACP,0,Src,-1,Dest,(int)DestSize,NULL,NULL)==0)
     RetCode=false;
 #else
 #ifdef _APPLE
@@ -16,7 +16,10 @@ bool WideToChar(const wchar *Src,char *Dest,int DestSize)
 #else
 #ifdef MBFUNCTIONS
 
-  if (wcstombs(Dest,Src,DestSize)==(size_t)-1)
+  size_t ResultingSize=wcstombs(Dest,Src,DestSize);
+  if (ResultingSize==(size_t)-1)
+    RetCode=false;
+  if (ResultingSize==0 && *Src!=0)
     RetCode=false;
 
   if ((!RetCode || *Dest==0 && *Src!=0) && DestSize>NM && strlenw(Src)<NM)
@@ -54,11 +57,11 @@ bool WideToChar(const wchar *Src,char *Dest,int DestSize)
 }
 
 
-bool CharToWide(const char *Src,wchar *Dest,int DestSize)
+bool CharToWide(const char *Src,wchar *Dest,size_t DestSize)
 {
   bool RetCode=true;
 #ifdef _WIN_32
-  if (MultiByteToWideChar(CP_ACP,0,Src,-1,Dest,DestSize)==0)
+  if (MultiByteToWideChar(CP_ACP,0,Src,-1,Dest,(int)DestSize)==0)
     RetCode=false;
 #else
 #ifdef _APPLE
@@ -66,7 +69,10 @@ bool CharToWide(const char *Src,wchar *Dest,int DestSize)
 #else
 #ifdef MBFUNCTIONS
 
-  if (mbstowcs(Dest,Src,DestSize)==(size_t)-1)
+  size_t ResultingSize=mbstowcs(Dest,Src,DestSize);
+  if (ResultingSize==(size_t)-1)
+    RetCode=false;
+  if (ResultingSize==0 && *Src!=0)
     RetCode=false;
 
   if ((!RetCode || *Dest==0 && *Src!=0) && DestSize>NM && strlen(Src)<NM)
@@ -103,9 +109,9 @@ bool CharToWide(const char *Src,wchar *Dest,int DestSize)
 }
 
 
-byte* WideToRaw(const wchar *Src,byte *Dest,int DestSize)
+byte* WideToRaw(const wchar *Src,byte *Dest,size_t DestSize)
 {
-  for (int I=0;I<DestSize;I++,Src++)
+  for (size_t I=0;I<DestSize;I++,Src++)
   {
     Dest[I*2]=(byte)*Src;
     Dest[I*2+1]=(byte)(*Src>>8);
@@ -116,38 +122,39 @@ byte* WideToRaw(const wchar *Src,byte *Dest,int DestSize)
 }
 
 
-wchar* RawToWide(const byte *Src,wchar *Dest,int DestSize)
+wchar* RawToWide(const byte *Src,wchar *Dest,size_t DestSize)
 {
-  for (int I=0;I<DestSize;I++)
+  for (size_t I=0;I<DestSize;I++)
     if ((Dest[I]=Src[I*2]+(Src[I*2+1]<<8))==0)
       break;
   return(Dest);
 }
 
 
-void WideToUtf(const wchar *Src,char *Dest,int DestSize)
+void WideToUtf(const wchar *Src,char *Dest,size_t DestSize)
 {
-  DestSize--;
-  while (*Src!=0 && --DestSize>=0)
+  long dsize=(long)DestSize;
+  dsize--;
+  while (*Src!=0 && --dsize>=0)
   {
     uint c=*(Src++);
     if (c<0x80)
       *(Dest++)=c;
     else
-      if (c<0x800 && --DestSize>=0)
+      if (c<0x800 && --dsize>=0)
       {
         *(Dest++)=(0xc0|(c>>6));
         *(Dest++)=(0x80|(c&0x3f));
       }
       else
-        if (c<0x10000 && (DestSize-=2)>=0)
+        if (c<0x10000 && (dsize-=2)>=0)
         {
           *(Dest++)=(0xe0|(c>>12));
           *(Dest++)=(0x80|((c>>6)&0x3f));
           *(Dest++)=(0x80|(c&0x3f));
         }
         else
-          if (c < 0x200000 && (DestSize-=3)>=0)
+          if (c < 0x200000 && (dsize-=3)>=0)
           {
             *(Dest++)=(0xf0|(c>>18));
             *(Dest++)=(0x80|((c>>12)&0x3f));
@@ -159,9 +166,10 @@ void WideToUtf(const wchar *Src,char *Dest,int DestSize)
 }
 
 
-void UtfToWide(const char *Src,wchar *Dest,int DestSize)
+void UtfToWide(const char *Src,wchar *Dest,size_t DestSize)
 {
-  DestSize--;
+  long dsize=(long)DestSize;
+  dsize--;
   while (*Src!=0)
   {
     uint c=(byte)*(Src++),d;
@@ -193,11 +201,11 @@ void UtfToWide(const char *Src,wchar *Dest,int DestSize)
           }
           else
             break;
-    if (--DestSize<0)
+    if (--dsize<0)
       break;
     if (d>0xffff)
     {
-      if (--DestSize<0 || d>0x10ffff)
+      if (--dsize<0 || d>0x10ffff)
         break;
       *(Dest++)=((d-0x10000)>>10)+0xd800;
       *(Dest++)=(d&0x3ff)+0xdc00;
@@ -223,9 +231,9 @@ bool UnicodeEnabled()
 }
 
 
-int strlenw(const wchar *str)
+size_t strlenw(const wchar *str)
 {
-  int length=0;
+  size_t length=0;
   while (*(str++)!=0)
     length++;
   return(length);
@@ -241,11 +249,11 @@ wchar* strcpyw(wchar *dest,const wchar *src)
 }
 
 
-wchar* strncpyw(wchar *dest,const wchar *src,int n)
+wchar* strncpyw(wchar *dest,const wchar *src,size_t n)
 {
   do {
     *(dest++)=*src;
-  } while (*(src++)!=0 && --n > 0);
+  } while (*(src++)!=0 && (int)(--n) > 0);
   return(dest);
 }
 
@@ -257,11 +265,11 @@ wchar* strcatw(wchar *dest,const wchar *src)
 
 
 #ifndef SFX_MODULE
-wchar* strncatw(wchar *dest,const wchar *src,int n)
+wchar* strncatw(wchar *dest,const wchar *src,size_t n)
 {
   dest+=strlenw(dest);
   while (true)
-    if (--n<0)
+    if ((int)(--n)<0)
     {
       *dest=0;
       break;
@@ -287,9 +295,9 @@ int strcmpw(const wchar *s1,const wchar *s2)
 }
 
 
-int strncmpw(const wchar *s1,const wchar *s2,int n)
+int strncmpw(const wchar *s1,const wchar *s2,size_t n)
 {
-  while (n-->0)
+  while ((int)(n--)>0)
   {
     if (*s1<*s2)
       return(-1);
@@ -316,7 +324,7 @@ int stricmpw(const wchar *s1,const wchar *s2)
 
 
 #if !defined(SFX_MODULE) && !defined(_WIN_CE)
-inline int strnicmpw_w2c(const wchar *s1,const wchar *s2,int n)
+inline int strnicmpw_w2c(const wchar *s1,const wchar *s2,size_t n)
 {
   wchar Wide1[NM*2],Wide2[NM*2];
   strncpyw(Wide1,s1,sizeof(Wide1)/sizeof(Wide1[0])-1);
@@ -332,7 +340,7 @@ inline int strnicmpw_w2c(const wchar *s1,const wchar *s2,int n)
 
 
 #ifndef SFX_MODULE
-int strnicmpw(const wchar *s1,const wchar *s2,int n)
+int strnicmpw(const wchar *s1,const wchar *s2,size_t n)
 {
   return(strnicmpw_w2c(s1,s2,n));
 }
@@ -353,7 +361,7 @@ wchar* strchrw(const wchar *s,int c)
 
 wchar* strrchrw(const wchar *s,int c)
 {
-  for (int I=strlenw(s)-1;I>=0;I--)
+  for (int I=(int)(strlenw(s)-1);I>=0;I--)
     if (s[I]==c)
       return((wchar *)(s+I));
   return(NULL);
@@ -377,7 +385,7 @@ wchar* strlowerw(wchar *Str)
 {
   for (wchar *ChPtr=Str;*ChPtr;ChPtr++)
     if (*ChPtr<128)
-      *ChPtr=loctolower(*ChPtr);
+      *ChPtr=loctolower((byte)*ChPtr);
   return(Str);
 }
 #endif
@@ -388,18 +396,30 @@ wchar* strupperw(wchar *Str)
 {
   for (wchar *ChPtr=Str;*ChPtr;ChPtr++)
     if (*ChPtr<128)
-      *ChPtr=loctoupper(*ChPtr);
+      *ChPtr=loctoupper((byte)*ChPtr);
   return(Str);
 }
 #endif
 
 
 #ifndef SFX_MODULE
+wchar* strdupw(const wchar *Str)
+{
+  if (Str==NULL)
+    return(NULL);
+  wchar *n=(wchar *)malloc((strlenw(Str)+1)*sizeof(wchar));
+  if (n==NULL)
+    return(NULL);
+  strcpyw(n,Str);
+  return(n);
+}
+#endif
+
+
 int toupperw(int ch)
 {
   return((ch<128) ? loctoupper(ch):ch);
 }
-#endif
 
 
 int atoiw(const wchar *s)
@@ -428,23 +448,23 @@ void SupportDBCS::Init()
   CPINFO CPInfo;
   GetCPInfo(CP_ACP,&CPInfo);
   DBCSMode=CPInfo.MaxCharSize > 1;
-  for (int I=0;I<sizeof(IsLeadByte)/sizeof(IsLeadByte[0]);I++)
-    IsLeadByte[I]=IsDBCSLeadByte(I);
+  for (uint I=0;I<ASIZE(IsLeadByte);I++)
+    IsLeadByte[I]=IsDBCSLeadByte(I)!=0;
 }
 
 
 char* SupportDBCS::charnext(const char *s)
 {
-  return (char *)(IsLeadByte[*s] ? s+2:s+1);
+  return (char *)(IsLeadByte[(byte)*s] ? s+2:s+1);
 }
 
 
-uint SupportDBCS::strlend(const char *s)
+size_t SupportDBCS::strlend(const char *s)
 {
-  uint Length=0;
+  size_t Length=0;
   while (*s!=0)
   {
-    if (IsLeadByte[*s])
+    if (IsLeadByte[(byte)*s])
       s+=2;
     else
       s++;
@@ -457,7 +477,7 @@ uint SupportDBCS::strlend(const char *s)
 char* SupportDBCS::strchrd(const char *s, int c)
 {
   while (*s!=0)
-    if (IsLeadByte[*s])
+    if (IsLeadByte[(byte)*s])
       s+=2;
     else
       if (*s==c)
@@ -471,7 +491,7 @@ char* SupportDBCS::strchrd(const char *s, int c)
 void SupportDBCS::copychrd(char *dest,const char *src)
 {
   dest[0]=src[0];
-  if (IsLeadByte[src[0]])
+  if (IsLeadByte[(byte)src[0]])
     dest[1]=src[1];
 }
 
@@ -480,7 +500,7 @@ char* SupportDBCS::strrchrd(const char *s, int c)
 {
   const char *found=NULL;
   while (*s!=0)
-    if (IsLeadByte[*s])
+    if (IsLeadByte[(byte)*s])
       s+=2;
     else
     {

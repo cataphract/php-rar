@@ -96,7 +96,7 @@ class Unpack:private BitInput
     void UnpWriteBuf();
     void ExecuteCode(VM_PreparedProgram *Prg);
     void UnpWriteArea(unsigned int StartPtr,unsigned int EndPtr);
-    void UnpWriteData(byte *Data,int Size);
+    void UnpWriteData(byte *Data,size_t Size);
     bool ReadTables();
     void MakeDecodeTables(unsigned char *LenTab,struct Decode *Dec,int Size);
     int DecodeNumber(struct Decode *Dec);
@@ -141,7 +141,12 @@ class Unpack:private BitInput
 
     unsigned int UnpPtr,WrPtr;
     
-    int ReadTop;
+    // Top border of read packed data.
+    int ReadTop; 
+
+    // Border to call UnpReadBuf. We use it instead of (ReadTop-C)
+    // for optimization reasons. Ensures that we have C bytes in buffer
+    // unless we are at the end of file.
     int ReadBorder;
 
     unsigned char UnpOldTable[HUFF_TABLE_SIZE];
@@ -152,12 +157,12 @@ class Unpack:private BitInput
     bool ExternalWindow;
 
 
-    Int64 DestUnpSize;
+    int64 DestUnpSize;
 
     bool Suspended;
     bool UnpAllBuf;
     bool UnpSomeRead;
-    Int64 WrittenFileSize;
+    int64 WrittenFileSize;
     bool FileExtracted;
 
     int PrevLowDist,LowDistRepCount;
@@ -172,8 +177,7 @@ class Unpack:private BitInput
     void InitHuff();
     void CorrHuff(unsigned int *CharSet,unsigned int *NumToPlace);
     void OldCopyString(unsigned int Distance,unsigned int Length);
-    unsigned int DecodeNum(int Num,unsigned int StartPos,
-      unsigned int *DecTab,unsigned int *PosTab);
+    uint DecodeNum(uint Num,uint StartPos,uint *DecTab,uint *PosTab);
     void OldUnpWriteBuf();
 
     unsigned int ChSet[256],ChSetA[256],ChSetB[256],ChSetC[256];
@@ -203,7 +207,7 @@ class Unpack:private BitInput
     void Init(byte *Window=NULL);
     void DoUnpack(int Method,bool Solid);
     bool IsFileExtracted() {return(FileExtracted);}
-    void SetDestSize(Int64 DestSize) {DestUnpSize=DestSize;FileExtracted=false;}
+    void SetDestSize(int64 DestSize) {DestUnpSize=DestSize;FileExtracted=false;}
     void SetSuspended(bool Suspended) {Unpack::Suspended=Suspended;}
 
     unsigned int GetChar()

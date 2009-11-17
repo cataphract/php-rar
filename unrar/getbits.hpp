@@ -4,35 +4,48 @@
 class BitInput
 {
   public:
-    enum BufferSize {MAX_SIZE=0x8000};
+    enum BufferSize {MAX_SIZE=0x8000}; // Size of input buffer.
   protected:
-    int InAddr,InBit;
+    int InAddr; // Curent byte position in the buffer.
+    int InBit;  // Current bit position in the current byte.
   public:
     BitInput();
     ~BitInput();
 
-    byte *InBuf;
+    byte *InBuf; // Dynamically allocated input buffer.
 
     void InitBitInput()
     {
       InAddr=InBit=0;
     }
-    void addbits(int Bits)
+    
+    // Move forward by 'Bits' bits.
+    void addbits(uint Bits)
     {
       Bits+=InBit;
       InAddr+=Bits>>3;
       InBit=Bits&7;
     }
-    unsigned int getbits()
+    
+    // Return 16 bits from current position in the buffer.
+    // Bit at (InAddr,InBit) has the highest position in returning data.
+    uint getbits()
     {
-      unsigned int BitField=(uint)InBuf[InAddr] << 16;
+      uint BitField=(uint)InBuf[InAddr] << 16;
       BitField|=(uint)InBuf[InAddr+1] << 8;
       BitField|=(uint)InBuf[InAddr+2];
       BitField >>= (8-InBit);
       return(BitField & 0xffff);
     }
-    void faddbits(int Bits);
-    unsigned int fgetbits();
-    bool Overflow(int IncPtr) {return(InAddr+IncPtr>=MAX_SIZE);}
+    
+    void faddbits(uint Bits);
+    uint fgetbits();
+    
+    // Check if buffer has enough space for IncPtr bytes. Returns 'true'
+    // if buffer will be overflown.
+    bool Overflow(uint IncPtr) 
+    {
+      return(InAddr+IncPtr>=MAX_SIZE);
+    }
 };
 #endif

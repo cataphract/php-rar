@@ -20,7 +20,7 @@ RarTime& RarTime::operator =(FILETIME &ft)
   rlt.Second=st.wSecond;
   rlt.wDay=st.wDayOfWeek;
   rlt.yDay=rlt.Day-1;
-  for (int I=1;I<rlt.Month;I++)
+  for (uint I=1;I<rlt.Month;I++)
   {
     static int mdays[12]={31,28,31,30,31,30,31,31,30,31,30,31};
     rlt.yDay+=mdays[I-1];
@@ -89,36 +89,81 @@ time_t RarTime::GetUnix()
 }
 #endif
 
-
-Int64 RarTime::GetRaw()
+// Return the stored time as 64-bit number of 100-nanosecond intervals
+// since January 1, 1601 for Windows and since January 1, 1970 for Unix.
+// Actually we do not care since which date this time starts from
+// as long as this date is the same for GetRaw and SetRaw. We use the value
+// returned by GetRaw() for time comparisons and for relative operations
+// like SetRaw(GetRaw()-C).
+int64 RarTime::GetRaw()
 {
   if (!IsSet())
     return(0);
 #ifdef _WIN_32
   FILETIME ft;
   GetWin32(&ft);
-  return(int32to64(ft.dwHighDateTime,ft.dwLowDateTime));
+  return(INT32TO64(ft.dwHighDateTime,ft.dwLowDateTime));
 #elif defined(_UNIX) || defined(_EMX)
   time_t ut=GetUnix();
-  return(int32to64(0,ut)*10000000+rlt.Reminder);
+  return(INT32TO64(0,ut)*10000000+rlt.Reminder);
 #else
-  return(0);
+  // We should never be here. It is better to use standard time functions.
+
+  // Days since 1970. We do not care about leap years for code simplicity.
+  // It should be acceptable for comprisons.
+  int64 r=(rlt.Year-1970)*365; // Days since 1970.
+
+  // Cumulative day value for beginning of every month.
+  static int MonthToDay[12]={0,31,60,91,121,152,182,213,244,274,305,335};
+
+  r+=MonthToDay[rlt.Month-1]+(rlt.Day-1); // Add days since beginning of year.
+  r=r*24+rlt.Hour;   // Hours.
+  r=r*60+rlt.Minute; // Minutes.
+  r=r*60+rlt.Second; // Seconds.
+  r=r*10000000+rlt.Reminder; // 100-nanosecond intervals.
+
+  return(r);
 #endif
 }
 
 
 #ifndef SFX_MODULE
-void RarTime::SetRaw(Int64 RawTime)
+void RarTime::SetRaw(int64 RawTime)
 {
 #ifdef _WIN_32
   FILETIME ft;
-  ft.dwHighDateTime=int64to32(RawTime>>32);
-  ft.dwLowDateTime=int64to32(RawTime);
+  ft.dwHighDateTime=(DWORD)(RawTime>>32);
+  ft.dwLowDateTime=(DWORD)RawTime;
   *this=ft;
 #elif defined(_UNIX) || defined(_EMX)
-  time_t ut=int64to32(RawTime/10000000);
+  time_t ut=(time_t)(RawTime/10000000);
   *this=ut;
-  rlt.Reminder=int64to32(RawTime%10000000);
+  rlt.Reminder=(uint)(RawTime%10000000);
+#else
+  // We should never be here. It is better to use standard time functions.
+  rlt.Reminder=RawTime%10000000;
+  RawTime/=10000000; // Seconds.
+  rlt.Second=uint(RawTime%60);
+  RawTime/=60;       // Minutes.
+  rlt.Minute=uint(RawTime%60);
+  RawTime/=60;       // Hours.
+  rlt.Hour=uint(RawTime%24);
+  RawTime/=24;       // Days since 1970.
+  rlt.Year=uint(1970+RawTime/365);
+  RawTime%=365;      // Days since beginning of year.
+
+  // Cumulative day value for beginning of every month.
+  static int MonthToDay[12]={0,31,60,91,121,152,182,213,244,274,305,335};
+
+  for (int I=0;I<12;I++)
+    if (RawTime>=MonthToDay[I])
+    {
+      rlt.Day=uint(RawTime-MonthToDay[I]+1);
+      rlt.Month=I+1;
+    }
+
+  rlt.wDay=0;
+  rlt.yDay=0;
 #endif
 }
 #endif
@@ -194,7 +239,7 @@ void RarTime::SetIsoText(char *TimeText)
   int Field[6];
   memset(Field,0,sizeof(Field));
   for (int DigitCount=0;*TimeText!=0;TimeText++)
-    if (isdigit(*TimeText))
+    if (IsDigit(*TimeText))
     {
       int FieldPos=DigitCount<4 ? 0:(DigitCount-4)/2+1;
       if (FieldPos<sizeof(Field)/sizeof(Field[0]))
@@ -219,7 +264,7 @@ void RarTime::SetAgeText(char *TimeText)
   for (int I=0;TimeText[I]!=0;I++)
   {
     int Ch=TimeText[I];
-    if (isdigit(Ch))
+    if (IsDigit(Ch))
       Value=Value*10+Ch-'0';
     else
     {
@@ -242,13 +287,12 @@ void RarTime::SetAgeText(char *TimeText)
     }
   }
   SetCurrentTime();
-  Int64 RawTime=GetRaw();
-  SetRaw(RawTime-int32to64(0,Seconds)*10000000);
+  int64 RawTime=GetRaw();
+  SetRaw(RawTime-INT32TO64(0,Seconds)*10000000);
 }
 #endif
 
 
-#ifndef SFX_MODULE
 void RarTime::SetCurrentTime()
 {
 #ifdef _WIN_32
@@ -263,7 +307,6 @@ void RarTime::SetCurrentTime()
   *this=st;
 #endif
 }
-#endif
 
 
 #if !defined(SFX_MODULE) && !defined(_WIN_CE)

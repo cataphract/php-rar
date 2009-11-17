@@ -1,6 +1,6 @@
 #include "rar.hpp"
 
-#define RECVOL_BUFSIZE  0x800
+#define RECVOL_BUFSIZE  0x8000
 
 RecVolumes::RecVolumes()
 {
@@ -31,8 +31,8 @@ bool RecVolumes::Restore(RAROptions *Cmd,const char *Name,
   if (RevName)
   {
     for (int DigitGroup=0;Ext>ArcName && DigitGroup<3;Ext--)
-      if (!isdigit(*Ext))
-        if (isdigit(*(Ext-1)) && (*Ext=='_' || DigitGroup<2))
+      if (!IsDigit(*Ext))
+        if (IsDigit(*(Ext-1)) && (*Ext=='_' || DigitGroup<2))
           DigitGroup++;
         else
           if (DigitGroup<2)
@@ -40,7 +40,7 @@ bool RecVolumes::Restore(RAROptions *Cmd,const char *Name,
             NewStyle=true;
             break;
           }
-    while (isdigit(*Ext) && Ext>ArcName+1)
+    while (IsDigit(*Ext) && Ext>ArcName+1)
       Ext--;
     strcpy(Ext,"*.*");
     FindFile Find;
@@ -68,17 +68,22 @@ bool RecVolumes::Restore(RAROptions *Cmd,const char *Name,
 #endif
     return(false);
   }
-  bool NewNumbering=(Arc.NewMhd.Flags & MHD_NEWNUMBERING);
+  bool NewNumbering=(Arc.NewMhd.Flags & MHD_NEWNUMBERING)!=0;
   Arc.Close();
   char *VolNumStart=VolNameToFirstName(ArcName,ArcName,NewNumbering);
   char RecVolMask[NM];
   strcpy(RecVolMask,ArcName);
-  int BaseNamePartLength=VolNumStart-ArcName;
+  size_t BaseNamePartLength=VolNumStart-ArcName;
   strcpy(RecVolMask+BaseNamePartLength,"*.rev");
 
 #ifndef SILENT
-  Int64 RecFileSize=0;
+  int64 RecFileSize=0;
 #endif
+
+#ifndef SILENT
+  mprintf(St(MCalcCRCAllVol));
+#endif
+
   FindFile Find;
   Find.SetMask(RecVolMask);
   struct FindData RecData;
@@ -111,7 +116,7 @@ bool RecVolumes::Restore(RAROptions *Cmd,const char *Name,
       File CurFile;
       CurFile.TOpen(Name);
       CurFile.Seek(0,SEEK_END);
-      Int64 Length=CurFile.Tell();
+      int64 Length=CurFile.Tell();
       CurFile.Seek(Length-7,SEEK_SET);
       for (int I=0;I<3;I++)
         P[2-I]=CurFile.GetByte()+1;
@@ -137,7 +142,7 @@ bool RecVolumes::Restore(RAROptions *Cmd,const char *Name,
         do
         {
           Dot--;
-        } while (isdigit(*Dot) && Dot>=Name+BaseNamePartLength);
+        } while (IsDigit(*Dot) && Dot>=Name+BaseNamePartLength);
         P[I]=atoi(Dot+1);
         if (P[I]==0 || P[I]>255)
           WrongParam=true;
@@ -236,7 +241,7 @@ bool RecVolumes::Restore(RAROptions *Cmd,const char *Name,
 #endif
     }
     SrcFile[CurArcNum]=(File*)NewFile;
-    NextVolumeName(ArcName,!NewNumbering);
+    NextVolumeName(ArcName,ArcNameW,ASIZE(ArcName),!NewNumbering);
   }
 
 #ifndef SILENT
@@ -272,7 +277,7 @@ bool RecVolumes::Restore(RAROptions *Cmd,const char *Name,
       Erasures[EraSize++]=I;
 
 #ifndef SILENT
-  Int64 ProcessedSize=0;
+  int64 ProcessedSize=0;
 #ifndef GUI
   int LastPercent=-1;
   mprintf("     ");
@@ -330,7 +335,7 @@ bool RecVolumes::Restore(RAROptions *Cmd,const char *Name,
       File *CurFile=SrcFile[I];
       if (NewStyle && WriteFlags[I])
       {
-        Int64 Length=CurFile->Tell();
+        int64 Length=CurFile->Tell();
         CurFile->Seek(Length-7,SEEK_SET);
         for (int J=0;J<7;J++)
           CurFile->PutByte(0);

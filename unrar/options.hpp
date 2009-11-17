@@ -5,20 +5,39 @@
 
 #define DEFAULT_RECVOLUMES  -10
 
-enum PathExclMode {
+enum PATH_EXCL_MODE {
   EXCL_NONE,EXCL_BASEPATH,EXCL_SKIPWHOLEPATH,EXCL_SAVEFULLPATH,
   EXCL_SKIPABSPATH,EXCL_ABSPATH
 };
+
 enum {SOLID_NONE=0,SOLID_NORMAL=1,SOLID_COUNT=2,SOLID_FILEEXT=4,
       SOLID_VOLUME_DEPENDENT=8,SOLID_VOLUME_INDEPENDENT=16};
+
 enum {ARCTIME_NONE,ARCTIME_KEEP,ARCTIME_LATEST};
+
 enum EXTTIME_MODE {
   EXTTIME_NONE,EXTTIME_1S,EXTTIME_HIGH1,EXTTIME_HIGH2,EXTTIME_HIGH3
 };
+
 enum {NAMES_ORIGINALCASE,NAMES_UPPERCASE,NAMES_LOWERCASE};
+
 enum MESSAGE_TYPE {MSG_STDOUT,MSG_STDERR,MSG_ERRONLY,MSG_NULL};
-enum OVERWRITE_MODE {
-  OVERWRITE_ASK,OVERWRITE_ALL,OVERWRITE_NONE,OVERWRITE_AUTORENAME
+
+enum RECURSE_MODE 
+{
+  RECURSE_NONE=0,    // no recurse switches
+  RECURSE_DISABLE,   // switch -r-
+  RECURSE_ALWAYS,    // switch -r
+  RECURSE_WILDCARDS, // switch -r0
+};
+
+enum OVERWRITE_MODE 
+{
+  OVERWRITE_DEFAULT=0, // ask for extraction, silently overwrite for archiving
+  OVERWRITE_ALL,
+  OVERWRITE_NONE,
+  OVERWRITE_AUTORENAME,
+  OVERWRITE_FORCE_ASK
 };
 
 enum RAR_CHARSET { RCH_DEFAULT=0,RCH_ANSI,RCH_OEM,RCH_UNICODE };
@@ -54,6 +73,7 @@ class RAROptions
     RAR_CHARSET CommentCharset;
     RAR_CHARSET FilelistCharset;
     char ArcPath[NM];
+    wchar ArcPathW[NM];
     char Password[MAXPASSWORD];
     bool EncryptHeaders;
     char LogName[NM];
@@ -74,11 +94,11 @@ class RAROptions
     bool DisableComment;
     bool FreshFiles;
     bool UpdateFiles;
-    PathExclMode ExclPath;
-    int Recurse;
-    Int64 VolSize;
-    Array<Int64> NextVolSizes;
-    int CurVolNum;
+    PATH_EXCL_MODE ExclPath;
+    RECURSE_MODE Recurse;
+    int64 VolSize;
+    Array<int64> NextVolSizes;
+    uint CurVolNum;
     bool AllYes;
     bool DisableViewAV;
     bool DisableSortSolid;
@@ -91,7 +111,6 @@ class RAROptions
     bool KeepBroken;
     bool EraseDisk;
     bool OpenShared;
-    bool ExclEmptyDir;
     bool DeleteFiles;
     bool SyncFiles;
     bool GenerateArcName;
@@ -99,19 +118,18 @@ class RAROptions
     bool ProcessEA;
     bool SaveStreams;
     bool SetCompressedAttr;
-    uint FileTimeOlder;
-    uint FileTimeNewer;
+    bool IgnoreGeneralAttr;
     RarTime FileTimeBefore;
     RarTime FileTimeAfter;
-    Int64 FileSizeLess;
-    Int64 FileSizeMore;
+    int64 FileSizeLess;
+    int64 FileSizeMore;
     bool OldNumbering;
     bool Lock;
     bool Test;
     bool VolumePause;
     FilterMode FilterModes[MAX_FILTERS];
     char EmailTo[NM];
-    int VersionControl;
+    uint VersionControl;
     bool NoEndBlock;
     bool AppendArcNameToPath;
     bool Shutdown;
@@ -133,7 +151,7 @@ class RAROptions
     wchar DllDestNameW[NM];
     int DllOpMode;
     int DllError;
-    LONG UserData;
+    LPARAM UserData;
     UNRARCALLBACK Callback;
     CHANGEVOLPROC ChangeVolProc;
     PROCESSDATAPROC ProcessDataProc;

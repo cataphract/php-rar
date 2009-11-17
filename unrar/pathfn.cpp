@@ -14,7 +14,7 @@ char* PointToName(const char *Path)
 
 wchar* PointToName(const wchar *Path)
 {
-  for (int I=strlenw(Path)-1;I>=0;I--)
+  for (int I=(int)strlenw(Path)-1;I>=0;I--)
     if (IsPathDiv(Path[I]))
       return (wchar*)&Path[I+1];
   return (wchar*)((*Path && IsDriveDiv(Path[1])) ? Path+2:Path);
@@ -29,16 +29,18 @@ char* PointToLastChar(const char *Path)
 }
 
 
+
+
 char* ConvertPath(const char *SrcPath,char *DestPath)
 {
   const char *DestPtr=SrcPath;
 
-  /* prevents \..\ in any part of path string */
+  // Prevent \..\ in any part of path string.
   for (const char *s=DestPtr;*s!=0;s++)
     if (IsPathDiv(s[0]) && s[1]=='.' && s[2]=='.' && IsPathDiv(s[3]))
       DestPtr=s+4;
 
-  /* removes any sequence of . and \ in the beginning of path string */
+  // Remove any sequence of . and \ in the beginning of path string.
   while (*DestPtr)
   {
     const char *s=DestPtr;
@@ -62,12 +64,14 @@ char* ConvertPath(const char *SrcPath,char *DestPath)
     DestPtr=s;
   }
 
-  /* code above does not remove last "..", doing here */
+  // Code above does not remove last "..", doing here.
   if (DestPtr[0]=='.' && DestPtr[1]=='.' && DestPtr[2]==0)
     DestPtr+=2;
 
   if (DestPath!=NULL)
   {
+    // SrcPath and DestPath can point to same memory area,
+    // so we use the temporary buffer for copying.
     char TmpStr[NM];
     strncpyz(TmpStr,DestPtr,ASIZE(TmpStr));
     strcpy(DestPath,TmpStr);
@@ -252,32 +256,32 @@ void AddEndSlash(char *Path)
 
 void AddEndSlash(wchar *Path)
 {
-  int Length=strlenw(Path);
+  size_t Length=strlenw(Path);
   if (Length>0 && Path[Length-1]!=CPATHDIVIDER)
     strcatw(Path,PATHDIVIDERW);
 }
 
 
-// returns file path including the trailing path separator symbol
+// Returns file path including the trailing path separator symbol.
 void GetFilePath(const char *FullName,char *Path,int MaxLength)
 {
-  int PathLength=Min(MaxLength-1,PointToName(FullName)-FullName);
+  size_t PathLength=Min(MaxLength-1,PointToName(FullName)-FullName);
   strncpy(Path,FullName,PathLength);
   Path[PathLength]=0;
 }
 
 
-// returns file path including the trailing path separator symbol
+// Returns file path including the trailing path separator symbol.
 void GetFilePath(const wchar *FullName,wchar *Path,int MaxLength)
 {
-  int PathLength=Min(MaxLength-1,PointToName(FullName)-FullName);
+  size_t PathLength=Min(MaxLength-1,PointToName(FullName)-FullName);
   strncpyw(Path,FullName,PathLength);
   Path[PathLength]=0;
 }
 
 
-// removes name and returns file path without the trailing
-// path separator symbol
+// Removes name and returns file path without the trailing
+// path separator symbol.
 void RemoveNameFromPath(char *Path)
 {
   char *Name=PointToName(Path);
@@ -288,8 +292,8 @@ void RemoveNameFromPath(char *Path)
 
 
 #ifndef SFX_MODULE
-// removes name and returns file path without the trailing
-// path separator symbol
+// Removes name and returns file path without the trailing
+// path separator symbol.
 void RemoveNameFromPath(wchar *Path)
 {
   wchar *Name=PointToName(Path);
@@ -313,7 +317,7 @@ void GetAppDataPath(char *Path)
   {
     AddEndSlash(Path);
     strcat(Path,"WinRAR");
-    Success=FileExist(Path) || MakeDir(Path,NULL,0)==MKDIR_SUCCESS;
+    Success=FileExist(Path) || MakeDir(Path,NULL,false,0)==MKDIR_SUCCESS;
   }
   if (!Success)
   {
@@ -321,6 +325,26 @@ void GetAppDataPath(char *Path)
     RemoveNameFromPath(Path);
   }
   g_pMalloc->Free(ppidl);
+}
+#endif
+
+
+#if defined(_WIN_32) && !defined(_WIN_CE) && !defined(SFX_MODULE)
+void GetRarDataPath(char *Path)
+{
+  *Path=0;
+
+  HKEY hKey;
+  if (RegOpenKeyEx(HKEY_CURRENT_USER,"Software\\WinRAR\\Paths",0,
+                   KEY_QUERY_VALUE,&hKey)==ERROR_SUCCESS)
+  {
+    DWORD DataSize=NM,Type;
+    RegQueryValueEx(hKey,"AppData",0,&Type,(BYTE *)Path,&DataSize);
+    RegCloseKey(hKey);
+  }
+
+  if (*Path==0 || !FileExist(Path))
+    GetAppDataPath(Path);
 }
 #endif
 
@@ -348,18 +372,16 @@ bool EnumConfigPaths(char *Path,int Number)
   RemoveNameFromPath(Path);
   return(true);
 #elif defined(_UNIX)
-  if (Number==0)
-  {
-    char *EnvStr=getenv("HOME");
-    if (EnvStr==NULL)
-      return(false);
-    strncpy(Path,EnvStr,NM-1);
-    Path[NM-1]=0;
-    return(true);
-  }
   static const char *AltPath[]={
     "/etc","/etc/rar","/usr/lib","/usr/local/lib","/usr/local/etc"
   };
+  if (Number==0)
+  {
+    char *EnvStr=getenv("HOME");
+    strncpy(Path, (EnvStr==NULL) ? AltPath[0] : EnvStr, NM-1);
+    Path[NM-1]=0;
+    return(true);
+  }
   Number--;
   if (Number<0 || Number>=sizeof(AltPath)/sizeof(AltPath[0]))
     return(false);
@@ -370,7 +392,7 @@ bool EnumConfigPaths(char *Path,int Number)
   if (Number<0 || Number>1)
     return(false);
   if (Number==0)
-    GetAppDataPath(Path);
+    GetRarDataPath(Path);
   else
   {
     GetModuleFileName(NULL,Path,NM);
@@ -388,6 +410,7 @@ bool EnumConfigPaths(char *Path,int Number)
 #ifndef SFX_MODULE
 void GetConfigName(const char *Name,char *FullName,bool CheckExist)
 {
+  *FullName=0;
   for (int I=0;EnumConfigPaths(FullName,I);I++)
   {
     AddEndSlash(FullName);
@@ -399,19 +422,29 @@ void GetConfigName(const char *Name,char *FullName,bool CheckExist)
 #endif
 
 
-// returns a pointer to rightmost digit of volume number
+// Returns a pointer to rightmost digit of volume number.
 char* GetVolNumPart(char *ArcName)
 {
+  // Pointing to last name character.
   char *ChPtr=ArcName+strlen(ArcName)-1;
-  while (!isdigit(*ChPtr) && ChPtr>ArcName)
+
+  // Skipping the archive extension.
+  while (!IsDigit(*ChPtr) && ChPtr>ArcName)
     ChPtr--;
+
+  // Skipping the numeric part of name.
   char *NumPtr=ChPtr;
-  while (isdigit(*NumPtr) && NumPtr>ArcName)
+  while (IsDigit(*NumPtr) && NumPtr>ArcName)
     NumPtr--;
+
+  // Searching for first numeric part in names like name.part##of##.rar.
+  // Stop search on the first dot.
   while (NumPtr>ArcName && *NumPtr!='.')
   {
-    if (isdigit(*NumPtr))
+    if (IsDigit(*NumPtr))
     {
+      // Validate the first numeric part only if it has a dot somwhere 
+      // before it.
       char *Dot=strchrd(PointToName(ArcName),'.');
       if (Dot!=NULL && Dot<NumPtr)
         ChPtr=NumPtr;
@@ -423,7 +456,7 @@ char* GetVolNumPart(char *ArcName)
 }
 
 
-void NextVolumeName(char *ArcName,bool OldNumbering)
+void NextVolumeName(char *ArcName,wchar *ArcNameW,uint MaxLength,bool OldNumbering)
 {
   char *ChPtr;
   if ((ChPtr=GetExt(ArcName))==NULL)
@@ -442,7 +475,7 @@ void NextVolumeName(char *ArcName,bool OldNumbering)
     {
       *ChPtr='0';
       ChPtr--;
-      if (ChPtr<ArcName || !isdigit(*ChPtr))
+      if (ChPtr<ArcName || !IsDigit(*ChPtr))
       {
         for (char *EndPtr=ArcName+strlen(ArcName);EndPtr!=ChPtr;EndPtr--)
           *(EndPtr+1)=*EndPtr;
@@ -452,7 +485,7 @@ void NextVolumeName(char *ArcName,bool OldNumbering)
     }
   }
   else
-    if (!isdigit(*(ChPtr+2)) || !isdigit(*(ChPtr+3)))
+    if (!IsDigit(*(ChPtr+2)) || !IsDigit(*(ChPtr+3)))
       strcpy(ChPtr+2,"00");
     else
     {
@@ -469,6 +502,29 @@ void NextVolumeName(char *ArcName,bool OldNumbering)
           ChPtr--;
         }
     }
+  if (ArcNameW!=NULL && *ArcNameW!=0)
+  {
+    // Copy incremented trailing low ASCII volume name part to Unicode name.
+    // It is simpler than implementing Unicode version of entire function.
+    char *NumPtr=GetVolNumPart(ArcName);
+
+    // moving to first digit in volume number
+    while (NumPtr>ArcName && IsDigit(*NumPtr) && IsDigit(*(NumPtr-1)))
+      NumPtr--;
+
+    // also copy the first character before volume number,
+    // because it can be changed when going from .r99 to .s00
+    if (NumPtr>ArcName)
+      NumPtr--;
+
+    int CharsToCopy=(int)(strlen(ArcName)-(NumPtr-ArcName));
+    int DestPos=(int)(strlenw(ArcNameW)-CharsToCopy);
+    if (DestPos>=0)
+    {
+      CharToWide(NumPtr,ArcNameW+DestPos,MaxLength-DestPos-1);
+      ArcNameW[MaxLength-1]=0;
+    }
+  }
 }
 
 
@@ -479,7 +535,7 @@ bool IsNameUsable(const char *Name)
     return(false);
   for (const char *s=Name;*s!=0;s=charnext(s))
   {
-    if (*s<32)
+    if ((byte)*s<32)
       return(false);
     if (*s==' ' && IsPathDiv(s[1]))
       return(false);
@@ -493,7 +549,7 @@ void MakeNameUsable(char *Name,bool Extended)
 {
   for (char *s=Name;*s!=0;s=charnext(s))
   {
-    if (strchr(Extended ? "?*<>|\"":"?*",*s)!=NULL || Extended && *s<32)
+    if (strchr(Extended ? "?*<>|\"":"?*",*s)!=NULL || Extended && (byte)*s<32)
       *s='_';
 #ifdef _EMX
     if (*s=='=')
@@ -579,7 +635,22 @@ bool IsFullPath(const char *Path)
 {
   char PathOnly[NM];
   GetFilePath(Path,PathOnly,ASIZE(PathOnly));
-  if (IsWildcard(PathOnly))
+  if (IsWildcard(PathOnly,NULL))
+    return(true);
+#if defined(_WIN_32) || defined(_EMX)
+  return(Path[0]=='\\' && Path[1]=='\\' ||
+         IsDiskLetter(Path) && IsPathDiv(Path[2]));
+#else
+  return(IsPathDiv(Path[0]));
+#endif
+}
+
+
+bool IsFullPath(const wchar *Path)
+{
+  wchar PathOnly[NM];
+  GetFilePath(Path,PathOnly,ASIZE(PathOnly));
+  if (IsWildcard(NULL,PathOnly))
     return(true);
 #if defined(_WIN_32) || defined(_EMX)
   return(Path[0]=='\\' && Path[1]=='\\' ||
@@ -597,6 +668,13 @@ bool IsDiskLetter(const char *Path)
 }
 
 
+bool IsDiskLetter(const wchar *Path)
+{
+  wchar Letter=etoupperw(Path[0]);
+  return(Letter>='A' && Letter<='Z' && IsDriveDiv(Path[1]));
+}
+
+
 void GetPathRoot(const char *Path,char *Root)
 {
   *Root=0;
@@ -608,7 +686,7 @@ void GetPathRoot(const char *Path,char *Root)
       const char *Slash=strchr(Path+2,'\\');
       if (Slash!=NULL)
       {
-        int Length;
+        size_t Length;
         if ((Slash=strchr(Slash+1,'\\'))!=NULL)
           Length=Slash-Path+1;
         else
@@ -645,7 +723,7 @@ int ParseVersionFileName(char *Name,wchar *NameW,bool Truncate)
 }
 
 
-#ifndef SFX_MODULE
+#if !defined(SFX_MODULE) && !defined(SETUP)
 char* VolNameToFirstName(const char *VolName,char *FirstName,bool NewNumbering)
 {
   if (FirstName!=VolName)
@@ -655,7 +733,7 @@ char* VolNameToFirstName(const char *VolName,char *FirstName,bool NewNumbering)
   {
     int N='1';
     for (char *ChPtr=GetVolNumPart(FirstName);ChPtr>FirstName;ChPtr--)
-      if (isdigit(*ChPtr))
+      if (IsDigit(*ChPtr))
       {
         *ChPtr=N;
         N='0';
