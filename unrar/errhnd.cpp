@@ -11,7 +11,7 @@ ErrorHandler::ErrorHandler()
 
 void ErrorHandler::Clean()
 {
-  ExitCode=RAR_SUCCESS;
+  ExitCode=SUCCESS;
   ErrCount=0;
   EnableBreak=true;
   Silent=false;
@@ -22,7 +22,7 @@ void ErrorHandler::Clean()
 void ErrorHandler::MemoryError()
 {
   MemoryErrorMsg();
-  Throw(RAR_MEMORY_ERROR);
+  Throw(MEMORY_ERROR);
 }
 
 
@@ -30,7 +30,7 @@ void ErrorHandler::OpenError(const char *FileName)
 {
 #ifndef SILENT
   OpenErrorMsg(FileName);
-  Throw(RAR_OPEN_ERROR);
+  Throw(OPEN_ERROR);
 #endif
 }
 
@@ -45,7 +45,7 @@ void ErrorHandler::CloseError(const char *FileName)
   }
 #endif
 #if !defined(SILENT) || defined(RARDLL)
-  Throw(RAR_FATAL_ERROR);
+  Throw(FATAL_ERROR);
 #endif
 }
 
@@ -56,7 +56,7 @@ void ErrorHandler::ReadError(const char *FileName)
   ReadErrorMsg(NULL,FileName);
 #endif
 #if !defined(SILENT) || defined(RARDLL)
-  Throw(RAR_FATAL_ERROR);
+  Throw(FATAL_ERROR);
 #endif
 }
 
@@ -66,6 +66,7 @@ bool ErrorHandler::AskRepeatRead(const char *FileName)
 #if !defined(SILENT) && !defined(SFX_MODULE) && !defined(_WIN_CE)
   if (!Silent)
   {
+    SysErrMsg();
     mprintf("\n");
     Log(NULL,St(MErrRead),FileName);
     return(Ask(St(MRetryAbort))==1);
@@ -81,7 +82,7 @@ void ErrorHandler::WriteError(const char *ArcName,const char *FileName)
   WriteErrorMsg(ArcName,FileName);
 #endif
 #if !defined(SILENT) || defined(RARDLL)
-  Throw(RAR_WRITE_ERROR);
+  Throw(WRITE_ERROR);
 #endif
 }
 
@@ -94,19 +95,20 @@ void ErrorHandler::WriteErrorFAT(const char *FileName)
   ErrMsg(NULL,St(MNTFSRequired),FileName);
 #endif
 #if !defined(SILENT) && !defined(SFX_MODULE) || defined(RARDLL)
-  Throw(RAR_WRITE_ERROR);
+  Throw(WRITE_ERROR);
 #endif
 }
 #endif
 
 
-bool ErrorHandler::AskRepeatWrite(const char *FileName)
+bool ErrorHandler::AskRepeatWrite(const char *FileName,bool DiskFull)
 {
 #if !defined(SILENT) && !defined(_WIN_CE)
   if (!Silent)
   {
+    SysErrMsg();
     mprintf("\n");
-    Log(NULL,St(MErrWrite),FileName);
+    Log(NULL,St(DiskFull ? MNotEnoughDisk:MErrWrite),FileName);
     return(Ask(St(MRetryAbort))==1);
   }
 #endif
@@ -124,7 +126,7 @@ void ErrorHandler::SeekError(const char *FileName)
   }
 #endif
 #if !defined(SILENT) || defined(RARDLL)
-  Throw(RAR_FATAL_ERROR);
+  Throw(FATAL_ERROR);
 #endif
 }
 
@@ -173,19 +175,19 @@ void ErrorHandler::CreateErrorMsg(const char *ArcName,const char *FileName)
 #ifndef SILENT
   Log(ArcName && *ArcName ? ArcName:NULL,St(MCannotCreate),FileName);
   Alarm();
-#if defined(_WIN_32) && !defined(_WIN_CE) && !defined(SFX_MODULE) && defined(MAXPATH)
+#if defined(_WIN_32) && !defined(_WIN_CE) && !defined(SFX_MODULE) && defined(MAX_PATH)
   if (GetLastError()==ERROR_PATH_NOT_FOUND)
   {
-    int NameLength=strlen(FileName);
+    size_t NameLength=strlen(FileName);
     if (!IsFullPath(FileName))
     {
       char CurDir[NM];
       GetCurrentDirectory(sizeof(CurDir),CurDir);
       NameLength+=strlen(CurDir)+1;
     }
-    if (NameLength>MAXPATH)
+    if (NameLength>MAX_PATH)
     {
-      Log(ArcName && *ArcName ? ArcName:NULL,St(MMaxPathLimit),MAXPATH);
+      Log(ArcName && *ArcName ? ArcName:NULL,St(MMaxPathLimit),MAX_PATH);
     }
   }
 #endif
@@ -247,14 +249,14 @@ void ErrorHandler::SetErrorCode(int Code)
 {
   switch(Code)
   {
-    case RAR_WARNING:
-    case RAR_USER_BREAK:
-      if (ExitCode==RAR_SUCCESS)
+    case WARNING:
+    case USER_BREAK:
+      if (ExitCode==SUCCESS)
         ExitCode=Code;
       break;
-    case RAR_FATAL_ERROR:
-      if (ExitCode==RAR_SUCCESS || ExitCode==RAR_WARNING)
-        ExitCode=RAR_FATAL_ERROR;
+    case FATAL_ERROR:
+      if (ExitCode==SUCCESS || ExitCode==WARNING)
+        ExitCode=FATAL_ERROR;
       break;
     default:
       ExitCode=Code;
@@ -289,8 +291,9 @@ void _stdfunction ProcessSignal(int SigType)
 #if defined(USE_RC) && !defined(SFX_MODULE) && !defined(_WIN_CE)
   ExtRes.UnloadDLL();
 #endif
-  exit(RAR_USER_BREAK);
-#ifdef _WIN_32
+  exit(USER_BREAK);
+#if defined(_WIN_32) && !defined(_MSC_VER)
+  // never reached, just to avoid a compiler warning
   return(TRUE);
 #endif
 }
@@ -314,7 +317,7 @@ void ErrorHandler::SetSignalHandlers(bool Enable)
 
 void ErrorHandler::Throw(int Code)
 {
-  if (Code==RAR_USER_BREAK && !EnableBreak)
+  if (Code==USER_BREAK && !EnableBreak)
     return;
   ErrHandler.SetErrorCode(Code);
 #ifdef ALLOW_EXCEPTIONS

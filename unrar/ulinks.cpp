@@ -20,7 +20,7 @@ int ExtractLink(ComprDataIO &DataIO,Archive &Arc,char *DestName,uint &LinkCRC,bo
         else
         {
           Log(Arc.FileName,St(MErrCreateLnk),DestName);
-          ErrHandler.SetErrorCode(RAR_WARNING);
+          ErrHandler.SetErrorCode(WARNING);
         }
     }
     int NameSize=Min(DataSize,strlen(FileName));

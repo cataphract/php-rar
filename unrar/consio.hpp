@@ -1,7 +1,9 @@
 #ifndef _RAR_CONSIO_
 #define _RAR_CONSIO_
 
-enum {ALARM_SOUND,ERROR_SOUND,QUESTION_SOUND};
+#if !defined(SILENT) && !defined(SFX_MODULE)
+enum {SOUND_OK,SOUND_ALARM,SOUND_ERROR,SOUND_QUESTION};
+#endif
 
 enum PASSWORD_TYPE {PASSWORD_GLOBAL,PASSWORD_FILE,PASSWORD_ARCHIVE};
 
@@ -12,13 +14,11 @@ void mprintf(const char *fmt,...);
 void eprintf(const char *fmt,...);
 void Alarm();
 void GetPasswordText(char *Str,int MaxLength);
-unsigned int GetKey();
 bool GetPassword(PASSWORD_TYPE Type,const char *FileName,char *Password,int MaxLength);
 int Ask(const char *AskStr);
 #endif
 
-int KbdAnsi(char *Addr,int Size);
-void OutComment(char *Comment,int Size);
+void OutComment(char *Comment,size_t Size);
 
 #ifdef SILENT
 #ifdef __GNUC__

@@ -75,7 +75,7 @@ int stricomp(const char *Str1,const char *Str2)
 }
 
 
-int strnicomp(const char *Str1,const char *Str2,int N)
+int strnicomp(const char *Str1,const char *Str2,size_t N)
 {
   char S1[NM*2],S2[NM*2];
   strncpyz(S1,Str1,ASIZE(S1));
@@ -86,7 +86,7 @@ int strnicomp(const char *Str1,const char *Str2,int N)
 
 char* RemoveEOL(char *Str)
 {
-  for (int I=strlen(Str)-1;I>=0 && (Str[I]=='\r' || Str[I]=='\n' || Str[I]==' ' || Str[I]=='\t');I--)
+  for (int I=(int)strlen(Str)-1;I>=0 && (Str[I]=='\r' || Str[I]=='\n' || Str[I]==' ' || Str[I]=='\t');I--)
     Str[I]=0;
   return(Str);
 }
@@ -94,41 +94,69 @@ char* RemoveEOL(char *Str)
 
 char* RemoveLF(char *Str)
 {
-  for (int I=strlen(Str)-1;I>=0 && (Str[I]=='\r' || Str[I]=='\n');I--)
+  for (int I=(int)strlen(Str)-1;I>=0 && (Str[I]=='\r' || Str[I]=='\n');I--)
     Str[I]=0;
   return(Str);
 }
 
 
-unsigned int loctolower(byte ch)
+unsigned char loctolower(unsigned char ch)
 {
 #ifdef _WIN_32
-  return((int)CharLower((LPTSTR)ch));
+  // Convert to LPARAM first to avoid a warning in 64 bit mode.
+  return((int)(LPARAM)CharLower((LPTSTR)ch));
 #else
   return(tolower(ch));
 #endif
 }
 
 
-unsigned int loctoupper(byte ch)
+unsigned char loctoupper(unsigned char ch)
 {
 #ifdef _WIN_32
-  return((int)CharUpper((LPTSTR)ch));
+  // Convert to LPARAM first to avoid a warning in 64 bit mode.
+  return((int)(LPARAM)CharUpper((LPTSTR)ch));
 #else
   return(toupper(ch));
 #endif
 }
 
 
-// toupper with English only results. Avoiding Turkish i -> I conversion
-// problem
-int etoupper(int ch)
+// toupper with English only results if English input is provided.
+// It avoids Turkish (small i) -> (big I with dot) conversion problem.
+// We do not define 'ch' as 'int' to avoid necessity to cast all
+// signed chars passed to this function to unsigned char.
+unsigned char etoupper(unsigned char ch)
 {
   if (ch=='i')
     return('I');
   return(toupper(ch));
 }
 
+
+// Unicode version of etoupper.
+wchar etoupperw(wchar ch)
+{
+  if (ch=='i')
+    return('I');
+  return(toupperw(ch));
+}
+
+
+// We do not want to cast every signed char to unsigned when passing to
+// isdigit, so we implement the replacement. Shall work for Unicode too.
+bool IsDigit(int ch)
+{
+  return(ch>='0' && ch<='9');
+}
+
+
+// We do not want to cast every signed char to unsigned when passing to
+// isspace, so we implement the replacement. Shall work for Unicode too.
+bool IsSpace(int ch)
+{
+  return(ch==' ' || ch=='\t');
+}
 
 
 
@@ -146,8 +174,12 @@ bool LowAscii(const char *Str)
 bool LowAscii(const wchar *Str)
 {
   for (int I=0;Str[I]!=0;I++)
-    if (Str[I]<32 || Str[I]>127)
+  {
+    // We convert wchar_t to uint just in case if some compiler
+    // uses signed wchar_t.
+    if ((uint)Str[I]<32 || (uint)Str[I]>127)
       return(false);
+  }
   return(true);
 }
 
@@ -196,4 +228,33 @@ wchar* strncpyzw(wchar *dest, const wchar *src, size_t maxlen)
     dest[maxlen-1]=0;
   }
   return(dest);
+}
+
+
+void itoa(int64 n,char *Str)
+{
+  char NumStr[50];
+  size_t Pos=0;
+
+  do
+  {
+    NumStr[Pos++]=char(n%10)+'0';
+    n=n/10;
+  } while (n!=0);
+
+  for (size_t I=0;I<Pos;I++)
+    Str[I]=NumStr[Pos-I-1];
+  Str[Pos]=0;
+}
+
+
+int64 atoil(char *Str)
+{
+  int64 n=0;
+  while (*Str>='0' && *Str<='9')
+  {
+    n=n*10+*Str-'0';
+    Str++;
+  }
+  return(n);
 }

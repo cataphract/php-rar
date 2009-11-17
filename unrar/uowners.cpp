@@ -5,7 +5,7 @@ void ExtractUnixOwner(Archive &Arc,char *FileName)
   if (Arc.HeaderCRC!=Arc.UOHead.HeadCRC)
   {
     Log(Arc.FileName,St(MOwnersBroken),FileName);
-    ErrHandler.SetErrorCode(RAR_CRC_ERROR);
+    ErrHandler.SetErrorCode(CRC_ERROR);
     return;
   }
 
@@ -13,7 +13,7 @@ void ExtractUnixOwner(Archive &Arc,char *FileName)
   if ((pw=getpwnam(Arc.UOHead.OwnerName))==NULL)
   {
     Log(Arc.FileName,St(MErrGetOwnerID),Arc.UOHead.OwnerName);
-    ErrHandler.SetErrorCode(RAR_WARNING);
+    ErrHandler.SetErrorCode(WARNING);
     return;
   }
   uid_t OwnerID=pw->pw_uid;
@@ -22,7 +22,7 @@ void ExtractUnixOwner(Archive &Arc,char *FileName)
   if ((gr=getgrnam(Arc.UOHead.GroupName))==NULL)
   {
     Log(Arc.FileName,St(MErrGetGroupID),Arc.UOHead.GroupName);
-    ErrHandler.SetErrorCode(RAR_CRC_ERROR);
+    ErrHandler.SetErrorCode(CRC_ERROR);
     return;
   }
   uint Attr=GetFileAttr(FileName,NULL);
@@ -34,7 +34,7 @@ void ExtractUnixOwner(Archive &Arc,char *FileName)
 #endif
   {
     Log(Arc.FileName,St(MSetOwnersError),FileName);
-    ErrHandler.SetErrorCode(RAR_CRC_ERROR);
+    ErrHandler.SetErrorCode(CREATE_ERROR);
   }
   SetFileAttr(FileName,NULL,Attr);
 }
@@ -53,7 +53,7 @@ void ExtractUnixOwnerNew(Archive &Arc,char *FileName)
   if ((pw=getpwnam(OwnerName))==NULL)
   {
     Log(Arc.FileName,St(MErrGetOwnerID),OwnerName);
-    ErrHandler.SetErrorCode(RAR_WARNING);
+    ErrHandler.SetErrorCode(WARNING);
     return;
   }
   uid_t OwnerID=pw->pw_uid;
@@ -62,7 +62,7 @@ void ExtractUnixOwnerNew(Archive &Arc,char *FileName)
   if ((gr=getgrnam(GroupName))==NULL)
   {
     Log(Arc.FileName,St(MErrGetGroupID),GroupName);
-    ErrHandler.SetErrorCode(RAR_CRC_ERROR);
+    ErrHandler.SetErrorCode(CRC_ERROR);
     return;
   }
   uint Attr=GetFileAttr(FileName,NULL);
@@ -74,7 +74,7 @@ void ExtractUnixOwnerNew(Archive &Arc,char *FileName)
 #endif
   {
     Log(Arc.FileName,St(MSetOwnersError),FileName);
-    ErrHandler.SetErrorCode(RAR_CRC_ERROR);
+    ErrHandler.SetErrorCode(CREATE_ERROR);
   }
   SetFileAttr(FileName,NULL,Attr);
 }

@@ -14,11 +14,12 @@ void InitCRC()
 }
 
 
-uint CRC(uint StartCRC,const void *Addr,uint Size)
+uint CRC(uint StartCRC,const void *Addr,size_t Size)
 {
   if (CRCTab[1]==0)
     InitCRC();
   byte *Data=(byte *)Addr;
+
 #if defined(LITTLE_ENDIAN) && defined(PRESENT_INT32) && defined(ALLOW_NOT_ALIGNED_INT)
   while (Size>0 && ((long)Data & 7))
   {
@@ -42,16 +43,17 @@ uint CRC(uint StartCRC,const void *Addr,uint Size)
     Size-=8;
   }
 #endif
-  for (int I=0;I<Size;I++)
+
+  for (size_t I=0;I<Size;I++)
     StartCRC=CRCTab[(byte)(StartCRC^Data[I])]^(StartCRC>>8);
   return(StartCRC);
 }
 
 #ifndef SFX_MODULE
-ushort OldCRC(ushort StartCRC,const void *Addr,uint Size)
+ushort OldCRC(ushort StartCRC,const void *Addr,size_t Size)
 {
   byte *Data=(byte *)Addr;
-  for (int I=0;I<Size;I++)
+  for (size_t I=0;I<Size;I++)
   {
     StartCRC=(StartCRC+Data[I])&0xffff;
     StartCRC=((StartCRC<<1)|(StartCRC>>15))&0xffff;

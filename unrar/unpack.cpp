@@ -262,6 +262,7 @@ void Unpack::Unpack29(bool Solid)
           }
           if (Failed)
             break;
+
           CopyString(Length+32,Distance+2);
           continue;
         }
@@ -410,7 +411,7 @@ bool Unpack::ReadEndOfBlock()
   else
   {
     NewFile=true;
-    NewTable=(BitField & 0x4000);
+    NewTable=(BitField & 0x4000)!=0;
     addbits(2);
   }
   TablesRead=!NewTable;
@@ -437,6 +438,8 @@ bool Unpack::ReadVMCode()
   Array<byte> VMCode(Length);
   for (int I=0;I<Length;I++)
   {
+    // Try to read the new buffer if only one byte is left.
+    // But if we read all bytes except the last, one byte is enough.
     if (InAddr>=ReadTop-1 && !UnpReadBuf() && I<Length-1)
       return(false);
     VMCode[I]=getbits()>>8;
@@ -517,7 +520,7 @@ bool Unpack::AddVMCode(unsigned int FirstByte,byte *Code,int CodeSize)
 
     Filters.Add(1);
     Filters[Filters.Size()-1]=Filter=new UnpackFilter;
-    StackFilter->ParentFilter=Filters.Size()-1;
+    StackFilter->ParentFilter=(uint)(Filters.Size()-1);
     OldFilterLengths.Add(1);
     Filter->ExecCount=0;
   }
@@ -529,7 +532,7 @@ bool Unpack::AddVMCode(unsigned int FirstByte,byte *Code,int CodeSize)
   }
 
   int EmptyCount=0;
-  for (int I=0;I<PrgStack.Size();I++)
+  for (uint I=0;I<PrgStack.Size();I++)
   {
     PrgStack[I-EmptyCount]=PrgStack[I];
     if (PrgStack[I]==NULL)
@@ -542,7 +545,7 @@ bool Unpack::AddVMCode(unsigned int FirstByte,byte *Code,int CodeSize)
     PrgStack.Add(1);
     EmptyCount=1;
   }
-  int StackPos=PrgStack.Size()-EmptyCount;
+  int StackPos=(int)(PrgStack.Size()-EmptyCount);
   PrgStack[StackPos]=StackFilter;
   StackFilter->ExecCount=Filter->ExecCount;
  
@@ -580,7 +583,7 @@ bool Unpack::AddVMCode(unsigned int FirstByte,byte *Code,int CodeSize)
     if (VMCodeSize>=0x10000 || VMCodeSize==0)
       return(false);
     Array<byte> VMCode(VMCodeSize);
-    for (int I=0;I<VMCodeSize;I++)
+    for (uint I=0;I<VMCodeSize;I++)
     {
       if (Inp.Overflow(3))
         return(false);
@@ -592,7 +595,7 @@ bool Unpack::AddVMCode(unsigned int FirstByte,byte *Code,int CodeSize)
   StackFilter->Prg.AltCmd=&Filter->Prg.Cmd[0];
   StackFilter->Prg.CmdCount=Filter->Prg.CmdCount;
 
-  int StaticDataSize=Filter->Prg.StaticData.Size();
+  size_t StaticDataSize=Filter->Prg.StaticData.Size();
   if (StaticDataSize>0 && StaticDataSize<VM_GLOBALMEMSIZE)
   {
     // read statically defined data contained in DB commands
@@ -620,11 +623,11 @@ bool Unpack::AddVMCode(unsigned int FirstByte,byte *Code,int CodeSize)
     uint DataSize=RarVM::ReadData(Inp);
     if (DataSize>VM_GLOBALMEMSIZE-VM_FIXEDGLOBALSIZE)
       return(false);
-    unsigned int CurSize=StackFilter->Prg.GlobalData.Size();
+    size_t CurSize=StackFilter->Prg.GlobalData.Size();
     if (CurSize<DataSize+VM_FIXEDGLOBALSIZE)
       StackFilter->Prg.GlobalData.Add(DataSize+VM_FIXEDGLOBALSIZE-CurSize);
     byte *GlobalData=&StackFilter->Prg.GlobalData[VM_FIXEDGLOBALSIZE];
-    for (int I=0;I<DataSize;I++)
+    for (uint I=0;I<DataSize;I++)
     {
       if (Inp.Overflow(3))
         return(false);
@@ -638,11 +641,13 @@ bool Unpack::AddVMCode(unsigned int FirstByte,byte *Code,int CodeSize)
 
 bool Unpack::UnpReadBuf()
 {
-  int DataSize=ReadTop-InAddr;
+  int DataSize=ReadTop-InAddr; // Data left to process.
   if (DataSize<0)
     return(false);
   if (InAddr>BitInput::MAX_SIZE/2)
   {
+    // If we already processed more than half of buffer, let's move
+    // remaining data into beginning to free more space for new data.
     if (DataSize>0)
       memmove(InBuf,InBuf+InAddr,DataSize);
     InAddr=0;
@@ -662,8 +667,14 @@ void Unpack::UnpWriteBuf()
 {
   unsigned int WrittenBorder=WrPtr;
   unsigned int WriteSize=(UnpPtr-WrittenBorder)&MAXWINMASK;
-  for (int I=0;I<PrgStack.Size();I++)
+  for (size_t I=0;I<PrgStack.Size();I++)
   {
+    // Here we apply filters to data which we need to write.
+    // We always copy data to virtual machine memory before processing.
+    // We cannot process them just in place in Window buffer, because
+    // these data can be used for future string matches, so we must
+    // preserve them in original form.
+
     UnpackFilter *flt=PrgStack[I];
     if (flt==NULL)
       continue;
@@ -699,7 +710,7 @@ void Unpack::UnpWriteBuf()
 
         if (ParentPrg->GlobalData.Size()>VM_FIXEDGLOBALSIZE)
         {
-          // copy global data from previous script execution if any
+          // Copy global data from previous script execution if any.
           Prg->GlobalData.Alloc(ParentPrg->GlobalData.Size());
           memcpy(&Prg->GlobalData[VM_FIXEDGLOBALSIZE],&ParentPrg->GlobalData[VM_FIXEDGLOBALSIZE],ParentPrg->GlobalData.Size()-VM_FIXEDGLOBALSIZE);
         }
@@ -708,7 +719,7 @@ void Unpack::UnpWriteBuf()
 
         if (Prg->GlobalData.Size()>VM_FIXEDGLOBALSIZE)
         {
-          // save global data for next script execution
+          // Save global data for next script execution.
           if (ParentPrg->GlobalData.Size()<Prg->GlobalData.Size())
             ParentPrg->GlobalData.Alloc(Prg->GlobalData.Size());
           memcpy(&ParentPrg->GlobalData[VM_FIXEDGLOBALSIZE],&Prg->GlobalData[VM_FIXEDGLOBALSIZE],Prg->GlobalData.Size()-VM_FIXEDGLOBALSIZE);
@@ -728,7 +739,7 @@ void Unpack::UnpWriteBuf()
               NextFilter->BlockLength!=FilteredDataSize || NextFilter->NextWindow)
             break;
 
-          // apply several filters to same data block
+          // Apply several filters to same data block.
 
           VM.SetMemory(0,FilteredData,FilteredDataSize);
 
@@ -737,7 +748,7 @@ void Unpack::UnpWriteBuf()
 
           if (ParentPrg->GlobalData.Size()>VM_FIXEDGLOBALSIZE)
           {
-            // copy global data from previous script execution if any
+            // Copy global data from previous script execution if any.
             NextPrg->GlobalData.Alloc(ParentPrg->GlobalData.Size());
             memcpy(&NextPrg->GlobalData[VM_FIXEDGLOBALSIZE],&ParentPrg->GlobalData[VM_FIXEDGLOBALSIZE],ParentPrg->GlobalData.Size()-VM_FIXEDGLOBALSIZE);
           }
@@ -746,7 +757,7 @@ void Unpack::UnpWriteBuf()
 
           if (NextPrg->GlobalData.Size()>VM_FIXEDGLOBALSIZE)
           {
-            // save global data for next script execution
+            // Save global data for next script execution.
             if (ParentPrg->GlobalData.Size()<NextPrg->GlobalData.Size())
               ParentPrg->GlobalData.Alloc(NextPrg->GlobalData.Size());
             memcpy(&ParentPrg->GlobalData[VM_FIXEDGLOBALSIZE],&NextPrg->GlobalData[VM_FIXEDGLOBALSIZE],NextPrg->GlobalData.Size()-VM_FIXEDGLOBALSIZE);
@@ -768,7 +779,7 @@ void Unpack::UnpWriteBuf()
       }
       else
       {
-        for (int J=I;J<PrgStack.Size();J++)
+        for (size_t J=I;J<PrgStack.Size();J++)
         {
           UnpackFilter *flt=PrgStack[J];
           if (flt!=NULL && flt->NextWindow)
@@ -789,9 +800,9 @@ void Unpack::ExecuteCode(VM_PreparedProgram *Prg)
 {
   if (Prg->GlobalData.Size()>0)
   {
-    Prg->InitR[6]=int64to32(WrittenFileSize);
-    VM.SetLowEndianValue((uint *)&Prg->GlobalData[0x24],int64to32(WrittenFileSize));
-    VM.SetLowEndianValue((uint *)&Prg->GlobalData[0x28],int64to32(WrittenFileSize>>32));
+    Prg->InitR[6]=(uint)WrittenFileSize;
+    VM.SetLowEndianValue((uint *)&Prg->GlobalData[0x24],(uint)WrittenFileSize);
+    VM.SetLowEndianValue((uint *)&Prg->GlobalData[0x28],(uint)(WrittenFileSize>>32));
     VM.Execute(Prg);
   }
 }
@@ -803,7 +814,7 @@ void Unpack::UnpWriteArea(unsigned int StartPtr,unsigned int EndPtr)
     UnpSomeRead=true;
   if (EndPtr<StartPtr)
   {
-    UnpWriteData(&Window[StartPtr],-StartPtr & MAXWINMASK);
+    UnpWriteData(&Window[StartPtr],-(int)StartPtr & MAXWINMASK);
     UnpWriteData(Window,EndPtr);
     UnpAllBuf=true;
   }
@@ -812,14 +823,14 @@ void Unpack::UnpWriteArea(unsigned int StartPtr,unsigned int EndPtr)
 }
 
 
-void Unpack::UnpWriteData(byte *Data,int Size)
+void Unpack::UnpWriteData(byte *Data,size_t Size)
 {
   if (WrittenFileSize>=DestUnpSize)
     return;
-  int WriteSize=Size;
-  Int64 LeftToWrite=DestUnpSize-WrittenFileSize;
-  if (WriteSize>LeftToWrite)
-    WriteSize=int64to32(LeftToWrite);
+  size_t WriteSize=Size;
+  int64 LeftToWrite=DestUnpSize-WrittenFileSize;
+  if ((int64)WriteSize>LeftToWrite)
+    WriteSize=(size_t)LeftToWrite;
   UnpIO->UnpWrite(Data,WriteSize);
   WrittenFileSize+=Size;
 }
@@ -968,10 +979,10 @@ void Unpack::InitFilters()
   OldFilterLengths.Reset();
   LastFilter=0;
 
-  for (int I=0;I<Filters.Size();I++)
+  for (size_t I=0;I<Filters.Size();I++)
     delete Filters[I];
   Filters.Reset();
-  for (int I=0;I<PrgStack.Size();I++)
+  for (size_t I=0;I<PrgStack.Size();I++)
     delete PrgStack[I];
   PrgStack.Reset();
 }

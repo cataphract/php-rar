@@ -12,11 +12,12 @@
 #define rarrealloc realloc
 #define rarfree free
 #define rarstrdup strdup
+#define rarstrdupw strdupw
 
 
 
-enum { RAR_SUCCESS,RAR_WARNING,RAR_FATAL_ERROR,RAR_CRC_ERROR,RAR_LOCK_ERROR,RAR_WRITE_ERROR,
-       RAR_OPEN_ERROR,RAR_USER_ERROR,RAR_MEMORY_ERROR,RAR_CREATE_ERROR,RAR_USER_BREAK=255};
+enum { SUCCESS,WARNING,FATAL_ERROR,CRC_ERROR,LOCK_ERROR,WRITE_ERROR,
+       OPEN_ERROR,USER_ERROR,MEMORY_ERROR,CREATE_ERROR,USER_BREAK=255};
 
 class ErrorHandler
 {
@@ -38,7 +39,7 @@ class ErrorHandler
     bool AskRepeatRead(const char *FileName);
     void WriteError(const char *ArcName,const char *FileName);
     void WriteErrorFAT(const char *FileName);
-    bool AskRepeatWrite(const char *FileName);
+    bool AskRepeatWrite(const char *FileName,bool DiskFull);
     void SeekError(const char *FileName);
     void GeneralErrMsg(const char *Msg);
     void MemoryErrorMsg();
