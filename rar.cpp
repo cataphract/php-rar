@@ -15,7 +15,7 @@
   |                        **** WARNING ****                             |
   |                                                                      |
   | This module makes use of unRAR - free utility for RAR archives.      |
-  | It's license states, that you MUST NOT use it's code to develop      |
+  | Its license states that you MUST NOT use its code to develop         |
   | a RAR (WinRAR) compatible archiver.                                  |
   | Please, read unRAR license for full information.                     |
   | unRAR & RAR copyrights are owned by Eugene Roshal                    |
@@ -47,8 +47,10 @@ extern "C" {
    that were requested inlining but were not inlined by the compiler */
 /* #include "unrar/rar.hpp */
 /* only these includes are necessary anyway: */
-#include "unrar/os.hpp"
 #include "unrar/raros.hpp"
+/* no need to reinclude windows.h or new.h */
+#define SKIP_WINDOWS_INCLUDES
+#include "unrar/os.hpp"
 #include "unrar/dll.hpp"
 #include "unrar/version.hpp"
 /* And these definitions, which should probably be moved to a header.
@@ -75,9 +77,10 @@ static zend_class_entry *rar_class_entry_ptr;
 /* {{{ internal functions protos */
 static void _rar_file_list_dtor(zend_rsrc_list_entry * TSRMLS_DC);
 static int _rar_list_files(rar_file_t * TSRMLS_DC);
+static const char * _rar_error_to_string(int errcode);
 static int _rar_handle_error(int TSRMLS_DC);
 static void _rar_dos_date_to_text(int, char *);
-static void _rar_entry_to_zval(struct RARHeaderData *, zval * TSRMLS_DC);
+static void _rar_entry_to_zval(struct RARHeaderDataEx *, zval * TSRMLS_DC);
 static zval **_rar_entry_get_property(zval *, char *, int TSRMLS_DC);
 /* }}} */
 
@@ -96,8 +99,8 @@ static void _rar_file_list_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC) /* {{{ */
 {
 	rar_file_t *rar = (rar_file_t *)rsrc->ptr;
 	int i = 0;
-	if (rar->list_data) {
-		RARCloseArchive(rar->list_data);
+	if (rar->arch_handle) {
+		RARCloseArchive(rar->arch_handle);
 	}
 	if (rar->password) {
 		efree(rar->password);
@@ -109,10 +112,10 @@ static void _rar_file_list_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC) /* {{{ */
 		efree(rar->entries);
 		rar->entry_count = 0;
 	}
-	efree(rar->list_handle->ArcName);
-	efree(rar->list_handle);
-	efree(rar->extract_handle->ArcName);
-	efree(rar->extract_handle);
+	efree(rar->list_open_data->ArcName);
+	efree(rar->list_open_data);
+	efree(rar->extract_open_data->ArcName);
+	efree(rar->extract_open_data);
 	efree(rar);
 }
 /* }}} */
@@ -132,71 +135,92 @@ static int _rar_list_files(rar_file_t *rar TSRMLS_DC) /* {{{ */
 {
 	int result = 0;
 	while (result == 0) {
-		struct RARHeaderData entry;
-		result = RARReadHeader(rar->list_data, &entry);
-		RARProcessFile(rar->list_data, RAR_OM_LIST, NULL, NULL);
+		struct RARHeaderDataEx entry;
+		result = RARReadHeaderEx(rar->arch_handle, &entry);
+		RARProcessFile(rar->arch_handle, RAR_OM_LIST, NULL, NULL);
 		if (result == 0) {
-			rar->entries = (struct RARHeaderData **)erealloc(rar->entries, sizeof(struct RARHeaderData *) * (rar->entry_count + 1));
+			rar->entries = (struct RARHeaderDataEx **) erealloc(rar->entries,
+				sizeof(*rar->entries) * (rar->entry_count + 1));
 			if (!rar->entries) {
 				return FAILURE;
 			}
-			rar->entries[rar->entry_count] = (struct RARHeaderData *)emalloc(sizeof(struct RARHeaderData));
-			memcpy(rar->entries[rar->entry_count], &entry, sizeof(struct RARHeaderData));
+			rar->entries[rar->entry_count] = (struct RARHeaderDataEx *)emalloc(
+				sizeof(*rar->entries[0]));
+			memcpy(rar->entries[rar->entry_count], &entry,
+				sizeof *rar->entries[0]);
 			rar->entry_count++;
 		}
 	}
 	return result;
 }
 /* }}} */
-
-static int _rar_handle_error(int errcode TSRMLS_DC) /* {{{ */
+//returns a string or NULL if not an error
+static const char * _rar_error_to_string(int errcode) /* {{{ */
 {
+	const char *ret;
 	switch (errcode) {
 		case 0:
 			/* no error */
-			return SUCCESS;
+			ret = NULL;
+			break;
+		case 1:
+			/* no error (comment completely read) */
+			ret = NULL;
 			break;
 		case ERAR_END_ARCHIVE:
 			/* no error */
-			return SUCCESS;
+			ret = NULL;
 			break;
 		case ERAR_NO_MEMORY:
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "ERAR_NO_MEMORY: not enough memory");
+			ret = "ERAR_NO_MEMORY (not enough memory)";
 			break;
 		case ERAR_BAD_DATA:
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "ERAR_BAD_DATA");
+			ret = "ERAR_BAD_DATA";
 			break;
 		case ERAR_BAD_ARCHIVE:
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "ERAR_BAD_ARCHIVE");
+			ret = "ERAR_BAD_ARCHIVE";
 			break;
 		case ERAR_UNKNOWN_FORMAT:
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "ERAR_UNKNOWN_FORMAT");
+			ret = "ERAR_UNKNOWN_FORMAT";
 			break;
 		case ERAR_EOPEN:
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "ERAR_EOPEN");
+			ret = "ERAR_EOPEN (file open error)";
 			break;
 		case ERAR_ECREATE:
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "ERAR_ECREATE");
+			ret = "ERAR_ECREATE";
 			break;
 		case ERAR_ECLOSE:
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "ERAR_ECLOSE");
+			ret = "ERAR_ECLOSE (error closing file)";
 			break;
 		case ERAR_EREAD:
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "ERAR_EREAD");
+			ret = "ERAR_EREAD";
 			break;
 		case ERAR_EWRITE:
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "ERAR_EWRITE");
+			ret = "ERAR_EWRITE";
 			break;
 		case ERAR_SMALL_BUF:
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "ERAR_SMALL_BUF");
+			ret = "ERAR_SMALL_BUF";
 			break;
 		case ERAR_UNKNOWN:
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "ERAR_UNKNOWN: unknown RAR error");
+			ret = "ERAR_UNKNOWN (unknown RAR error)";
 			break;
 		default:
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "unknown RAR error");
+			ret = "unknown RAR error (should not happen)";
 			break;
 	}
+	return ret;
+}
+/* }}} */
+
+static int _rar_handle_error(int errcode TSRMLS_DC) /* {{{ */
+{
+	const char *err = _rar_error_to_string(errcode);
+
+	if (err == NULL) {
+		return SUCCESS;
+	}
+	
+	php_error_docref(NULL TSRMLS_CC, E_WARNING, err);
 	return FAILURE;
 }
 /* }}} */
@@ -215,7 +239,7 @@ static void _rar_dos_date_to_text(int dos_time, char *date_string) /* {{{ */
 }
 /* }}} */
 
-static void _rar_entry_to_zval(struct RARHeaderData *entry, zval *object TSRMLS_DC) /* {{{ */
+static void _rar_entry_to_zval(struct RARHeaderDataEx *entry, zval *object TSRMLS_DC) /* {{{ */
 {
 	char tmp_s [MAX_LENGTH_OF_LONG + 1];
 	char time[50];
@@ -281,29 +305,35 @@ PHP_FUNCTION(rar_open)
 	}
 	
 	rar = (rar_file_t *) emalloc(sizeof(rar_file_t));
-	rar->list_handle = (RAROpenArchiveData *) ecalloc(1, sizeof(RAROpenArchiveData));
-	rar->list_handle->ArcName = estrndup(filename, filename_len);
-	rar->list_handle->OpenMode = RAR_OM_LIST;
-	rar->extract_handle = (RAROpenArchiveData *) ecalloc(1, sizeof(RAROpenArchiveData));
-	rar->extract_handle->ArcName = estrndup(filename, filename_len);
-	rar->extract_handle->OpenMode = RAR_OM_EXTRACT;
+	rar->list_open_data = (RAROpenArchiveDataEx *) ecalloc(1,
+		sizeof *rar->list_open_data);
+	rar->list_open_data->ArcName = estrndup(filename, filename_len);
+	rar->list_open_data->OpenMode = RAR_OM_LIST;
+	rar->extract_open_data = (RAROpenArchiveDataEx *) ecalloc(1,
+		sizeof *rar->extract_open_data);
+	rar->extract_open_data->ArcName = estrndup(filename, filename_len);
+	rar->extract_open_data->OpenMode = RAR_OM_EXTRACT;
 	rar->password = NULL;
 	rar->entries = NULL;
 	rar->entry_count = 0;
 
-	rar->list_data = RAROpenArchive(rar->list_handle);
-	if (rar->list_data != NULL && rar->list_handle->OpenResult == 0) {
+	rar->arch_handle = RAROpenArchiveEx(rar->list_open_data);
+	if (rar->arch_handle != NULL && rar->list_open_data->OpenResult == 0) {
 		if (password_len) {
 			rar->password = estrndup(password, password_len);
 		}
 		rar->id = zend_list_insert(rar,le_rar_file);
 		RETURN_RESOURCE(rar->id);
 	} else {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "failed to open %s", filename);
-		efree(rar->list_handle->ArcName);
-		efree(rar->list_handle);
-		efree(rar->extract_handle->ArcName);
-		efree(rar->extract_handle);
+		const char *err_str = _rar_error_to_string(rar->list_open_data->OpenResult);
+		if (err_str == NULL)
+			err_str = "Unrar lib did not return an error. Should not happen.";
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Failed to open %s: %s",
+			filename, err_str);
+		efree(rar->list_open_data->ArcName);
+		efree(rar->list_open_data);
+		efree(rar->extract_open_data->ArcName);
+		efree(rar->extract_open_data);
 		efree(rar);
 		RETURN_FALSE;
 	}
@@ -421,8 +451,8 @@ PHP_METHOD(rarentry, extract)
 	rar_file_t *rar = NULL;
 	int result, process_result;
 	zval *entry_obj = getThis();
-	struct RARHeaderData entry;
-	void *extract_data;
+	struct RARHeaderDataEx entry;
+	HANDLE extract_handle;
 	
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|s", &path, &path_len, &filename, &filename_len) == FAILURE ) {
 		return;
@@ -454,24 +484,24 @@ PHP_METHOD(rarentry, extract)
 	
 	RAR_GET_PROPERTY(tmp_name, "name");
 
-	extract_data = RAROpenArchive(rar->extract_handle);
+	extract_handle = RAROpenArchiveEx(rar->extract_open_data);
 	
-	if (rar->extract_handle->OpenResult == 0 && extract_data != NULL) {
-		if (rar->password) {
-			RARSetPassword(extract_data, rar->password);
+	if (rar->extract_open_data->OpenResult == 0 && extract_handle != NULL) {
+		if (rar->password != NULL) {
+			RARSetPassword(extract_handle, rar->password);
 		}
 	} else {
-		_rar_handle_error(rar->extract_handle->OpenResult TSRMLS_CC);
+		_rar_handle_error(rar->extract_open_data->OpenResult TSRMLS_CC);
 		RETURN_FALSE;
 	}
 
-	while ((result = RARReadHeader(extract_data, &entry)) == 0) {
+	while ((result = RARReadHeaderEx(extract_handle, &entry)) == 0) {
 		if (strncmp(entry.FileName,Z_STRVAL_PP(tmp_name), sizeof(entry.FileName)) == 0) {
-			process_result = RARProcessFile(extract_data, RAR_EXTRACT, path, filename);
+			process_result = RARProcessFile(extract_handle, RAR_EXTRACT, path, filename);
 			RETVAL_TRUE;
 			goto cleanup;
 		} else {
-			process_result = RARProcessFile(extract_data, RAR_SKIP, NULL, NULL);
+			process_result = RARProcessFile(extract_handle, RAR_SKIP, NULL, NULL);
 		}
 		if (_rar_handle_error(process_result TSRMLS_CC) == FAILURE) {
 			RETVAL_FALSE;
@@ -484,11 +514,13 @@ PHP_METHOD(rarentry, extract)
 		goto cleanup;
 	}
 
-	php_error_docref(NULL TSRMLS_CC, E_WARNING, "Can't find file %s in archive %s", Z_STRVAL_PP(tmp_name), rar->extract_handle->ArcName);
+	php_error_docref(NULL TSRMLS_CC, E_WARNING,
+		"Can't find file %s in archive %s", Z_STRVAL_PP(tmp_name),
+		rar->extract_open_data->ArcName);
 	RETVAL_FALSE;
 
 cleanup:
-	RARCloseArchive(extract_data);
+	RARCloseArchive(extract_handle);
 }
 /* }}} */
 

@@ -68,7 +68,7 @@ object(RarEntry)#%d (10) {
   int(53)
 }
 
-Warning: rar_open(): failed to open %s in %s on line %d
+Warning: rar_open(): Failed to open %s: ERAR_EOPEN (file open error) in %s on line %d
 
 Warning: rar_entry_get() expects parameter 1 to be resource, boolean given in %s on line %d
 NULL

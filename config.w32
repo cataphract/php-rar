@@ -4,7 +4,7 @@
 ARG_ENABLE("rar", "Rar support", "no");
 
 if (PHP_RAR != "no") {
-	EXTENSION("rar", "rar.cpp", PHP_RAR_SHARED, "/DRARDLL /DGUI /DSILENT /EHsc /D_WSTDIO_DEFINED /Ob0");
+	EXTENSION("rar", "rar.cpp", PHP_RAR_SHARED, "/DRARDLL /DGUI /DSILENT /EHsc /D_WSTDIO_DEFINED");
 	ADD_SOURCES(configure_module_dirname + "/unrar",
 		"rar.cpp strlist.cpp strfn.cpp \
 		pathfn.cpp smallfn.cpp savepos.cpp \
@@ -20,7 +20,7 @@ if (PHP_RAR != "no") {
 		volume.cpp find.cpp \
 		unpack.cpp cmddata.cpp dll.cpp \
 		filestr.cpp recvol.cpp rs.cpp \
-		scantree.cpp log.cpp", "rar");
+		scantree.cpp extractchunk.cpp log.cpp", "rar");
 
         if (!PHP_RAR_SHARED) {
                 ADD_DEF_FILE(configure_module_dirname + "\\unrar\\dll.def");
