@@ -20,6 +20,6 @@ echo "Done\n";
 resource(%d) of type (Rar file)
 resource(%d) of type (Rar file)
 
-Warning: rar_open(): failed to open %s/no_such_file.rar in %s on line %d
+Warning: rar_open(): Failed to open %s/no_such_file.rar: ERAR_EOPEN (file open error) in %s on line %d
 bool(false)
 Done

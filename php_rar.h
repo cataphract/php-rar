@@ -32,7 +32,7 @@
 extern zend_module_entry rar_module_entry;
 #define phpext_rar_ptr &rar_module_entry
 
-#define PHP_RAR_VERSION "2.0-dev"
+#define PHP_RAR_VERSION "2.0.0-dev"
 
 #ifdef PHP_WIN32
 #define PHP_RAR_API __declspec(dllexport)
@@ -58,10 +58,11 @@ PHP_FUNCTION(rar_close);
 typedef struct rar {
 	int							id;
 	int							entry_count;
-	struct RARHeaderData		**entries;
-	struct RAROpenArchiveData	*list_handle;
-	struct RAROpenArchiveData	*extract_handle;
-	void						*list_data;
+	struct RARHeaderDataEx		**entries;
+	struct RAROpenArchiveDataEx	*list_open_data;
+	struct RAROpenArchiveDataEx	*extract_open_data;
+	//archive handle opened with RAR_OM_LIST[_INCSPLIT] open mode
+	HANDLE						arch_handle;
 	char						*password;
 } rar_file_t;
 
