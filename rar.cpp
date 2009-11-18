@@ -47,6 +47,8 @@ extern "C" {
    that were requested inlining but were not inlined by the compiler */
 /* #include "unrar/rar.hpp */
 /* only these includes are necessary anyway: */
+#include "unrar/os.hpp"
+#include "unrar/raros.hpp"
 #include "unrar/dll.hpp"
 #include "unrar/version.hpp"
 /* And these definitions, which should probably be moved to a header.
