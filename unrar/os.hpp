@@ -18,7 +18,7 @@
 #define LITTLE_ENDIAN
 #define NM  1024
 
-#ifdef _WIN_32
+#if defined(_WIN_32) && !defined(SKIP_WINDOWS_INCLUDES)
 
   #define STRICT
   #undef WINVER
@@ -67,7 +67,7 @@
   #include <share.h>
 #endif // _WIN_CE
 
-#if defined(ENABLE_BAD_ALLOC) && !defined(_WIN_CE)
+#if defined(ENABLE_BAD_ALLOC) && !defined(_WIN_CE) && !defined(SKIP_WINDOWS_INCLUDES)
   #include <new.h>
 #endif
 

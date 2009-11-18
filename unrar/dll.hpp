@@ -22,11 +22,15 @@
 #define RAR_SKIP              0
 #define RAR_TEST              1
 #define RAR_EXTRACT           2
+#define RAR_EXTRACT_CHUNK     3
 
 #define RAR_VOL_ASK           0
 #define RAR_VOL_NOTIFY        1
 
 #define RAR_DLL_VERSION       4
+
+//Must be the same as MAXWINSIZE
+#define RAR_CHUNK_BUFFER_SIZE   0x400000
 
 #ifdef _UNIX
 #define CALLBACK
@@ -127,6 +131,8 @@ int    PASCAL RARReadHeader(HANDLE hArcData,struct RARHeaderData *HeaderData);
 int    PASCAL RARReadHeaderEx(HANDLE hArcData,struct RARHeaderDataEx *HeaderData);
 int    PASCAL RARProcessFile(HANDLE hArcData,int Operation,char *DestPath,char *DestName);
 int    PASCAL RARProcessFileW(HANDLE hArcData,int Operation,wchar_t *DestPath,wchar_t *DestName);
+int    PASCAL RARProcessFileChunkInit(HANDLE hArcData);
+int    PASCAL RARProcessFileChunk(HANDLE hArcData, void *Buffer, size_t BufferSize, size_t *ReadSize);
 void   PASCAL RARSetCallback(HANDLE hArcData,UNRARCALLBACK Callback,LPARAM UserData);
 void   PASCAL RARSetChangeVolProc(HANDLE hArcData,CHANGEVOLPROC ChangeVolProc);
 void   PASCAL RARSetProcessDataProc(HANDLE hArcData,PROCESSDATAPROC ProcessDataProc);

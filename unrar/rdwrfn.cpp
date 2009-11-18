@@ -168,6 +168,8 @@ void ComprDataIO::UnpWrite(byte *Addr,size_t Count)
       UnpackToMemoryAddr+=Count;
       UnpackToMemorySize-=Count;
     }
+    else
+	    Cmd->DllError = ERAR_SMALL_BUF;
   }
   else
     if (!TestMode)

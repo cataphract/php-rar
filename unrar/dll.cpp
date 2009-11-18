@@ -215,9 +215,24 @@ int PASCAL RARReadHeaderEx(HANDLE hArcData,struct RARHeaderDataEx *D)
 }
 
 
-int PASCAL ProcessFile(HANDLE hArcData,int Operation,char *DestPath,char *DestName,wchar *DestPathW,wchar *DestNameW)
+int PASCAL ProcessFile(HANDLE hArcData, int Operation, char *DestPath,
+                       char *DestName, wchar *DestPathW, wchar *DestNameW,
+                       void *Buffer, size_t BufferSize, size_t *ReadSize,
+                       bool InitDataIO)
 {
   DataSet *Data=(DataSet *)hArcData;
+
+  /* if not extracting chunks, we want to init IO all the time
+   * (that was the behaviour before adding RAR_EXTRACT_CHUNK, which thus
+   * remains unaltered) */
+  if (Operation != RAR_EXTRACT_CHUNK)
+    InitDataIO = true;
+
+  /* we must set this here because the function may return before executing the
+   * code that updates the variable. */
+  if (ReadSize != NULL)
+    *ReadSize = 0;
+
   try
   {
     Data->Cmd.DllError=0;
@@ -278,15 +293,50 @@ int PASCAL ProcessFile(HANDLE hArcData,int Operation,char *DestPath,char *DestNa
 
       strcpy(Data->Cmd.Command,Operation==RAR_EXTRACT ? "X":"T");
       Data->Cmd.Test=Operation!=RAR_EXTRACT;
-      bool Repeat=false;
-      Data->Extract.ExtractCurrentFile(&Data->Cmd,Data->Arc,Data->HeaderSize,Repeat);
-
-      while (Data->Arc.ReadHeader()!=0 && Data->Arc.GetHeaderType()==NEWSUB_HEAD)
+      if (Operation == RAR_EXTRACT_CHUNK)
       {
-        Data->Extract.ExtractCurrentFile(&Data->Cmd,Data->Arc,Data->HeaderSize,Repeat);
-        Data->Arc.SeekToNext();
+        //disabled completion percentage calculation/printing?
+        Data->Cmd.DisablePercentage = true;
+        //doesn't seem to be read except for inactive preproc. blocks anyway:
+        Data->Cmd.DisableDone = true;
+        Data->Extract.Buffer = Buffer;
+        Data->Extract.BufferSize = BufferSize;
       }
-      Data->Arc.Seek(Data->Arc.CurBlockPos,SEEK_SET);
+
+      bool Repeat=false;
+      bool res;
+      if (Operation != RAR_EXTRACT_CHUNK)
+        res = Data->Extract.ExtractCurrentFile(&Data->Cmd,Data->Arc,
+          Data->HeaderSize,Repeat);
+      else
+      {
+        if (InitDataIO) //chunk, init
+        {
+          res = Data->Extract.ExtractCurrentFileChunkInit(&Data->Cmd, Data->Arc,
+            Data->HeaderSize, Repeat);
+          if (!res && Data->Cmd.DllError == 0)
+            Data->Cmd.DllError = ERAR_UNKNOWN;
+          return Data->Cmd.DllError;
+        }
+        else //chunk, no init
+          //returns always true
+          //changes *ReadSize
+          Data->Extract.ExtractCurrentFileChunk(&Data->Cmd, Data->Arc, ReadSize);
+      }
+
+      /* if extracting by chunks, do move to next block, not even if we've read
+       * the whole file. The only purpose of this code seems to be applying
+       * permissions and other metadata to files, so we're not interested if
+       * extracting chunks */
+      if (Operation != RAR_EXTRACT_CHUNK) {
+        while (Data->Arc.ReadHeader()!=0 && Data->Arc.GetHeaderType()==NEWSUB_HEAD)
+        {
+          Data->Extract.ExtractCurrentFile(&Data->Cmd,Data->Arc,Data->HeaderSize,Repeat);
+          Data->Arc.SeekToNext();
+        }
+        Data->Arc.Seek(Data->Arc.CurBlockPos,SEEK_SET);
+      }
+
     }
   }
   catch (int ErrCode)
@@ -299,15 +349,26 @@ int PASCAL ProcessFile(HANDLE hArcData,int Operation,char *DestPath,char *DestNa
 
 int PASCAL RARProcessFile(HANDLE hArcData,int Operation,char *DestPath,char *DestName)
 {
-  return(ProcessFile(hArcData,Operation,DestPath,DestName,NULL,NULL));
+  return(ProcessFile(hArcData,Operation,DestPath,DestName,NULL,NULL,NULL,0,NULL,false));
 }
 
 
 int PASCAL RARProcessFileW(HANDLE hArcData,int Operation,wchar *DestPath,wchar *DestName)
 {
-  return(ProcessFile(hArcData,Operation,NULL,NULL,DestPath,DestName));
+  return(ProcessFile(hArcData,Operation,NULL,NULL,DestPath,DestName,NULL,0,NULL,false));
 }
 
+int PASCAL RARProcessFileChunkInit(HANDLE hArcData)
+{
+  return ProcessFile(hArcData, RAR_EXTRACT_CHUNK, NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, true);
+}
+
+int PASCAL RARProcessFileChunk(HANDLE hArcData, void *Buffer, size_t BufferSize, size_t *ReadSize)
+{
+  return ProcessFile(hArcData, RAR_EXTRACT_CHUNK, NULL, NULL, NULL, NULL,
+    Buffer, BufferSize, ReadSize, false);
+}
 
 void PASCAL RARSetChangeVolProc(HANDLE hArcData,CHANGEVOLPROC ChangeVolProc)
 {

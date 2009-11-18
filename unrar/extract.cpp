@@ -4,6 +4,8 @@ CmdExtract::CmdExtract()
 {
   TotalFileCount=0;
   *Password=0;
+  Buffer = NULL;
+  BufferSize = 0;
   Unp=new Unpack(&DataIO);
   Unp->Init(NULL);
 }
@@ -352,6 +354,15 @@ bool CmdExtract::ExtractCurrentFile(CommandData *Cmd,Archive &Arc,size_t HeaderS
   if ((Arc.NewLhd.Flags & (LHD_SPLIT_BEFORE/*|LHD_SOLID*/)) && FirstFile)
   {
     char CurVolName[NM];
+	  /* Added the line below. The library was crashing without it, because
+	   * ArcName wouldn't be initialized. this code path is executed when
+	   * you open a volume, ask to unpack a file and that file doesn't start
+	   * in the opened volume. This function now changes this->ArcName into
+	   * the name of the first volume, sets the parameter Repeat to true and
+	   * returns false.
+     * Possibly ArcName was supposed to be set from another method before.
+     * Would need further investigation. */
+	  strncpy(ArcName, Arc.FileName, NM);
     strcpy(CurVolName,ArcName);
 
     VolNameToFirstName(ArcName,ArcName,(Arc.NewMhd.Flags & MHD_NEWNUMBERING)!=0);
@@ -910,16 +921,25 @@ bool CmdExtract::ExtractCurrentFile(CommandData *Cmd,Archive &Arc,size_t HeaderS
   return(true);
 }
 
+#if !defined(MIN)
+#define MIN(a, b)  (((a)<(b))?(a):(b))
+#endif
 
 void CmdExtract::UnstoreFile(ComprDataIO &DataIO,int64 DestUnpSize)
 {
   Array<byte> Buffer(0x10000);
   while (1)
   {
-    uint Code=DataIO.UnpRead(&Buffer[0],Buffer.Size());
+    //uint Code=DataIO.UnpRead(&Buffer[0],Buffer.Size());
+    /* With that original code, the whole file would necessarily be read on the
+     * first call to this method */
+    uint Code=DataIO.UnpRead(&Buffer[0], MIN(Buffer.Size(), (size_t) DestUnpSize));
     if (Code==0 || (int)Code==-1)
       break;
-    Code=Code<DestUnpSize ? Code:(uint)DestUnpSize;
+    //Code=Code<DestUnpSize ? Code:(uint)DestUnpSize;
+    /* original code (basically Code = MIN(Code, (uint) DestUnpSize))
+     * discards extra data.
+     * It should not be necessary anymore (see change above) */
     DataIO.UnpWrite(&Buffer[0],Code);
     if (DestUnpSize>=0)
       DestUnpSize-=Code;

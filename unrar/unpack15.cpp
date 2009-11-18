@@ -37,7 +37,7 @@ static unsigned int DecHf4[]={0xff00,0xffff,0xffff,0xffff,0xffff,0xffff};
 static unsigned int PosHf4[]={0,0,0,0,0,0,0,0,0,255,0,0,0};
 
 
-void Unpack::Unpack15(bool Solid)
+void Unpack::Unpack15(bool Solid,bool SuspendAfterInit)
 {
   if (Suspended)
     UnpPtr=WrPtr;
@@ -55,6 +55,10 @@ void Unpack::Unpack15(bool Solid)
       UnpPtr=WrPtr;
     --DestUnpSize;
   }
+
+  if (SuspendAfterInit)
+   Suspended = true;
+
   if (DestUnpSize>=0)
   {
     GetFlagsBuf();

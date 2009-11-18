@@ -26,7 +26,7 @@ void Unpack::CopyString20(unsigned int Length,unsigned int Distance)
 }
 
 
-void Unpack::Unpack20(bool Solid)
+void Unpack::Unpack20(bool Solid,bool SuspendAfterInit)
 {
   static unsigned char LDecode[]={0,1,2,3,4,5,6,7,8,10,12,14,16,20,24,28,32,40,48,56,64,80,96,112,128,160,192,224};
   static unsigned char LBits[]=  {0,0,0,0,0,0,0,0,1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4,  4,  5,  5,  5,  5};
@@ -48,6 +48,9 @@ void Unpack::Unpack20(bool Solid)
         return;
     --DestUnpSize;
   }
+
+  if (SuspendAfterInit)
+   Suspended = true;
 
   while (DestUnpSize>=0)
   {
