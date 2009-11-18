@@ -62,7 +62,7 @@ typedef struct rar {
 	struct RAROpenArchiveDataEx	*list_open_data;
 	struct RAROpenArchiveDataEx	*extract_open_data;
 	//archive handle opened with RAR_OM_LIST[_INCSPLIT] open mode
-	HANDLE						arch_handle;
+	void						*arch_handle;
 	char						*password;
 } rar_file_t;
 
