@@ -35,9 +35,16 @@ class CmdExtract
     void ExtractArchiveInit(CommandData *Cmd,Archive &Arc);
     bool ExtractCurrentFile(CommandData *Cmd,Archive &Arc,size_t HeaderSize,
                             bool &Repeat);
+    bool ExtractCurrentFileChunkInit(CommandData *Cmd,
+                                     Archive &Arc,
+                                     size_t HeaderSize,
+                                     bool &Repeat);
+    bool ExtractCurrentFileChunk(CommandData *Cmd, Archive &Arc, size_t *ReadSize);
     static void UnstoreFile(ComprDataIO &DataIO,int64 DestUnpSize);
 
     bool SignatureFound;
+	void *Buffer;
+	size_t BufferSize;
 };
 
 #endif

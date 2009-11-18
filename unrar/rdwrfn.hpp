@@ -54,6 +54,7 @@ class ComprDataIO
     void UnpWrite(byte *Addr,size_t Count);
     void EnableShowProgress(bool Show) {ShowProgress=Show;}
     void GetUnpackedData(byte **Data,size_t *Size);
+    size_t GetUnpackToMemorySizeLeft(void) { return UnpackToMemorySize; }
     void SetPackedSizeToRead(int64 Size) {UnpPackedSize=Size;}
     void SetTestMode(bool Mode) {TestMode=Mode;}
     void SetSkipUnpCRC(bool Skip) {SkipUnpCRC=Skip;}

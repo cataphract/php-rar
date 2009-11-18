@@ -91,7 +91,7 @@ class Unpack:private BitInput
   private:
     friend class Pack;
 
-    void Unpack29(bool Solid);
+    void Unpack29(bool Solid,bool SuspendAfterInit=false);
     bool UnpReadBuf();
     void UnpWriteBuf();
     void ExecuteCode(VM_PreparedProgram *Prg);
@@ -168,7 +168,7 @@ class Unpack:private BitInput
     int PrevLowDist,LowDistRepCount;
 
 /***************************** Unpack v 1.5 *********************************/
-    void Unpack15(bool Solid);
+    void Unpack15(bool Solid,bool SuspendAfterInit=false);
     void ShortLZ();
     void LongLZ();
     void HuffDecode();
@@ -189,7 +189,7 @@ class Unpack:private BitInput
 /***************************** Unpack v 1.5 *********************************/
 
 /***************************** Unpack v 2.0 *********************************/
-    void Unpack20(bool Solid);
+    void Unpack20(bool Solid,bool SuspendAfterInit=false);
     struct MultDecode MD[4];
     unsigned char UnpOldTable20[MC20*4];
     int UnpAudioBlock,UnpChannels,UnpCurChannel,UnpChannelDelta;
@@ -205,7 +205,7 @@ class Unpack:private BitInput
     Unpack(ComprDataIO *DataIO);
     ~Unpack();
     void Init(byte *Window=NULL);
-    void DoUnpack(int Method,bool Solid);
+    void DoUnpack(int Method,bool Solid,bool SuspendAfterInit=false);
     bool IsFileExtracted() {return(FileExtracted);}
     void SetDestSize(int64 DestSize) {DestUnpSize=DestSize;FileExtracted=false;}
     void SetSuspended(bool Suspended) {Unpack::Suspended=Suspended;}

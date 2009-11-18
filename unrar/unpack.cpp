@@ -52,22 +52,22 @@ void Unpack::Init(byte *Window)
 }
 
 
-void Unpack::DoUnpack(int Method,bool Solid)
+void Unpack::DoUnpack(int Method,bool Solid,bool suspendAfterInit)
 {
   switch(Method)
   {
 #ifndef SFX_MODULE
     case 15: // rar 1.5 compression
-      Unpack15(Solid);
+      Unpack15(Solid,suspendAfterInit);
       break;
     case 20: // rar 2.x compression
     case 26: // files larger than 2GB
-      Unpack20(Solid);
+      Unpack20(Solid,suspendAfterInit);
       break;
 #endif
     case 29: // rar 3.x compression
     case 36: // alternative hash
-      Unpack29(Solid);
+      Unpack29(Solid,suspendAfterInit);
       break;
   }
 }
@@ -163,7 +163,7 @@ int Unpack::DecodeNumber(struct Decode *Dec)
 }
 
 
-void Unpack::Unpack29(bool Solid)
+void Unpack::Unpack29(bool Solid,bool SuspendAfterInit)
 {
   static unsigned char LDecode[]={0,1,2,3,4,5,6,7,8,10,12,14,16,20,24,28,32,40,48,56,64,80,96,112,128,160,192,224};
   static unsigned char LBits[]=  {0,0,0,0,0,0,0,0,1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4,  4,  5,  5,  5,  5};
@@ -195,6 +195,9 @@ void Unpack::Unpack29(bool Solid)
     if ((!Solid || !TablesRead) && !ReadTables())
       return;
   }
+
+  if (SuspendAfterInit)
+    Suspended = true;
 
   while (true)
   {
