@@ -44,6 +44,22 @@ extern zend_module_entry rar_module_entry;
 #include "TSRM.h"
 #endif
 
+/* causes linking errors (multiple definitions) in functions
+   that were requested inlining but were not inlined by the compiler */
+/* #include "unrar/rar.hpp */
+/* only these includes are necessary anyway: */
+#include "unrar/raros.hpp"
+/* no need to reinclude windows.h or new.h */
+#define SKIP_WINDOWS_INCLUDES
+#include "unrar/os.hpp"
+#include "unrar/dll.hpp"
+#include "unrar/version.hpp"
+/* These are in unrar/headers.hpp, but that header depends on several other */
+enum HOST_SYSTEM {
+  HOST_MSDOS=0,HOST_OS2=1,HOST_WIN32=2,HOST_UNIX=3,HOST_MACOS=4,
+  HOST_BEOS=5,HOST_MAX
+};
+
 PHP_MINIT_FUNCTION(rar);
 PHP_MSHUTDOWN_FUNCTION(rar);
 PHP_RINIT_FUNCTION(rar);
@@ -68,6 +84,10 @@ typedef struct rar {
 	void						*arch_handle;
 	char						*password;
 } rar_file_t;
+
+int _rar_handle_error(int TSRMLS_DC);
+php_stream *php_stream_rar_open(char *arc_name, char *file_name,
+								char *mode STREAMS_DC TSRMLS_DC);
 
 #endif	/* PHP_RAR_H */
 
