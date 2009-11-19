@@ -589,9 +589,13 @@ PHP_METHOD(rarentry, extract)
 		RETURN_FALSE;
 	}
 
-	if (!expand_filepath(path, resolved_path TSRMLS_CC)) {
-		RETURN_FALSE;
+	if (path_len != 0) {
+		if (!expand_filepath(path, resolved_path TSRMLS_CC)) {
+			RETURN_FALSE;
+		}
 	}
+	else
+		strncpy(resolved_path, "", 1); //first arg can be given sth that evals to ""
 	
 	if (filename_len != 0) {
 		if (OPENBASEDIR_CHECKPATH(filename)) {
