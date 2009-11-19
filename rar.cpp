@@ -500,8 +500,10 @@ PHP_FUNCTION(rar_entry_get)
 	}
 
 	found = _rar_raw_entries_to_files(rar, filename, return_value TSRMLS_CC);
-	if (!return_value) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "cannot find such file in Rar archive");
+	if (!found) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,
+			"cannot find file \"%s\" in Rar archive \"%s\".",
+			filename, rar->list_open_data->ArcName);
 		RETURN_FALSE;	
 	}
 }
