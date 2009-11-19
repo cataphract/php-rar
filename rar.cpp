@@ -387,33 +387,37 @@ END_EXTERN_C()
    Open Rar archive and return resource */
 PHP_FUNCTION(rar_open)
 {
-	char *filename, *password = NULL;
-	int filename_len, password_len = 0;
+	char *filename;
+	char *password = NULL;
+	char resolved_path[MAXPATHLEN];
+	int filename_len;
+	int password_len = 0;
 	rar_file_t *rar = NULL;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|s", &filename, &filename_len, &password, &password_len) == FAILURE) {
 		return;
 	}
 
-#if PHP_MAJOR_VERSION < 6
-	if (PG(safe_mode) && (!php_checkuid(filename, NULL, CHECKUID_CHECK_FILE_AND_DIR))) {
+	if (OPENBASEDIR_CHECKPATH(filename)) {
 		RETURN_FALSE;
 	}
-#endif
-	if (php_check_open_basedir(filename TSRMLS_CC)) {
+
+	if(!expand_filepath(filename, resolved_path TSRMLS_CC)) {
 		RETURN_FALSE;
 	}
 	
 	rar = (rar_file_t *) emalloc(sizeof(rar_file_t));
 	rar->list_open_data = (RAROpenArchiveDataEx *) ecalloc(1,
 		sizeof *rar->list_open_data);
-	rar->list_open_data->ArcName = estrndup(filename, filename_len);
+	rar->list_open_data->ArcName = estrndup(resolved_path,
+		strnlen(resolved_path, MAXPATHLEN));
 	rar->list_open_data->OpenMode = RAR_OM_LIST_INCSPLIT;
 	rar->list_open_data->CmtBuf = (char*) ecalloc(RAR_MAX_COMMENT_SIZE, 1);
 	rar->list_open_data->CmtBufSize = RAR_MAX_COMMENT_SIZE;
 	rar->extract_open_data = (RAROpenArchiveDataEx *) ecalloc(1,
 		sizeof *rar->extract_open_data);
-	rar->extract_open_data->ArcName = estrndup(filename, filename_len);
+	rar->extract_open_data->ArcName = estrndup(resolved_path,
+		strnlen(resolved_path, MAXPATHLEN));
 	rar->extract_open_data->OpenMode = RAR_OM_EXTRACT;
 	rar->extract_open_data->CmtBuf = NULL; //not interested in it again
 	rar->password = NULL;
@@ -450,7 +454,7 @@ PHP_FUNCTION(rar_list)
 {
 	zval *file;
 	rar_file_t *rar = NULL;
-	int i, result;
+	int result;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &file) == FAILURE) {
 		return;
@@ -581,23 +585,12 @@ PHP_METHOD(rarentry, extract)
 	RAR_GET_PROPERTY(tmp, "rarfile");
 	ZEND_FETCH_RESOURCE(rar, rar_file_t *, tmp, -1, "Rar file", le_rar_file);
 
-#if PHP_MAJOR_VERSION < 6
-	if (path_len && PG(safe_mode) && (!php_checkuid(path, NULL, CHECKUID_CHECK_FILE_AND_DIR))) {
-		RETURN_FALSE;
-	}
-#endif
-
-	if (php_check_open_basedir(path TSRMLS_CC)) {
+	if (OPENBASEDIR_CHECKPATH(path)) {
 		RETURN_FALSE;
 	}
 	
 	if (filename_len) {
-#if PHP_MAJOR_VERSION < 6
-		if (PG(safe_mode) && (!php_checkuid(filename, NULL, CHECKUID_CHECK_FILE_AND_DIR))) {
-			RETURN_FALSE;
-		}
-#endif		
-		if (php_check_open_basedir(filename TSRMLS_CC)) {
+		if (OPENBASEDIR_CHECKPATH(filename)) {
 			RETURN_FALSE;
 		}
 	}
