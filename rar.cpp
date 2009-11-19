@@ -2,7 +2,7 @@
   +----------------------------------------------------------------------+
   | PHP Version 5                                                        |
   +----------------------------------------------------------------------+
-  | Copyright (c) 1997-2004 The PHP Group                                |
+  | Copyright (c) 1997-2009 The PHP Group                                |
   +----------------------------------------------------------------------+
   | This source file is subject to version 3.0 of the PHP license,       |
   | that is bundled with this package in the file LICENSE, and is        |
@@ -21,6 +21,7 @@
   | unRAR & RAR copyrights are owned by Eugene Roshal                    |
   +----------------------------------------------------------------------+
   | Author: Antony Dovgal <tony@daylessday.org>                          |
+  | Author: Gustavo Lopes <cataphract@php.net>                           |
   +----------------------------------------------------------------------+
 */
 
@@ -43,22 +44,6 @@ extern "C" {
 #if HAVE_RAR
 
 #include "php_rar.h"
-/* causes linking errors (multiple definitions) in functions
-   that were requested inlining but were not inlined by the compiler */
-/* #include "unrar/rar.hpp */
-/* only these includes are necessary anyway: */
-#include "unrar/raros.hpp"
-/* no need to reinclude windows.h or new.h */
-#define SKIP_WINDOWS_INCLUDES
-#include "unrar/os.hpp"
-#include "unrar/dll.hpp"
-#include "unrar/version.hpp"
-/* And these definitions, which should probably be moved to a header.
-   These are in unrar/headers.hpp, but that header depends on several other */
-enum HOST_SYSTEM {
-  HOST_MSDOS=0,HOST_OS2=1,HOST_WIN32=2,HOST_UNIX=3,HOST_MACOS=4,
-  HOST_BEOS=5,HOST_MAX
-};
 
 /* PHP4 compat {{{ */
 #ifndef PHP_METHOD
@@ -78,7 +63,6 @@ static zend_class_entry *rar_class_entry_ptr;
 static void _rar_file_list_dtor(zend_rsrc_list_entry * TSRMLS_DC);
 static int _rar_list_files(rar_file_t * TSRMLS_DC);
 static const char * _rar_error_to_string(int);
-static int _rar_handle_error(int TSRMLS_DC);
 static void _rar_dos_date_to_text(int, char *);
 static void _rar_entry_to_zval(struct RARHeaderDataEx *, zval *, long TSRMLS_DC);
 static int _rar_raw_entries_to_files(rar_file_t *rar,
@@ -86,6 +70,21 @@ static int _rar_raw_entries_to_files(rar_file_t *rar,
 								     zval *target TSRMLS_DC);
 static zval **_rar_entry_get_property(zval *, char *, int TSRMLS_DC);
 static void _rar_wide_to_utf(const wchar_t *src, char *dest, size_t dest_size);
+/* }}} */
+
+/* <global> */
+/* Function needed in other files */
+int _rar_handle_error(int errcode TSRMLS_DC) /* {{{ */
+{
+	const char *err = _rar_error_to_string(errcode);
+
+	if (err == NULL) {
+		return SUCCESS;
+	}
+	
+	php_error_docref(NULL TSRMLS_CC, E_WARNING, err);
+	return FAILURE;
+}
 /* }}} */
 
 /* <internal> */
@@ -211,19 +210,6 @@ static const char * _rar_error_to_string(int errcode) /* {{{ */
 			break;
 	}
 	return ret;
-}
-/* }}} */
-
-static int _rar_handle_error(int errcode TSRMLS_DC) /* {{{ */
-{
-	const char *err = _rar_error_to_string(errcode);
-
-	if (err == NULL) {
-		return SUCCESS;
-	}
-	
-	php_error_docref(NULL TSRMLS_CC, E_WARNING, err);
-	return FAILURE;
 }
 /* }}} */
 
@@ -821,6 +807,29 @@ PHP_METHOD(rarentry, getMethod)
 }
 /* }}} */
 
+/* {{{ proto resource RarEntry::getStream()
+   Return packing method */
+PHP_METHOD(rarentry, getStream)
+{
+	zval **tmp, **name;
+	rar_file_t *rar = NULL;
+	zval *entry_obj = getThis();
+	php_stream *stream = NULL;
+	
+	RAR_GET_PROPERTY(name, "name");
+	RAR_GET_PROPERTY(tmp, "rarfile");
+	ZEND_FETCH_RESOURCE(rar, rar_file_t *, tmp, -1, le_rar_file_name, le_rar_file);
+
+	stream = php_stream_rar_open(rar->extract_open_data->ArcName,
+		Z_STRVAL_PP(name), "r" STREAMS_CC TSRMLS_CC);
+	
+	if (stream != NULL) {
+		php_stream_to_zval(stream, return_value);
+	}
+}
+/* }}} */
+
+
 /* {{{ rar_functions[]
  *
  */
@@ -848,6 +857,7 @@ static zend_function_entry php_rar_class_functions[] = {
 	PHP_ME(rarentry,		getAttr,			NULL,	ZEND_ACC_PUBLIC)
 	PHP_ME(rarentry,		getVersion,			NULL,	ZEND_ACC_PUBLIC)
 	PHP_ME(rarentry,		getMethod,			NULL,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getStream,			NULL,	ZEND_ACC_PUBLIC)
 	{NULL, NULL, NULL}
 };
 /* }}} */
