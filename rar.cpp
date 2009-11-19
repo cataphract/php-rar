@@ -402,7 +402,7 @@ PHP_FUNCTION(rar_open)
 		RETURN_FALSE;
 	}
 
-	if(!expand_filepath(filename, resolved_path TSRMLS_CC)) {
+	if (!expand_filepath(filename, resolved_path TSRMLS_CC)) {
 		RETURN_FALSE;
 	}
 	
@@ -569,7 +569,7 @@ PHP_FUNCTION(rar_close)
    Extract file from the archive */
 PHP_METHOD(rarentry, extract)
 {
-	char *path, *filename = NULL;
+	char *path, *filename = NULL, resolved_path[MAXPATHLEN];
 	int path_len, filename_len = 0;
 	zval **tmp, **tmp_name;
 	rar_file_t *rar = NULL;
@@ -588,8 +588,12 @@ PHP_METHOD(rarentry, extract)
 	if (OPENBASEDIR_CHECKPATH(path)) {
 		RETURN_FALSE;
 	}
+
+	if (!expand_filepath(path, resolved_path TSRMLS_CC)) {
+		RETURN_FALSE;
+	}
 	
-	if (filename_len) {
+	if (filename_len != 0) {
 		if (OPENBASEDIR_CHECKPATH(filename)) {
 			RETURN_FALSE;
 		}
@@ -610,7 +614,7 @@ PHP_METHOD(rarentry, extract)
 
 	while ((result = RARReadHeaderEx(extract_handle, &entry)) == 0) {
 		if (strncmp(entry.FileName,Z_STRVAL_PP(tmp_name), sizeof(entry.FileName)) == 0) {
-			process_result = RARProcessFile(extract_handle, RAR_EXTRACT, path, filename);
+			process_result = RARProcessFile(extract_handle, RAR_EXTRACT, resolved_path, filename);
 			RETVAL_TRUE;
 			goto cleanup;
 		} else {
