@@ -55,13 +55,16 @@ PHP_FUNCTION(rar_list);
 PHP_FUNCTION(rar_entry_get);
 PHP_FUNCTION(rar_close);
 
+//maximum comment size if 64KB
+#define RAR_MAX_COMMENT_SIZE 65536
+
 typedef struct rar {
 	int							id;
-	int							entry_count;
+	int							entry_count; //>= number of files
 	struct RARHeaderDataEx		**entries;
 	struct RAROpenArchiveDataEx	*list_open_data;
 	struct RAROpenArchiveDataEx	*extract_open_data;
-	//archive handle opened with RAR_OM_LIST[_INCSPLIT] open mode
+	//archive handle opened with RAR_OM_LIST_INCSPLIT open mode
 	void						*arch_handle;
 	char						*password;
 } rar_file_t;
