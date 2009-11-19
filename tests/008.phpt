@@ -9,6 +9,9 @@ $rar_file1 = rar_open(dirname(__FILE__).'/multi.part1.rar');
 $entry = rar_entry_get($rar_file1, "file1.txt");
 var_dump($entry);
 echo "\n";
+$entry = rar_entry_get($rar_file1, "nonexistent_file.txt");
+var_dump($entry);
+echo "\n";
 
 $rar_file2 = rar_open(dirname(__FILE__).'/nonexistent.rar'); 
 $entry = rar_entry_get($rar_file2, "file1.txt");
@@ -40,6 +43,10 @@ object(RarEntry)#%d (%d) {
   ["method"]=>
   int(48)
 }
+
+
+Warning: rar_entry_get(): cannot find file "nonexistent_file.txt" in Rar archive "%s". in %s on line %d
+bool(false)
 
 
 Warning: rar_open(): Failed to open %s: ERAR_EOPEN (file open error) in %s on line %d
