@@ -85,6 +85,7 @@ static int _rar_raw_entries_to_files(rar_file_t *rar,
 								     const char * const file, //can be NULL
 								     zval *target TSRMLS_DC);
 static zval **_rar_entry_get_property(zval *, char *, int TSRMLS_DC);
+static void _rar_wide_to_utf(const wchar_t *src, char *dest, size_t dest_size);
 /* }}} */
 
 /* <internal> */
@@ -247,6 +248,7 @@ static void _rar_entry_to_zval(struct RARHeaderDataEx *entry, zval *object,
 {
 	char tmp_s [MAX_LENGTH_OF_LONG + 1];
 	char time[50];
+	char *filename;
 	long unpSize;
 
 	if (sizeof(long) >= 8)
@@ -260,10 +262,15 @@ static void _rar_entry_to_zval(struct RARHeaderDataEx *entry, zval *object,
 			unpSize = (long) entry->UnpSize;
 	}
 
+	/* 2 instead of sizeof(wchar_t) would suffice, I think. I doubt
+	 * _rar_wide_to_utf handles characters not in UCS-2. But better be safe */
+	filename = (char*) emalloc(sizeof(entry->FileNameW) * sizeof(wchar_t));
+
 	if (packed_size > (unsigned long) LONG_MAX)
 		packed_size = LONG_MAX;
-	
-	add_property_string(object, "name", entry->FileName, 1);
+	_rar_wide_to_utf(entry->FileNameW, filename,
+		sizeof(entry->FileNameW) * sizeof(wchar_t));
+	add_property_string(object, "name", filename, 1);
 	add_property_long(object, "unpacked_size", entry->UnpSize);
 	//packed size can be wrong in multi-volume archives
 	add_property_long(object, "packed_size", packed_size);
@@ -278,6 +285,8 @@ static void _rar_entry_to_zval(struct RARHeaderDataEx *entry, zval *object,
 	add_property_long(object, "attr",  entry->FileAttr);
 	add_property_long(object, "version",  entry->UnpVer);
 	add_property_long(object, "method",  entry->Method);
+
+	efree(filename);
 }
 /* }}} */
 
@@ -370,6 +379,38 @@ static zval **_rar_entry_get_property(zval *id, char *name, int namelen TSRMLS_D
 		return NULL;
 	}
 	return tmp;
+}
+/* }}} */
+
+/* From unicode.cpp
+ * I can't use that one directy because it takes a const wchar, not wchar_t.
+ * And I shouldn't because it's not a public API.
+ */
+static void _rar_wide_to_utf(const wchar_t *src, char *dest, size_t dest_size) /* {{{ */
+{
+	long dsize= (long) dest_size;
+	dsize--;
+	while (*src != 0 && --dsize >= 0) {
+		uint c =*(src++);
+		if (c < 0x80)
+			*(dest++) = c;
+		else if (c < 0x800 && --dsize >= 0)	{
+			*(dest++) = (0xc0 | (c >> 6));
+			*(dest++) = (0x80 | (c & 0x3f));
+		}
+		else if (c < 0x10000 && (dsize -= 2) >= 0) {
+			*(dest++) = (0xe0 | (c >> 12));
+			*(dest++) = (0x80 | ((c >> 6) & 0x3f));
+			*(dest++) = (0x80 | (c & 0x3f));
+		}
+		else if (c < 0x200000 && (dsize -= 3) >= 0) {
+			*(dest++) = (0xf0 | (c >> 18));
+			*(dest++) = (0x80 | ((c >> 12) & 0x3f));
+			*(dest++) = (0x80 | ((c >> 6) & 0x3f));
+			*(dest++) = (0x80 | (c & 0x3f));
+		}
+	}
+	*dest = 0;
 }
 /* }}} */
 
