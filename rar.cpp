@@ -962,7 +962,7 @@ PHP_MINFO_FUNCTION(rar)
 
 	php_info_print_table_start();
 	php_info_print_table_header(2, "Rar support", "enabled");
-	php_info_print_table_header(2, "Extension version", PHP_RAR_VERSION);
+	php_info_print_table_row(2, "Rar EXT version", PHP_RAR_VERSION);
 	php_info_print_table_row(2, "Revision", "$Revision$");
 
 	if (RARVER_BETA != 0) {
@@ -970,7 +970,7 @@ PHP_MINFO_FUNCTION(rar)
 			RARVER_BETA, RARVER_YEAR, RARVER_MONTH, RARVER_DAY);
 	} else {
 		sprintf(version,"%d.%02d %d-%d-%d", RARVER_MAJOR, RARVER_MINOR,
-			RARVER_BETA, RARVER_YEAR, RARVER_MONTH, RARVER_DAY);
+			RARVER_YEAR, RARVER_MONTH, RARVER_DAY);
 	}
 
 	php_info_print_table_row(2, "UnRAR version", version);
