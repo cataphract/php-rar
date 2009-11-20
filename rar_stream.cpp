@@ -24,6 +24,8 @@
   +----------------------------------------------------------------------+
 */
 
+/* $Id: rar_stream.cpp 291023 2009-11-19 18:45:31Z cataphract $ */
+
 #ifdef HAVE_CONFIG_H
 #   include "config.h"
 #endif
@@ -235,3 +237,11 @@ cleanup:
 /* }}} */
 #endif /* ZEND_ENGINE_2 */
 #endif /* HAVE_RAR */
+/*
+ * Local variables:
+ * tab-width: 4
+ * c-basic-offset: 4
+ * End:
+ * vim600: noet sw=4 ts=4 fdm=marker
+ * vim<600: noet sw=4 ts=4
+ */
