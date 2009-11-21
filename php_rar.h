@@ -89,6 +89,14 @@ int _rar_handle_error(int TSRMLS_DC);
 php_stream *php_stream_rar_open(char *arc_name, char *file_name,
 								char *mode STREAMS_DC TSRMLS_DC);
 
+//PHP 5.2 compatibility
+#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION < 3
+# define OPENBASEDIR_CHECKPATH(filename) \
+	(PG(safe_mode) && \
+	(!php_checkuid(filename, NULL, CHECKUID_CHECK_FILE_AND_DIR))) \
+	|| php_check_open_basedir(filename TSRMLS_CC)
+#endif
+
 #endif	/* PHP_RAR_H */
 
 

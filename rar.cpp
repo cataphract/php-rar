@@ -35,6 +35,8 @@
 # include <math.h>
 #endif
 
+#include <wchar.h>
+
 extern "C" {
 #include "php.h"
 #include "php_ini.h"
@@ -44,16 +46,6 @@ extern "C" {
 #if HAVE_RAR
 
 #include "php_rar.h"
-
-/* PHP4 compat {{{ */
-#ifndef PHP_METHOD
-#define ZEND_MN(name) zim_##name
-#define PHP_METHOD(classname, name)    ZEND_NAMED_FUNCTION(ZEND_MN(classname##_##name))
-#define ZEND_FENTRY(zend_name, name, arg_info, flags)   { #zend_name, name, arg_info},
-#define PHP_ME(classname, name, arg_info, flags)   ZEND_FENTRY(name, ZEND_MN(classname##_##name), arg_info, flags)
-#endif
-/* }}} */
-
 
 static int le_rar_file;
 #define le_rar_file_name "Rar file"
@@ -289,8 +281,8 @@ static int _rar_raw_entries_to_files(rar_file_t *rar,
 		RARHeaderDataEx *entry;
 		const wchar_t *current_name;
 		int read_entry = (i != rar->entry_count); //whether we have a new entry this iteration
-		int ended_file = false; //whether we've seen a file and entries for the that file have ended
-		int commit_file = false; //whether we are creating a new zval
+		int ended_file = FALSE; //whether we've seen a file and entries for the that file have ended
+		int commit_file = FALSE; //whether we are creating a new zval
 		int has_last_entry = (i != 0); //whether we had an entry last iteration
 
 		
@@ -658,6 +650,7 @@ PHP_METHOD(rarentry, extract)
 	struct RARHeaderDataEx entry;
 	HANDLE extract_handle = NULL;
 	int with_second_arg;
+	int found;
 	
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|s", &dir, &dir_len, &filepath, &filepath_len) == FAILURE ) {
 		return;
@@ -699,11 +692,11 @@ PHP_METHOD(rarentry, extract)
 		goto cleanup;
 	}
 
-	int found = false;
+	found = FALSE;
 	while ((result = RARReadHeaderEx(extract_handle, &entry)) == 0 && !found) {
 
 		if (strncmp(entry.FileName,Z_STRVAL_PP(tmp_name), sizeof(entry.FileName)) == 0) {
-			found = true;
+			found = TRUE;
 			if (!with_second_arg)
 				process_result = RARProcessFile(extract_handle, RAR_EXTRACT,
 					considered_path_res, NULL);
