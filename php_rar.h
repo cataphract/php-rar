@@ -86,7 +86,8 @@ typedef struct rar {
 } rar_file_t;
 
 int _rar_handle_error(int TSRMLS_DC);
-php_stream *php_stream_rar_open(char *arc_name, char *file_name,
+void _rar_utf_to_wide(const char *src, wchar_t *dest, size_t dest_size);
+php_stream *php_stream_rar_open(char *arc_name, char *utf_file_name,
 								char *mode STREAMS_DC TSRMLS_DC);
 
 //PHP 5.2 compatibility

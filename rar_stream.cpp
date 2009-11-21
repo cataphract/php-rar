@@ -35,6 +35,8 @@ extern "C" {
 #if HAVE_RAR
 #ifdef ZEND_ENGINE_2
 
+#include <wchar.h>
+
 #include "php_rar.h"
 #include "unrar/rartypes.hpp"
 
@@ -172,12 +174,16 @@ php_stream_ops php_stream_rario_ops = {
 };
 
 /* {{{ php_stream_zip_open */
-php_stream *php_stream_rar_open(char *arc_name, char *file_name, char *mode STREAMS_DC TSRMLS_DC)
+php_stream *php_stream_rar_open(char *arc_name,
+								char *utf_file_name,
+								char *mode STREAMS_DC TSRMLS_DC)
 {
 	php_stream				*stream	= NULL;
 	php_rar_stream_data_P	self	= NULL;
 	int						result,
 							process_result;
+	wchar_t					*file_name = NULL;
+	int						utf_file_name_len;
 
 	if (strncmp(mode, "r", strlen("r")) != 0) {
 		goto cleanup;
@@ -192,8 +198,12 @@ php_stream *php_stream_rar_open(char *arc_name, char *file_name, char *mode STRE
 		goto cleanup;
 	}
 
+	utf_file_name_len = strlen(utf_file_name);
+	file_name = (wchar_t*) ecalloc(utf_file_name_len + 1, sizeof *file_name); 
+	_rar_utf_to_wide(utf_file_name, file_name, utf_file_name_len + 1);
+
 	while ((result = RARReadHeaderEx(self->rar_handle, &self->header_data)) == 0) {
-		if (strncmp(self->header_data.FileName, file_name, NM) == 0) {
+		if (wcsncmp(self->header_data.FileNameW, file_name, NM) == 0) {
 			//no need to allocate a buffer bigger than the file uncomp size
 			size_t buffer_size = (size_t)
 				MIN((uint64) RAR_CHUNK_BUFFER_SIZE,
@@ -231,6 +241,9 @@ cleanup:
 			efree(self);
 		}
 	}
+
+	if (file_name != NULL)
+		efree(file_name);
 
 	return stream;
 }
