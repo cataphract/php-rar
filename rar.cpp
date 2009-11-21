@@ -657,7 +657,7 @@ PHP_METHOD(rarentry, extract)
 	}
 
 	RAR_GET_PROPERTY(tmp, "rarfile");
-	ZEND_FETCH_RESOURCE(rar, rar_file_t *, tmp, -1, "Rar file", le_rar_file);
+	ZEND_FETCH_RESOURCE(rar, rar_file_t *, tmp, -1, le_rar_file_name, le_rar_file);
 
 	with_second_arg = (filepath_len != 0);
 
@@ -895,15 +895,47 @@ PHP_METHOD(rarentry, getStream)
 /* }}} */
 
 
+/* {{{ arginfo */
+ZEND_BEGIN_ARG_INFO_EX(arginfo_rar_open, 0, 0, 1)
+	ZEND_ARG_INFO(0, filename)
+	ZEND_ARG_INFO(0, password)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_rar_list, 0, 0, 1)
+	ZEND_ARG_INFO(0, rarfile)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_rar_entry_get, 0, 0, 2)
+	ZEND_ARG_INFO(0, rarfile)
+	ZEND_ARG_INFO(0, filename)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_rar_comment_get, 0, 0, 1)
+	ZEND_ARG_INFO(0, rarfile)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_rar_close, 0, 0, 1)
+	ZEND_ARG_INFO(0, rarfile)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_rarentry_extract, 0, 0, 1)
+	ZEND_ARG_INFO(0, path)
+	ZEND_ARG_INFO(0, filename)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO(arginfo_rar_void, 0)
+ZEND_END_ARG_INFO()
+/* }}} */
+
 /* {{{ rar_functions[]
  *
  */
 function_entry rar_functions[] = {
-	PHP_FE(rar_open,	NULL)
-	PHP_FE(rar_list,	NULL)
-	PHP_FE(rar_entry_get,	NULL)
-	PHP_FE(rar_comment_get,	NULL)
-	PHP_FE(rar_close,	NULL)
+	PHP_FE(rar_open,		arginfo_rar_open)
+	PHP_FE(rar_list,		arginfo_rar_list)
+	PHP_FE(rar_entry_get,	arginfo_rar_entry_get)
+	PHP_FE(rar_comment_get,	arginfo_rar_comment_get)
+	PHP_FE(rar_close,		arginfo_rar_close)
 	{NULL, NULL, NULL}
 };
 
@@ -912,17 +944,17 @@ function_entry rar_functions[] = {
 #endif
 
 static zend_function_entry php_rar_class_functions[] = {
-	PHP_ME(rarentry,		extract,			NULL,	ZEND_ACC_PUBLIC)
-	PHP_ME(rarentry,		getName,			NULL,	ZEND_ACC_PUBLIC)
-	PHP_ME(rarentry,		getUnpackedSize,	NULL,	ZEND_ACC_PUBLIC)
-	PHP_ME(rarentry,		getPackedSize,		NULL,	ZEND_ACC_PUBLIC)
-	PHP_ME(rarentry,		getHostOs,			NULL,	ZEND_ACC_PUBLIC)
-	PHP_ME(rarentry,		getFileTime,		NULL,	ZEND_ACC_PUBLIC)
-	PHP_ME(rarentry,		getCrc,				NULL,	ZEND_ACC_PUBLIC)
-	PHP_ME(rarentry,		getAttr,			NULL,	ZEND_ACC_PUBLIC)
-	PHP_ME(rarentry,		getVersion,			NULL,	ZEND_ACC_PUBLIC)
-	PHP_ME(rarentry,		getMethod,			NULL,	ZEND_ACC_PUBLIC)
-	PHP_ME(rarentry,		getStream,			NULL,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		extract,			arginfo_rarentry_extract,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getName,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getUnpackedSize,	arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getPackedSize,		arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getHostOs,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getFileTime,		arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getCrc,				arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getAttr,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getVersion,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getMethod,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getStream,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
 	{NULL, NULL, NULL}
 };
 /* }}} */
