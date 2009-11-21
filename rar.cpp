@@ -62,11 +62,10 @@ static int _rar_raw_entries_to_files(rar_file_t *rar,
 								     zval *target TSRMLS_DC);
 static zval **_rar_entry_get_property(zval *, char *, int TSRMLS_DC);
 static void _rar_wide_to_utf(const wchar_t *src, char *dest, size_t dest_size);
-static void _rar_utf_to_wide(const char *src, wchar_t *dest, size_t dest_size);
 /* }}} */
 
 /* <global> */
-/* Function needed in other files */
+/* Functions needed in other files */
 int _rar_handle_error(int errcode TSRMLS_DC) /* {{{ */
 {
 	const char *err = _rar_error_to_string(errcode);
@@ -77,6 +76,50 @@ int _rar_handle_error(int errcode TSRMLS_DC) /* {{{ */
 	
 	php_error_docref(NULL TSRMLS_CC, E_WARNING, err);
 	return FAILURE;
+}
+/* }}} */
+
+void _rar_utf_to_wide(const char *src, wchar_t *dest, size_t dest_size) /* {{{ */
+{
+	long dsize = (long) dest_size;
+	dsize--;
+	while (*src != 0) {
+		uint c = (unsigned char) *(src++),
+			 d;
+		if (c < 0x80)
+			d = c;
+		else if ((c >> 5) == 6) {
+			if ((*src & 0xc0) != 0x80)
+				break;
+			d=((c & 0x1f) << 6)|(*src & 0x3f);
+			src++;
+		}
+		else if ((c>>4)==14) {
+			if ((src[0] & 0xc0) != 0x80 || (src[1] & 0xc0) != 0x80)
+				break;
+			d = ((c & 0xf) << 12) | ((src[0] & 0x3f) << 6) | (src[1] & 0x3f);
+			src += 2;
+		}
+		else if ((c>>3)==30) {
+			if ((src[0] & 0xc0) != 0x80 || (src[1] & 0xc0) != 0x80 || (src[2] & 0xc0) != 0x80)
+				break;
+			d = ((c & 7) << 18) | ((src[0] & 0x3f) << 12) | ((src[1] & 0x3f) << 6) | (src[2] & 0x3f);
+			src += 3;
+		}
+		else
+			break;
+		if (--dsize < 0)
+			break;
+		if (d > 0xffff) {
+			if (--dsize < 0 || d > 0x10ffff)
+				break;
+			*(dest++) = ((d - 0x10000) >> 10) + 0xd800;
+			*(dest++) = (d & 0x3ff) + 0xdc00;
+		}
+		else
+			*(dest++) = d;
+	}
+	*dest = 0;
 }
 /* }}} */
 
@@ -311,8 +354,12 @@ static int _rar_raw_entries_to_files(rar_file_t *rar,
 			else
 				tmp = target;
 
+			void *a = emalloc(200);
+
 			object_init_ex(tmp, rar_class_entry_ptr);
 			add_property_resource(tmp, "rarfile", rar->id);
+			/* to avoid destruction of the resource due to le->refcount hitting
+			 * 0 when this new zval we're creating is destroyed? */
 			zend_list_addref(rar->id);
 			_rar_entry_to_zval(last_entry, tmp, packed_size TSRMLS_CC);
 			if (file == NULL)
@@ -392,51 +439,6 @@ static void _rar_wide_to_utf(const wchar_t *src, char *dest, size_t dest_size) /
 	*dest = 0;
 }
 /* }}} */
-
-/* idem */
-static void _rar_utf_to_wide(const char *src, wchar_t *dest, size_t dest_size) /* {{{ */
-{
-	long dsize = (long) dest_size;
-	dsize--;
-	while (*src != 0) {
-		uint c = (unsigned char) *(src++),
-			 d;
-		if (c < 0x80)
-			d = c;
-		else if ((c >> 5) == 6) {
-			if ((*src & 0xc0) != 0x80)
-				break;
-			d=((c & 0x1f) << 6)|(*src & 0x3f);
-			src++;
-		}
-		else if ((c>>4)==14) {
-			if ((src[0] & 0xc0) != 0x80 || (src[1] & 0xc0) != 0x80)
-				break;
-			d = ((c & 0xf) << 12) | ((src[0] & 0x3f) << 6) | (src[1] & 0x3f);
-			src += 2;
-		}
-		else if ((c>>3)==30) {
-			if ((src[0] & 0xc0) != 0x80 || (src[1] & 0xc0) != 0x80 || (src[2] & 0xc0) != 0x80)
-				break;
-			d = ((c & 7) << 18) | ((src[0] & 0x3f) << 12) | ((src[1] & 0x3f) << 6) | (src[2] & 0x3f);
-			src += 3;
-		}
-		else
-			break;
-		if (--dsize < 0)
-			break;
-		if (d > 0xffff) {
-			if (--dsize < 0 || d > 0x10ffff)
-				break;
-			*(dest++) = ((d - 0x10000) >> 10) + 0xd800;
-			*(dest++) = (d & 0x3ff) + 0xdc00;
-		}
-		else
-			*(dest++) = d;
-	}
-	*dest = 0;
-} /* }}} */
-
 /* </internal> */
 
 #ifdef COMPILE_DL_RAR
@@ -493,8 +495,10 @@ PHP_FUNCTION(rar_open)
 		if (password_len) {
 			rar->password = estrndup(password, password_len);
 		}
-		rar->id = zend_list_insert(rar,le_rar_file);
-		RETURN_RESOURCE(rar->id);
+		rar->id = ZEND_REGISTER_RESOURCE(return_value, rar, le_rar_file);
+		return;
+		//zend_list_insert(rar,le_rar_file);
+		//RETURN_RESOURCE(rar->id);
 	} else {
 		const char *err_str = _rar_error_to_string(rar->list_open_data->OpenResult);
 		if (err_str == NULL)
@@ -630,7 +634,7 @@ PHP_FUNCTION(rar_close)
 		RETURN_FALSE;
 	}
 
-	zend_list_delete(rar->id);
+	zend_hash_index_del(&EG(regular_list), Z_RESVAL_P(file));
 	RETURN_TRUE;
 }
 /* }}} */
@@ -938,10 +942,6 @@ function_entry rar_functions[] = {
 	PHP_FE(rar_close,		arginfo_rar_close)
 	{NULL, NULL, NULL}
 };
-
-#ifndef ZEND_ENGINE_2
-#define ZEND_ACC_PUBLIC 0
-#endif
 
 static zend_function_entry php_rar_class_functions[] = {
 	PHP_ME(rarentry,		extract,			arginfo_rarentry_extract,	ZEND_ACC_PUBLIC)
