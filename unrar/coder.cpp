@@ -31,6 +31,9 @@ void RangeCoder::InitDecoder(Unpack *UnpackRead)
 
 inline int RangeCoder::GetCurrentCount() 
 {
+  range /= SubRange.scale;
+  if (range == 0)
+	  range = 1;
   return (code-low)/(range /= SubRange.scale);
 }
 

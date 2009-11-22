@@ -4,7 +4,7 @@
 ARG_ENABLE("rar", "Rar support", "no");
 
 if (PHP_RAR != "no") {
-	EXTENSION("rar", "rar.cpp rar_stream.cpp", PHP_RAR_SHARED, "/DRARDLL /DGUI /DSILENT /EHsc /D_WSTDIO_DEFINED");
+	EXTENSION("rar", "rar.c rar_stream.c", PHP_RAR_SHARED, "/DRARDLL /DGUI /DSILENT /EHsc /D_WSTDIO_DEFINED");
 	ADD_SOURCES(configure_module_dirname + "/unrar",
 		"rar.cpp strlist.cpp strfn.cpp \
 		pathfn.cpp smallfn.cpp savepos.cpp \

@@ -29,9 +29,13 @@
 #ifdef HAVE_CONFIG_H
 #   include "config.h"
 #endif
+
+#ifdef __cplusplus
 extern "C" {
+#endif
+
 #include "php.h"
-}
+
 #if HAVE_RAR
 #ifdef ZEND_ENGINE_2
 
@@ -49,15 +53,15 @@ extern "C" {
  */
 
 typedef struct php_rar_stream_data_t {
-	RAROpenArchiveDataEx	open_data;
-	RARHeaderDataEx			header_data;
-	HANDLE					rar_handle;
-	unsigned char			*buffer;
-	size_t					buffer_size;
-	size_t					buffer_cont_size;
-	size_t					buffer_pos;
-	uint64					cursor;
-	php_stream				*stream;
+	struct RAROpenArchiveDataEx	open_data;
+	struct RARHeaderDataEx		header_data;
+	HANDLE						rar_handle;
+	unsigned char				*buffer;
+	size_t						buffer_size;
+	size_t						buffer_cont_size;
+	size_t						buffer_pos;
+	uint64						cursor;
+	php_stream					*stream;
 } php_rar_stream_data, *php_rar_stream_data_P;
 
 #define STREAM_DATA_FROM_STREAM \
@@ -181,53 +185,43 @@ php_stream *php_stream_rar_open(char *arc_name,
 	php_stream				*stream	= NULL;
 	php_rar_stream_data_P	self	= NULL;
 	int						result,
-							process_result;
-	wchar_t					*file_name = NULL;
-	int						utf_file_name_len;
+							found;
 
 	if (strncmp(mode, "r", strlen("r")) != 0) {
 		goto cleanup;
 	}
 
-	self = (php_rar_stream_data_P) ecalloc(1, sizeof *self); //must cast (C++)
+	self = ecalloc(1, sizeof *self);
 	self->open_data.ArcName		= estrdup(arc_name);
 	self->open_data.OpenMode	= RAR_OM_EXTRACT;
-	self->rar_handle			= RAROpenArchiveEx(&self->open_data);
-	if (self->rar_handle == NULL) {
-		_rar_handle_error(self->open_data.OpenResult TSRMLS_CC);
-		goto cleanup;
-	}
-
-	utf_file_name_len = strlen(utf_file_name);
-	file_name = (wchar_t*) ecalloc(utf_file_name_len + 1, sizeof *file_name); 
-	_rar_utf_to_wide(utf_file_name, file_name, utf_file_name_len + 1);
-
-	while ((result = RARReadHeaderEx(self->rar_handle, &self->header_data)) == 0) {
-		if (wcsncmp(self->header_data.FileNameW, file_name, NM) == 0) {
-			//no need to allocate a buffer bigger than the file uncomp size
-			size_t buffer_size = (size_t)
-				MIN((uint64) RAR_CHUNK_BUFFER_SIZE,
-				INT32TO64(self->header_data.UnpSizeHigh,
-				self->header_data.UnpSize));
-			process_result = RARProcessFileChunkInit(self->rar_handle);
-			stream = php_stream_alloc(&php_stream_rario_ops, self, NULL, mode);
-			self->buffer = (unsigned char *) emalloc(buffer_size); //must cast (C++)
-			self->buffer_size = buffer_size;
-			goto cleanup;
-		} else {
-			process_result = RARProcessFile(self->rar_handle, RAR_SKIP, NULL, NULL);
-		}
-		if (_rar_handle_error(process_result TSRMLS_CC) == FAILURE) {
-			goto cleanup;
-		}
-	}
+	
+	result = _rar_find_file(&self->open_data, utf_file_name, &self->rar_handle,
+		&found, &self->header_data);
 
 	if (_rar_handle_error(result TSRMLS_CC) == FAILURE) {
 		goto cleanup;
 	}
 
-	php_error_docref(NULL TSRMLS_CC, E_WARNING,
-		"Can't find file %s in archive %s", file_name, arc_name);
+	if (!found)
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,
+			"Can't find file %s in archive %s", utf_file_name, arc_name);
+
+	{
+		//no need to allocate a buffer bigger than the file uncomp size
+		size_t buffer_size = (size_t)
+			MIN((uint64) RAR_CHUNK_BUFFER_SIZE,
+			INT32TO64(self->header_data.UnpSizeHigh,
+			self->header_data.UnpSize));
+		int process_result = RARProcessFileChunkInit(self->rar_handle);
+
+		if (_rar_handle_error(result TSRMLS_CC) == FAILURE) {
+			goto cleanup;
+		}
+
+		self->buffer = emalloc(buffer_size);
+		self->buffer_size = buffer_size;
+		stream = php_stream_alloc(&php_stream_rario_ops, self, NULL, mode);
+	}
 
 cleanup:
 	if (stream == NULL) { //failed
@@ -242,14 +236,16 @@ cleanup:
 		}
 	}
 
-	if (file_name != NULL)
-		efree(file_name);
-
 	return stream;
 }
 /* }}} */
 #endif /* ZEND_ENGINE_2 */
 #endif /* HAVE_RAR */
+
+#ifdef __cplusplus
+}
+#endif
+
 /*
  * Local variables:
  * tab-width: 4

@@ -54,10 +54,7 @@ bool CmdExtract::ExtractCurrentFileChunkInit(CommandData *Cmd,
       *ArcNameW=0;
       Repeat=true;
       ErrHandler.SetErrorCode(WARNING);
-      /* Actually known. The problem is that the file doesn't start on this volume.
-       * Anyway should not happen unless the file is opened with RAR_OM_LIST_INCSPLIT,
-       * which is currently not the case (but should be in order to show correct CRC
-       * values...  See pecl bug #9470) */
+      /* Actually known. The problem is that the file doesn't start on this volume. */
       Cmd->DllError = ERAR_UNKNOWN;
       return false;
     }
