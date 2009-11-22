@@ -345,6 +345,7 @@ static int _rar_raw_entries_to_files(rar_file_t *rar,
 	unsigned long packed_size = 0UL;
 	struct RARHeaderDataEx *last_entry;
 	int any_commit = FALSE;
+	int first_file_check = TRUE;
 	int i;
 
 	for (i = 0; i <= rar->entry_count; i++) {
@@ -353,12 +354,20 @@ static int _rar_raw_entries_to_files(rar_file_t *rar,
 		int read_entry = (i != rar->entry_count); //whether we have a new entry this iteration
 		int ended_file = FALSE; //whether we've seen a file and entries for the that file have ended
 		int commit_file = FALSE; //whether we are creating a new zval
-		int has_last_entry = (i != 0); //whether we had an entry last iteration
-
+		int has_last_entry = (last_name != NULL); //whether we had an entry last iteration
 		
 		if (read_entry) {
 			entry = rar->entries[i];
 			current_name = entry->FileNameW;
+		}
+
+		/* If file is continued from previous volume, skip it, as otherwise
+		 * incorrect packed and unpacked sizes would be returned */
+		if (first_file_check) {
+			if (entry->Flags & 0x01)
+				continue;
+			else
+				first_file_check = FALSE;
 		}
 		
 		ended_file = has_last_entry &&

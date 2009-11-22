@@ -88,7 +88,7 @@ static size_t php_rar_ops_read(php_stream *stream, char *buf, size_t count TSRML
 				int res;
 				self->buffer_pos = 0;
 				self->buffer_cont_size = 0;
-				/* Note: this is condition is important, you cannot rely on
+				/* Note: this condition is important, you cannot rely on
 				 * having a call to RARProcessFileChunk return no data and
 				 * break on the condition self->buffer_cont_size == 0 because
 				 * calling RARProcessFileChunk when there's no more data to
