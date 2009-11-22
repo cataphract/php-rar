@@ -36,6 +36,8 @@ void Unpack::Unpack20(bool Solid,bool SuspendAfterInit)
   static unsigned char SDBits[]=  {2,2,3, 4, 5, 6,  6,  6};
   unsigned int Bits;
 
+  FileExtracted=true;
+
   if (Suspended)
     UnpPtr=WrPtr;
   else
@@ -62,8 +64,10 @@ void Unpack::Unpack20(bool Solid,bool SuspendAfterInit)
     if (((WrPtr-UnpPtr) & MAXWINMASK)<270 && WrPtr!=UnpPtr)
     {
       OldUnpWriteBuf();
-      if (Suspended)
+      if (Suspended) {
+        FileExtracted=false;
         return;
+      }
     }
     if (UnpAudioBlock)
     {
