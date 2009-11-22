@@ -61,6 +61,7 @@ typedef struct php_rar_stream_data_t {
 	size_t						buffer_cont_size;
 	size_t						buffer_pos;
 	uint64						cursor;
+	int							no_more_data;
 	php_stream					*stream;
 } php_rar_stream_data, *php_rar_stream_data_P;
 
@@ -81,19 +82,28 @@ static size_t php_rar_ops_read(php_stream *stream, char *buf, size_t count TSRML
 		while (left > 0) {
 			size_t this_read_size;
 			//if nothing in the buffer or buffer already read, fill buffer
-			if (self->buffer_cont_size == 0 ||
+			if (/*self->buffer_cont_size == 0 || > condition not necessary */
 				self->buffer_pos == self->buffer_cont_size)
 			{
 				int res;
 				self->buffer_pos = 0;
 				self->buffer_cont_size = 0;
+				/* Note: this is condition is important, you cannot rely on
+				 * having a call to RARProcessFileChunk return no data and
+				 * break on the condition self->buffer_cont_size == 0 because
+				 * calling RARProcessFileChunk when there's no more data to
+				 * be read may cause an integer division by 0 in
+				 * RangeCoder::GetCurrentCount() */
+				if (self->no_more_data)
+					break;
 				res = RARProcessFileChunk(self->rar_handle, self->buffer,
-					self->buffer_size, &self->buffer_cont_size);
+					self->buffer_size, &self->buffer_cont_size,
+					&self->no_more_data);
 				if (_rar_handle_error(res TSRMLS_CC) == FAILURE) {
 					break; //finish in case of failure
 				}
 				assert(self->buffer_cont_size <= self->buffer_size);
-				//finish if we cannot fill the buffer (e.g. file completely read)
+				//we did not read anything. no need to continue
 				if (self->buffer_cont_size == 0)
 					break;
 			}
@@ -112,8 +122,16 @@ static size_t php_rar_ops_read(php_stream *stream, char *buf, size_t count TSRML
 		self->cursor += n;
 	}
 
-	if (n == 0)
+	//no more data upstream and buffer already read
+	if (self->no_more_data && self->buffer_pos == self->buffer_cont_size)
 		stream->eof = 1;
+
+	if (!self->no_more_data && n == 0) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,
+			"Extraction reported as unfinished but no data read. Please report"
+			" this, as this is a bug.");
+		stream->eof = 1;
+	}
 
 	return n<1 ? 0 : n;
 }

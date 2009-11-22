@@ -39,6 +39,8 @@ static unsigned int PosHf4[]={0,0,0,0,0,0,0,0,0,255,0,0,0};
 
 void Unpack::Unpack15(bool Solid,bool SuspendAfterInit)
 {
+  FileExtracted=true;
+
   if (Suspended)
     UnpPtr=WrPtr;
   else
@@ -74,8 +76,10 @@ void Unpack::Unpack15(bool Solid,bool SuspendAfterInit)
     if (((WrPtr-UnpPtr) & MAXWINMASK)<270 && WrPtr!=UnpPtr)
     {
       OldUnpWriteBuf();
-      if (Suspended)
+      if (Suspended) {
+        FileExtracted=false;
         return;
+      }
     }
     if (StMode)
     {

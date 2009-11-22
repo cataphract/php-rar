@@ -20,6 +20,7 @@ foreach ($entries as $e) {
 	while (!feof($stream)) {
 		$a .= fread($stream, 8192);
 	}
+	echo strlen($a)." bytes, CRC ";
 	echo int32_to_hex(crc32($a))."\n\n"; //you can confirm they're equal to those given by $e->getCrc()
 }
 
@@ -28,10 +29,10 @@ echo "Done\n";
 --EXPECTF--
 3 files:
 
-file1.txt: 52B28202
+file1.txt: 18 bytes, CRC 52B28202
 
-file2.txt: F2C79881
+file2.txt: 17704 bytes, CRC F2C79881
 
-file3.txt: BCBCE32E
+file3.txt: 18 bytes, CRC BCBCE32E
 
 Done

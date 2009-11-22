@@ -114,12 +114,20 @@ bool CmdExtract::ExtractCurrentFileChunkInit(CommandData *Cmd,
   return true;
 }
 
-bool CmdExtract::ExtractCurrentFileChunk(CommandData *Cmd, Archive &Arc, size_t *ReadSize)
+bool CmdExtract::ExtractCurrentFileChunk(CommandData *Cmd, Archive &Arc,
+                                         size_t *ReadSize,
+                                         int *finished)
 {
   DataIO.SetUnpackToMemory((byte*) this->Buffer, this->BufferSize);
 
-  if (Arc.NewLhd.Method==0x30)
+  if (Arc.NewLhd.Method==0x30) {
     UnstoreFile(DataIO, this->BufferSize);
+    /* not very sophisticated and may result in a subsequent
+     * unnecessary call to this function (and probably will if
+     * the buffer size is chosen so that it just fits for small
+     * files) */
+    *finished = (DataIO.GetUnpackToMemorySizeLeft() > 0);
+  }
   else
   {
     Unp->SetDestSize(Arc.NewLhd.FullUnpSize);
@@ -127,7 +135,8 @@ bool CmdExtract::ExtractCurrentFileChunk(CommandData *Cmd, Archive &Arc, size_t 
       Unp->DoUnpack(15,FileCount>1 && Arc.Solid, this->Buffer != NULL);
     else
       Unp->DoUnpack(Arc.NewLhd.UnpVer,
-      (Arc.NewLhd.Flags & LHD_SOLID)!=0, this->Buffer != NULL);
+        (Arc.NewLhd.Flags & LHD_SOLID)!=0, this->Buffer != NULL);
+    *finished = Unp->IsFileExtracted();
   }
   *ReadSize = this->BufferSize - DataIO.GetUnpackToMemorySizeLeft();
 

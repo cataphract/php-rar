@@ -1048,11 +1048,12 @@ PHP_MINFO_FUNCTION(rar)
 	php_info_print_table_row(2, "Revision", "$Revision$");
 
 	if (RARVER_BETA != 0) {
-		sprintf(version,"%d.%02d beta%d %d-%d-%d", RARVER_MAJOR, RARVER_MINOR,
-			RARVER_BETA, RARVER_YEAR, RARVER_MONTH, RARVER_DAY);
+		sprintf(version,"%d.%02d beta%d patch%d %d-%d-%d", RARVER_MAJOR,
+			RARVER_MINOR, RARVER_BETA, RARVER_PATCH, RARVER_YEAR, RARVER_MONTH,
+			RARVER_DAY);
 	} else {
-		sprintf(version,"%d.%02d %d-%d-%d", RARVER_MAJOR, RARVER_MINOR,
-			RARVER_YEAR, RARVER_MONTH, RARVER_DAY);
+		sprintf(version,"%d.%02d patch%d %d-%d-%d", RARVER_MAJOR, RARVER_MINOR,
+			RARVER_PATCH, RARVER_YEAR, RARVER_MONTH, RARVER_DAY);
 	}
 
 	php_info_print_table_row(2, "UnRAR version", version);

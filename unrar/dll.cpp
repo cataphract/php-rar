@@ -218,7 +218,7 @@ int PASCAL RARReadHeaderEx(HANDLE hArcData,struct RARHeaderDataEx *D)
 int PASCAL ProcessFile(HANDLE hArcData, int Operation, char *DestPath,
                        char *DestName, wchar *DestPathW, wchar *DestNameW,
                        void *Buffer, size_t BufferSize, size_t *ReadSize,
-                       bool InitDataIO)
+                       bool InitDataIO, int *finished)
 {
   DataSet *Data=(DataSet *)hArcData;
 
@@ -321,7 +321,8 @@ int PASCAL ProcessFile(HANDLE hArcData, int Operation, char *DestPath,
         else //chunk, no init
           //returns always true
           //changes *ReadSize
-          Data->Extract.ExtractCurrentFileChunk(&Data->Cmd, Data->Arc, ReadSize);
+          Data->Extract.ExtractCurrentFileChunk(&Data->Cmd, Data->Arc,
+            ReadSize, finished);
       }
 
       /* if extracting by chunks, do move to next block, not even if we've read
@@ -349,25 +350,31 @@ int PASCAL ProcessFile(HANDLE hArcData, int Operation, char *DestPath,
 
 int PASCAL RARProcessFile(HANDLE hArcData,int Operation,char *DestPath,char *DestName)
 {
-  return(ProcessFile(hArcData,Operation,DestPath,DestName,NULL,NULL,NULL,0,NULL,false));
+  return(ProcessFile(hArcData,Operation,DestPath,DestName,NULL,NULL,NULL,0,
+    NULL,false,NULL));
 }
 
 
 int PASCAL RARProcessFileW(HANDLE hArcData,int Operation,wchar *DestPath,wchar *DestName)
 {
-  return(ProcessFile(hArcData,Operation,NULL,NULL,DestPath,DestName,NULL,0,NULL,false));
+  return(ProcessFile(hArcData,Operation,NULL,NULL,DestPath,DestName,NULL,0,
+    NULL,false,NULL));
 }
 
 int PASCAL RARProcessFileChunkInit(HANDLE hArcData)
 {
   return ProcessFile(hArcData, RAR_EXTRACT_CHUNK, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, true);
+    NULL, NULL, NULL, true, NULL);
 }
 
-int PASCAL RARProcessFileChunk(HANDLE hArcData, void *Buffer, size_t BufferSize, size_t *ReadSize)
+int PASCAL RARProcessFileChunk(HANDLE hArcData,
+                               void *Buffer,
+                               size_t BufferSize,
+                               size_t *ReadSize,
+                               int *finished)
 {
   return ProcessFile(hArcData, RAR_EXTRACT_CHUNK, NULL, NULL, NULL, NULL,
-    Buffer, BufferSize, ReadSize, false);
+    Buffer, BufferSize, ReadSize, false, finished);
 }
 
 void PASCAL RARSetChangeVolProc(HANDLE hArcData,CHANGEVOLPROC ChangeVolProc)

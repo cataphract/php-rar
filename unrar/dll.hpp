@@ -132,7 +132,7 @@ int    PASCAL RARReadHeaderEx(HANDLE hArcData,struct RARHeaderDataEx *HeaderData
 int    PASCAL RARProcessFile(HANDLE hArcData,int Operation,char *DestPath,char *DestName);
 int    PASCAL RARProcessFileW(HANDLE hArcData,int Operation,wchar_t *DestPath,wchar_t *DestName);
 int    PASCAL RARProcessFileChunkInit(HANDLE hArcData);
-int    PASCAL RARProcessFileChunk(HANDLE hArcData, void *Buffer, size_t BufferSize, size_t *ReadSize);
+int    PASCAL RARProcessFileChunk(HANDLE hArcData, void *Buffer, size_t BufferSize, size_t *ReadSize, int *finished);
 void   PASCAL RARSetCallback(HANDLE hArcData,UNRARCALLBACK Callback,LPARAM UserData);
 void   PASCAL RARSetChangeVolProc(HANDLE hArcData,CHANGEVOLPROC ChangeVolProc);
 void   PASCAL RARSetProcessDataProc(HANDLE hArcData,PROCESSDATAPROC ProcessDataProc);
