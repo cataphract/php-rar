@@ -18,7 +18,7 @@
 #define LITTLE_ENDIAN
 #define NM  1024
 
-#if defined(_WIN_32) && !defined(SKIP_WINDOWS_INCLUDES)
+#if defined(_WIN_32) && !defined(LEAN_RAR_INCLUDES)
 
   #define STRICT
   #undef WINVER
@@ -67,7 +67,7 @@
   #include <share.h>
 #endif // _WIN_CE
 
-#if defined(ENABLE_BAD_ALLOC) && !defined(_WIN_CE) && !defined(SKIP_WINDOWS_INCLUDES)
+#if defined(ENABLE_BAD_ALLOC) && !defined(_WIN_CE) && !defined(LEAN_RAR_INCLUDES)
   #include <new.h>
 #endif
 
@@ -84,10 +84,12 @@
     #include <emx/syscalls.h>
   #endif
 #else
-  #if defined(_MSC_VER) || defined(__MINGW32__)
+  #ifndef LEAN_RAR_INCLUDES
+    #if (defined(_MSC_VER) || defined(__MINGW32__))
       #include <exception>
-  #else
-    #include <except.h>
+    #else
+      #include <except.h>
+    #endif
   #endif
 #endif
 
