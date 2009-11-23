@@ -69,6 +69,7 @@ PHP_MINFO_FUNCTION(rar);
 PHP_FUNCTION(rar_open);
 PHP_FUNCTION(rar_list);
 PHP_FUNCTION(rar_entry_get);
+PHP_FUNCTION(rar_command_get);
 PHP_FUNCTION(rar_close);
 
 //maximum comment size if 64KB

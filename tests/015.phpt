@@ -4,7 +4,6 @@ rar_close() liberates resource (PECL bug #9649)
 <?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
-exec('pause');
 copy(dirname(__FILE__).'/latest_winrar.rar', dirname(__FILE__).'/temp.rar');
 $rar_file1 = rar_open(dirname(__FILE__).'/temp.rar');
 var_dump($rar_file1);
@@ -21,7 +20,7 @@ unlink(dirname(__FILE__).'/temp.rar');
 echo "Done\n";
 ?>
 --EXPECTF--
-resource(8) of type (Rar file)
+resource(%d) of type (Rar file)
 object(RarEntry)#%d (%d) {
   ["rarfile"]=>
   resource(%d) of type (Rar file)

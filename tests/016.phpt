@@ -22,7 +22,7 @@ foreach ($entries as $e) {
 	echo "\n";
 }
 
-@unlink('temp.txt');
+@unlink(dirname(__FILE__).'/temp.txt');
 
 echo "Done\n";
 ?>
