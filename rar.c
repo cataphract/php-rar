@@ -67,6 +67,7 @@ static int _rar_raw_entries_to_files(rar_file_t *rar,
 static zval **_rar_entry_get_property(zval *, char *, int TSRMLS_DC);
 static void _rar_wide_to_utf(const wchar_t *src, char *dest, size_t dest_size);
 static void _rar_utf_to_wide(const char *src, wchar_t *dest, size_t dest_size);
+static void _rar_fix_wide(wchar_t *str);
 /* }}} */
 
 /* <global> */
@@ -121,6 +122,9 @@ int _rar_find_file(struct RAROpenArchiveDataEx *open_data, /* IN */
 	_rar_utf_to_wide(utf_file_name, file_name, utf_file_name_len + 1);
 	
 	while ((result = RARReadHeaderEx(*arc_handle, used_header_data)) == 0) {
+		if (sizeof(wchar_t) > 2)
+			_rar_fix_wide(used_header_data->FileNameW);
+
 		if (wcsncmp(used_header_data->FileNameW, file_name, NM) == 0) {
 			*found = TRUE;
 			goto cleanup;
@@ -516,6 +520,18 @@ static void _rar_utf_to_wide(const char *src, wchar_t *dest, size_t dest_size) /
 			*(dest++) = d;
 	}
 	*dest = 0;
+}
+/* }}} */
+
+static void _rar_fix_wide(wchar_t *str) /* {{{ */
+{
+	wchar_t *write,
+		    *read;
+	for (write = str, read = str; *read != L'\0'; read++) {
+		if ((unsigned) *read <= 0x10ffff)
+			*(write++) = *read;
+	}
+	*write = L'\0';
 }
 /* }}} */
 /* </internal> */
