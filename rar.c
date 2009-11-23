@@ -345,7 +345,8 @@ static int _rar_raw_entries_to_files(rar_file_t *rar,
 									 const wchar_t * const file, //can be NULL
 									 zval *target TSRMLS_DC) /* {{{ */
 {
-	const wchar_t * last_name = NULL;
+	const wchar_t last_name[1024] = {};
+	const char strict_last_name[1024] = {};
 	unsigned long packed_size = 0UL;
 	struct RARHeaderDataEx *last_entry;
 	int any_commit = FALSE;
@@ -355,14 +356,16 @@ static int _rar_raw_entries_to_files(rar_file_t *rar,
 	for (i = 0; i <= rar->entry_count; i++) {
 		struct RARHeaderDataEx *entry;
 		const wchar_t *current_name;
+		const char *strict_current_name;
 		int read_entry = (i != rar->entry_count); //whether we have a new entry this iteration
 		int ended_file = FALSE; //whether we've seen a file and entries for the that file have ended
 		int commit_file = FALSE; //whether we are creating a new zval
-		int has_last_entry = (last_name != NULL); //whether we had an entry last iteration
+		int has_last_entry = (*strict_last_name != '\0'); //whether we had an entry last iteration
 		
 		if (read_entry) {
 			entry = rar->entries[i];
 			current_name = entry->FileNameW;
+			strict_current_name = entry->FileName;
 		}
 
 		/* If file is continued from previous volume, skip it, as otherwise
@@ -374,8 +377,14 @@ static int _rar_raw_entries_to_files(rar_file_t *rar,
 				first_file_check = FALSE;
 		}
 		
-		ended_file = has_last_entry &&
-			(!read_entry || (wcsncmp(last_name, current_name, 1024) != 0));
+		/* The wide file name may result from conversion from the
+		 * non-wide filename and this conversion may fail. In that
+		 * case, we can have entries of different files with the
+		 * the same wide file name. For this reason, we use the
+		 * non-wide file name to check if we have a new file and
+		 * don't trust the wide file name. */
+		ended_file = has_last_entry && (!read_entry ||
+			(strncmp(strict_last_name, strict_current_name, 1024) != 0));
 		commit_file = ended_file && (file == NULL ||
 			(file != NULL && wcsncmp(last_name, file, 1024) == 0));
 
@@ -426,7 +435,8 @@ static int _rar_raw_entries_to_files(rar_file_t *rar,
 
 			//prepare for next entry
 			last_entry = entry;
-			last_name = current_name;
+			wcsncpy(last_name, current_name, 1024);
+			strncpy(strict_last_name, strict_current_name, 1024);
 		}
 	}
 
