@@ -178,7 +178,7 @@ static int php_rar_ops_close(php_stream *stream, int close_handle TSRMLS_DC)
 }
 /* }}} */
 
-/* {{{ php_zip_ops_flush */
+/* {{{ php_rar_ops_flush */
 static int php_rar_ops_flush(php_stream *stream TSRMLS_DC)
 {
 	return 0;
@@ -195,7 +195,7 @@ php_stream_ops php_stream_rario_ops = {
 	NULL  /* set_option */
 };
 
-/* {{{ php_stream_zip_open */
+/* {{{ php_stream_rar_open */
 php_stream *php_stream_rar_open(char *arc_name,
 								char *utf_file_name,
 								char *mode STREAMS_DC TSRMLS_DC)
