@@ -13,7 +13,7 @@ $e->extract(false, dirname(__FILE__).'/temp.txt');
 echo file_get_contents(dirname(__FILE__).'/temp.txt');
 echo "\n";
 
-@unlink('temp.txt');
+@unlink(dirname(__FILE__).'/temp.txt');
 
 echo "Done\n";
 ?>
