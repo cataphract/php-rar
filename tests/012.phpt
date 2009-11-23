@@ -33,10 +33,10 @@ echo "Done\n";
 --EXPECTF--
 51 files (will test only the first 4):
 
-test\%s: The great battle of Gunprex versus Optiter!!!!!1
+test%s: The great battle of Gunprex versus Optiter!!!!!1
 Gunprex, Fire!
 So long, Optiter!
 
-test\%s: it,greIater!
+test%s: it,greIater!
 %s
 Done
