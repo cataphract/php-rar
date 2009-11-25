@@ -336,6 +336,8 @@ static void _rar_entry_to_zval(struct RARHeaderDataEx *entry, zval *object,
 	add_property_long(object, "attr",  entry->FileAttr);
 	add_property_long(object, "version",  entry->UnpVer);
 	add_property_long(object, "method",  entry->Method);
+	//if bits 5, 6 and 7 and set (starting from 0)
+	add_property_bool(object, "directory",  ((entry->Flags & 0xE0) == 0xE0));
 
 	efree(filename);
 }
@@ -345,8 +347,8 @@ static int _rar_raw_entries_to_files(rar_file_t *rar,
 									 const wchar_t * const file, //can be NULL
 									 zval *target TSRMLS_DC) /* {{{ */
 {
-	const wchar_t last_name[1024] = {};
-	const char strict_last_name[1024] = {};
+	wchar_t last_name[1024] = {L'\0'};
+	char strict_last_name[1024] = {'\0'};
 	unsigned long packed_size = 0UL;
 	struct RARHeaderDataEx *last_entry;
 	int any_commit = FALSE;
@@ -990,6 +992,21 @@ PHP_METHOD(rarentry, getStream)
 }
 /* }}} */
 
+/* {{{ proto int RarEntry::isDirectory()
+   Return if the entry is a directory */
+PHP_METHOD(rarentry, isDirectory)
+{
+	zval **tmp;
+	rar_file_t *rar = NULL;
+	zval *entry_obj = getThis();
+	
+	RAR_GET_PROPERTY(tmp, "directory");
+
+	convert_to_boolean_ex(tmp);
+	RETURN_BOOL(Z_BVAL_PP(tmp));
+}
+/* }}} */
+
 
 /* {{{ arginfo */
 ZEND_BEGIN_ARG_INFO_EX(arginfo_rar_open, 0, 0, 1)
@@ -1047,6 +1064,7 @@ static zend_function_entry php_rar_class_functions[] = {
 	PHP_ME(rarentry,		getVersion,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
 	PHP_ME(rarentry,		getMethod,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
 	PHP_ME(rarentry,		getStream,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		isDirectory,		arginfo_rar_void,	ZEND_ACC_PUBLIC)
 	{NULL, NULL, NULL}
 };
 /* }}} */
