@@ -203,19 +203,23 @@ static int _rar_get_file_resource(zval *zval_file, rar_file_t **rar_file TSRMLS_
 static int _rar_list_files(rar_file_t *rar TSRMLS_DC) /* {{{ */
 {
 	int result = 0;
+	int capacity = 0;
 	while (result == 0) {
 		struct RARHeaderDataEx entry;
 		result = RARReadHeaderEx(rar->arch_handle, &entry);
 		//value of 2nd argument is irrelevant in RAR_OM_LIST_[SPLIT] mode
 		RARProcessFile(rar->arch_handle, RAR_SKIP, NULL, NULL);
 		if (result == 0) {
-			rar->entries = (struct RARHeaderDataEx **) erealloc(rar->entries,
-				sizeof(*rar->entries) * (rar->entry_count + 1));
-			if (!rar->entries) {
-				return FAILURE;
+			assert(capacity >= rar->entry_count);
+			if (capacity == rar->entry_count) { //0, 2, 6, 14, 30...
+				capacity = (capacity + 1) * 2;
+				rar->entries = erealloc(rar->entries,
+					sizeof(*rar->entries) * capacity);
+				if (!rar->entries)
+					return FAILURE;
 			}
-			rar->entries[rar->entry_count] = (struct RARHeaderDataEx *)emalloc(
-				sizeof(*rar->entries[0]));
+			assert(capacity > rar->entry_count);
+			rar->entries[rar->entry_count] = emalloc(sizeof(*rar->entries[0]));
 			memcpy(rar->entries[rar->entry_count], &entry,
 				sizeof *rar->entries[0]);
 			rar->entry_count++;

@@ -239,6 +239,8 @@ php_stream *php_stream_rar_open(char *arc_name,
 		self->buffer = emalloc(buffer_size);
 		self->buffer_size = buffer_size;
 		stream = php_stream_alloc(&php_stream_rario_ops, self, NULL, mode);
+		if (buffer_size == 0) //if file is empty/is dir/is link, mark eof now
+			stream->eof = TRUE;
 	}
 
 cleanup:
