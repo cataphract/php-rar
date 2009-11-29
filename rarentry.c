@@ -43,7 +43,10 @@ static zend_object_handlers rar_object_handlers;
 /* }}} */
 
 /* {{{ Function prototypes for functions with internal linkage */
-static zval **_rar_entry_get_property(zval *, char *, int TSRMLS_DC);
+static int _rar_decl_priv_prop_null(zend_class_entry *ce, const char *name,
+									 int name_length, char *doc_comment,
+									 int doc_comment_len TSRMLS_DC);
+static zval **_rar_entry_get_property(zval *entry_obj, char *name, int namelen TSRMLS_DC);
 static void _rar_dos_date_to_text(int dos_time, char *date_string);
 static zend_object_value rarentry_ce_create_object(zend_class_entry *class_type TSRMLS_DC);
 /* }}} */
