@@ -194,8 +194,9 @@ static zend_object_value rarentry_ce_create_object(zend_class_entry *class_type 
 
 	zend_hash_copy(zobj->properties, &(class_type->default_properties),
 		(copy_ctor_func_t) zval_add_ref, &tmp, sizeof(zval*));
-	zov.handle = zend_objects_store_put(zobj, NULL,
-		(zend_objects_free_object_storage_t) zend_object_std_dtor,
+	zov.handle = zend_objects_store_put(zobj,
+		(zend_objects_store_dtor_t) zend_objects_destroy_object,
+		(zend_objects_free_object_storage_t) zend_objects_free_object_storage,
 		NULL TSRMLS_CC);
 	zov.handlers = &rar_object_handlers;
 	return zov;
