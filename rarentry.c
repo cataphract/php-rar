@@ -1,0 +1,563 @@
+/* $Id$ */
+
+#include "php.h"
+#include "php_rar.h"
+
+/* {{{ Globals with external linakage */
+zend_class_entry *rar_class_entry_ptr;
+/* }}} */
+
+/* {{{ Globals with internal linakage */
+static zend_object_handlers rar_object_handlers;
+/* }}} */
+
+/* {{{ Function prototypes for functions with internal linkage */
+static zval **_rar_entry_get_property(zval *, char *, int TSRMLS_DC);
+static void _rar_dos_date_to_text(int dos_time, char *date_string);
+static zend_object_value rarentry_ce_create_object(zend_class_entry *class_type TSRMLS_DC);
+/* }}} */
+
+/* {{{ Functions with external linkage */
+/* should be passed the last entry that corresponds to a given file
+ * only that one has the correct CRC. Still, it may have a wrong packedSize */
+void _rar_entry_to_zval(struct RARHeaderDataEx *entry, zval *object,
+							   unsigned long packed_size TSRMLS_DC) /* {{{ */
+{
+	char tmp_s [MAX_LENGTH_OF_LONG + 1];
+	char time[50];
+	char *filename;
+	long unp_size;
+
+	if (sizeof(long) >= 8)
+		unp_size = ((long) entry->UnpSize) + (((long) entry->UnpSizeHigh) << 32);
+	else {
+		//for 32-bit long, at least don't give negative values
+		if ((unsigned long) entry->UnpSize > (unsigned long) LONG_MAX
+				|| entry->UnpSizeHigh != 0)
+			unp_size = LONG_MAX;
+		else
+			unp_size = (long) entry->UnpSize;
+	}
+
+	/* 2 instead of sizeof(wchar_t) would suffice, I think. I doubt
+	 * _rar_wide_to_utf handles characters not in UCS-2. But better be safe */
+	filename = (char*) emalloc(sizeof(entry->FileNameW) * sizeof(wchar_t));
+
+	if (packed_size > (unsigned long) LONG_MAX)
+		packed_size = LONG_MAX;
+	_rar_wide_to_utf(entry->FileNameW, filename,
+		sizeof(entry->FileNameW) * sizeof(wchar_t));
+	/* we're not in class scope, so we cannot change the class private
+	 * properties from here with add_property_x
+	 * zend_update_property_x updates the scope accordingly */
+	zend_update_property_string(rar_class_entry_ptr, object, "name",
+		sizeof("name") - 1, filename TSRMLS_CC);
+	zend_update_property_long(rar_class_entry_ptr, object, "unpacked_size",
+		sizeof("unpacked_size") - 1, unp_size TSRMLS_CC);
+	zend_update_property_long(rar_class_entry_ptr, object, "packed_size",
+		sizeof("packed_size") - 1, packed_size TSRMLS_CC);
+	zend_update_property_long(rar_class_entry_ptr, object, "host_os",
+		sizeof("host_os") - 1, entry->HostOS TSRMLS_CC);
+	
+	_rar_dos_date_to_text(entry->FileTime, time);
+	zend_update_property_string(rar_class_entry_ptr, object, "file_time",
+		sizeof("file_time") - 1, time TSRMLS_CC);
+	
+	sprintf(tmp_s, "%lx", entry->FileCRC);
+	zend_update_property_string(rar_class_entry_ptr, object, "crc",
+		sizeof("crc") - 1, tmp_s TSRMLS_CC);
+	
+	zend_update_property_long(rar_class_entry_ptr, object, "attr",
+		sizeof("attr") - 1, entry->FileAttr TSRMLS_CC);
+	zend_update_property_long(rar_class_entry_ptr, object, "version",
+		sizeof("version") - 1, entry->UnpVer TSRMLS_CC);
+	zend_update_property_long(rar_class_entry_ptr, object, "method",
+		sizeof("method") - 1, entry->Method TSRMLS_CC);
+	zend_update_property_long(rar_class_entry_ptr, object, "flags",
+		sizeof("flags") - 1, entry->Flags TSRMLS_CC);
+
+	efree(filename);
+}
+/* }}} */
+/* }}} */
+
+/* {{{ Helper functions and preprocessor definitions */
+#define RAR_GET_PROPERTY(var, prop_name) \
+	if (!entry_obj) { \
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "this method cannot be called statically"); \
+		RETURN_FALSE; \
+	} \
+	if ((var = _rar_entry_get_property(entry_obj, prop_name, sizeof(prop_name) TSRMLS_CC)) == NULL) { \
+		RETURN_FALSE; \
+	}
+
+#define REG_RAR_CLASS_CONST_LONG(const_name, value) \
+	zend_declare_class_constant_long(rar_class_entry_ptr, const_name, \
+		sizeof(const_name) - 1, (long) value TSRMLS_CC)
+
+#define REG_RAR_PROPERTY(name, comment) \
+	_rar_decl_priv_prop_null(rar_class_entry_ptr, name, sizeof(name) -1, \
+		comment, sizeof(comment) - 1 TSRMLS_CC)
+
+static int _rar_decl_priv_prop_null(zend_class_entry *ce, const char *name,
+									 int name_length, char *doc_comment,
+									 int doc_comment_len TSRMLS_DC) /* {{{ */
+{
+	zval *property;
+	ALLOC_PERMANENT_ZVAL(property);
+	INIT_ZVAL(*property);
+	return zend_declare_property_ex(ce, name, name_length, property,
+		ZEND_ACC_PRIVATE, doc_comment, doc_comment_len TSRMLS_CC);
+}
+/* }}} */
+
+static zval **_rar_entry_get_property(zval *entry_obj, char *name, int namelen TSRMLS_DC) /* {{{ */
+{
+	zval **tmp;
+	char *mangled_name;
+	int mangled_name_len;
+
+	//perhaps cleaner alternative: use Z_OBJ_HANDLER_P(entry_obj, read_property)
+	//another way to avoid mem allocation would be to get the mangled name from
+	//ce->properties_info.name (properties_info hash table indexes by unmangled name)
+	
+	zend_mangle_property_name(&mangled_name, &mangled_name_len, "RarEntry",
+		sizeof("RarEntry") - 1, name, namelen, 0);
+	if (zend_hash_find(Z_OBJPROP_P(entry_obj), mangled_name, mangled_name_len,
+			(void**) &tmp) == FAILURE) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,
+			"Bug: unable to find property '%s'", name);
+		efree(mangled_name);
+		return NULL;
+	}
+	efree(mangled_name);
+	return tmp;
+}
+/* }}} */
+
+static void _rar_dos_date_to_text(int dos_time, char *date_string) /* {{{ */
+{
+	int second, minute, hour, day, month, year;
+	/* following lines were taken from timefn.cpp */
+	second = (dos_time & 0x1f)*2;
+	minute = (dos_time>>5) & 0x3f;
+	hour   = (dos_time>>11) & 0x1f;
+	day    = (dos_time>>16) & 0x1f;
+	month  = (dos_time>>21) & 0x0f;
+	year   = (dos_time>>25)+1980;
+	sprintf(date_string, "%u-%02u-%02u %02u:%02u:%02u", year, month, day, hour, minute, second);
+}
+/* }}} */
+
+static zend_object_value rarentry_ce_create_object(zend_class_entry *class_type TSRMLS_DC) /* {{{ */
+{
+	zend_object_value	zov;
+	zend_object			*zobj;
+	zval				*tmp;
+
+	zobj = emalloc(sizeof *zobj);
+	zend_object_std_init(zobj, class_type TSRMLS_CC);
+
+	zend_hash_copy(zobj->properties, &(class_type->default_properties),
+		(copy_ctor_func_t) zval_add_ref, &tmp, sizeof(zval*));
+	zov.handle = zend_objects_store_put(zobj, NULL,
+		(zend_objects_free_object_storage_t) zend_object_std_dtor,
+		NULL TSRMLS_CC);
+	zov.handlers = &rar_object_handlers;
+	return zov;
+}
+/* }}} */
+/* }}} */
+
+/* {{{ Methods */
+/* {{{ proto bool RarEntry::extract(string dir [, string filepath ])
+   Extract file from the archive */
+PHP_METHOD(rarentry, extract)
+{ //lots of variables, but no need to be intimidated
+	char					*dir,
+							*filepath = NULL;
+	int						dir_len,
+							filepath_len = 0;
+	char					*considered_path;
+	char					considered_path_res[MAXPATHLEN];
+	int						with_second_arg;
+
+	zval					**tmp,
+							**tmp_name;
+	rar_file_t				*rar = NULL;
+	zval					*entry_obj = getThis();
+	struct RARHeaderDataEx	entry;
+	HANDLE					extract_handle = NULL;
+	int						result;
+	int						found;
+	
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|s", &dir, &dir_len, &filepath, &filepath_len) == FAILURE ) {
+		return;
+	}
+
+	RAR_GET_PROPERTY(tmp, "rarfile");
+	ZEND_FETCH_RESOURCE(rar, rar_file_t *, tmp, -1, le_rar_file_name, le_rar_file);
+
+	/* Decide where to extract */
+	with_second_arg = (filepath_len != 0);
+
+	//the arguments are mutually exclusive. If the second is specified, must ignore the first
+	if (!with_second_arg) {
+		if (dir_len == 0) //both params empty
+			dir = ".";
+		considered_path = dir;
+	}
+	else {
+		considered_path = filepath;
+	}
+	
+	if (OPENBASEDIR_CHECKPATH(considered_path)) {
+		RETURN_FALSE;
+	}
+	if (!expand_filepath(considered_path, considered_path_res TSRMLS_CC)) {
+		RETURN_FALSE;
+	}
+	
+	/* Find file inside archive */
+	RAR_GET_PROPERTY(tmp_name, "name");
+
+	result = _rar_find_file(rar->extract_open_data, Z_STRVAL_PP(tmp_name),
+		&extract_handle, &found, &entry);
+
+	if (_rar_handle_error(result TSRMLS_CC) == FAILURE) {
+		RETVAL_FALSE;
+		goto cleanup;
+	}
+
+	if (!found) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,
+			"Can't find file %s in archive %s", Z_STRVAL_PP(tmp_name),
+			rar->list_open_data->ArcName);
+		RETVAL_FALSE;
+		goto cleanup;
+	}
+
+	/* Do extraction */
+	if (!with_second_arg)
+		result = RARProcessFile(extract_handle, RAR_EXTRACT,
+			considered_path_res, NULL);
+	else
+		result = RARProcessFile(extract_handle, RAR_EXTRACT,
+			NULL, considered_path_res);
+
+	if (_rar_handle_error(result TSRMLS_CC) == FAILURE) {
+		RETVAL_FALSE;
+	}
+	else {
+		RETVAL_TRUE;
+	}
+	
+cleanup:
+	if (extract_handle != NULL)
+		RARCloseArchive(extract_handle);
+}
+/* }}} */
+
+/* {{{ proto string RarEntry::getName()
+   Return entry name */
+PHP_METHOD(rarentry, getName)
+{
+	zval **tmp;
+	zval *entry_obj = getThis();
+	
+	RAR_GET_PROPERTY(tmp, "name");
+
+	convert_to_string_ex(tmp);
+	RETURN_STRINGL(Z_STRVAL_PP(tmp), Z_STRLEN_PP(tmp), 1);
+}
+/* }}} */
+
+/* {{{ proto int RarEntry::getUnpackedSize()
+   Return unpacked size of the entry */
+PHP_METHOD(rarentry, getUnpackedSize)
+{
+	zval **tmp;
+	zval *entry_obj = getThis();
+	
+	RAR_GET_PROPERTY(tmp, "unpacked_size");
+
+	convert_to_long_ex(tmp);
+	RETURN_LONG(Z_LVAL_PP(tmp));
+}
+/* }}} */
+
+/* {{{ proto int RarEntry::getPackedSize()
+   Return packed size of the entry */
+PHP_METHOD(rarentry, getPackedSize)
+{
+	zval **tmp;
+	zval *entry_obj = getThis();
+	
+	RAR_GET_PROPERTY(tmp, "packed_size");
+
+	convert_to_long_ex(tmp);
+	RETURN_LONG(Z_LVAL_PP(tmp));
+}
+/* }}} */
+
+/* {{{ proto int RarEntry::getHostOs()
+   Return host OS of the entry */
+PHP_METHOD(rarentry, getHostOs)
+{
+	zval **tmp;
+	zval *entry_obj = getThis();
+	
+	RAR_GET_PROPERTY(tmp, "host_os");
+
+	convert_to_long_ex(tmp);
+	RETURN_LONG(Z_LVAL_PP(tmp));
+}
+/* }}} */
+
+/* {{{ proto string RarEntry::getFileTime()
+   Return modification time of the entry */
+PHP_METHOD(rarentry, getFileTime)
+{
+	zval **tmp;
+	zval *entry_obj = getThis();
+	
+	RAR_GET_PROPERTY(tmp, "file_time");
+
+	convert_to_string_ex(tmp);
+	RETURN_STRINGL(Z_STRVAL_PP(tmp), Z_STRLEN_PP(tmp), 1);
+}
+/* }}} */
+
+/* {{{ proto string RarEntry::getCrc()
+   Return CRC of the entry */
+PHP_METHOD(rarentry, getCrc)
+{
+	zval **tmp;
+	zval *entry_obj = getThis();
+	
+	RAR_GET_PROPERTY(tmp, "crc");
+
+	convert_to_string_ex(tmp);
+	RETURN_STRINGL(Z_STRVAL_PP(tmp), Z_STRLEN_PP(tmp), 1);
+}
+/* }}} */
+
+/* {{{ proto int RarEntry::getAttr()
+   Return attributes of the entry */
+PHP_METHOD(rarentry, getAttr)
+{
+	zval **tmp;
+	zval *entry_obj = getThis();
+	
+	RAR_GET_PROPERTY(tmp, "attr");
+
+	convert_to_long_ex(tmp);
+	RETURN_LONG(Z_LVAL_PP(tmp));
+}
+/* }}} */
+
+/* {{{ proto int RarEntry::getVersion()
+   Return version of the archiver, used to create this entry */
+PHP_METHOD(rarentry, getVersion)
+{
+	zval **tmp;
+	zval *entry_obj = getThis();
+	
+	RAR_GET_PROPERTY(tmp, "version");
+
+	convert_to_long_ex(tmp);
+	RETURN_LONG(Z_LVAL_PP(tmp));
+}
+/* }}} */
+
+/* {{{ proto int RarEntry::getMethod()
+   Return packing method */
+PHP_METHOD(rarentry, getMethod)
+{
+	zval **tmp;
+	zval *entry_obj = getThis();
+	
+	RAR_GET_PROPERTY(tmp, "method");
+
+	convert_to_long_ex(tmp);
+	RETURN_LONG(Z_LVAL_PP(tmp));
+}
+/* }}} */
+
+/* {{{ proto resource RarEntry::getStream()
+   Return packing method */
+PHP_METHOD(rarentry, getStream)
+{
+	zval **tmp, **name;
+	rar_file_t *rar = NULL;
+	zval *entry_obj = getThis();
+	php_stream *stream = NULL;
+	
+	RAR_GET_PROPERTY(name, "name");
+	RAR_GET_PROPERTY(tmp, "rarfile");
+	ZEND_FETCH_RESOURCE(rar, rar_file_t *, tmp, -1, le_rar_file_name, le_rar_file);
+
+	stream = php_stream_rar_open(rar->extract_open_data->ArcName,
+		Z_STRVAL_PP(name), "r" STREAMS_CC TSRMLS_CC);
+	
+	if (stream != NULL) {
+		php_stream_to_zval(stream, return_value);
+	}
+  else
+    RETVAL_FALSE;
+}
+/* }}} */
+
+/* {{{ proto int RarEntry::isDirectory()
+   Return whether the entry represents a directory */
+PHP_METHOD(rarentry, isDirectory)
+{
+	zval **tmp;
+	zval *entry_obj = getThis();
+	long flags;
+	int is_dir;
+	
+	RAR_GET_PROPERTY(tmp, "flags");
+	flags = Z_LVAL_PP(tmp);
+	is_dir = ((flags & 0xE0) == 0xE0);
+	
+	RETURN_BOOL(is_dir);
+}
+/* }}} */
+
+/* {{{ proto int RarEntry::__toString()
+   Return string representation for entry */
+PHP_METHOD(rarentry, __toString)
+{
+	zval		**flags_zval,
+				**name_zval,
+				**crc_zval;
+	zval		*entry_obj = getThis();
+	long		flags;
+	int			is_dir;
+	char		*name,
+				*crc;
+	char		*restring;
+	int			restring_len;
+	const char	format[] = "RarEntry for %s \"%s\" (%s)";
+	
+	RAR_GET_PROPERTY(flags_zval, "flags");
+	flags = Z_LVAL_PP(flags_zval);
+	is_dir = ((flags & 0xE0) == 0xE0);
+
+	RAR_GET_PROPERTY(name_zval, "name");
+	name = Z_STRVAL_PP(name_zval);
+
+	RAR_GET_PROPERTY(crc_zval, "crc");
+	crc = Z_STRVAL_PP(crc_zval);
+
+	//2 is size of %s, 8 is size of crc
+	restring_len = (sizeof(format)-1) - 2 * 3 + (sizeof("directory")-1) +
+		strlen(name) + 8 + 1;
+	restring = emalloc(restring_len);
+	snprintf(restring, restring_len, format, is_dir?"directory":"file",
+		name, crc);
+	restring[restring_len - 1] = '\0'; //just to be safe
+	
+	RETURN_STRING(restring, 0);
+}
+/* }}} */
+/* }}} */
+
+/* {{{ arginfo */
+ZEND_BEGIN_ARG_INFO_EX(arginfo_rarentry_extract, 0, 0, 1)
+	ZEND_ARG_INFO(0, path)
+	ZEND_ARG_INFO(0, filename)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO(arginfo_rar_void, 0)
+ZEND_END_ARG_INFO()
+/* }}} */
+
+static zend_function_entry php_rar_class_functions[] = {
+	PHP_ME(rarentry,		extract,			arginfo_rarentry_extract,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getName,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getUnpackedSize,	arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getPackedSize,		arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getHostOs,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getFileTime,		arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getCrc,				arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getAttr,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getVersion,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getMethod,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getStream,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		isDirectory,		arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		__toString,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	{NULL, NULL, NULL}
+};
+
+void minit_rarentry(TSRMLS_D) {
+	zend_class_entry ce;
+
+	memcpy(&rar_object_handlers, zend_get_std_object_handlers(), sizeof rar_object_handlers);
+
+	INIT_CLASS_ENTRY(ce, "RarEntry", php_rar_class_functions);
+	ce.ce_flags |= ZEND_ACC_FINAL_CLASS;
+	ce.clone = NULL;
+	//Custom creation currently not really needed, but you never know...
+	ce.create_object = &rarentry_ce_create_object;
+	rar_class_entry_ptr = zend_register_internal_class(&ce TSRMLS_CC);
+
+	REG_RAR_PROPERTY("rarfile", "Associated RAR archive");
+	REG_RAR_PROPERTY("name", "File or directory name with path");
+	REG_RAR_PROPERTY("unpacked_size", "Size of file when unpacked");
+	REG_RAR_PROPERTY("packed_size", "Size of the packed file inside the archive");
+	REG_RAR_PROPERTY("host_os", "OS used to pack the file");
+	REG_RAR_PROPERTY("file_time", "Entry's time of last modification");
+	REG_RAR_PROPERTY("crc", "CRC checksum for the unpacked file");
+	REG_RAR_PROPERTY("attr", "OS-dependent file attributes");
+	REG_RAR_PROPERTY("version", "RAR version needed to extract entry");
+	REG_RAR_PROPERTY("method", "Identifier for packing method");
+	REG_RAR_PROPERTY("flags", "Entry header flags");
+	
+	REG_RAR_CLASS_CONST_LONG("HOST_MSDOS",	HOST_MSDOS);
+	REG_RAR_CLASS_CONST_LONG("HOST_OS2",	HOST_OS2);
+	REG_RAR_CLASS_CONST_LONG("HOST_WIN32",	HOST_WIN32);
+	REG_RAR_CLASS_CONST_LONG("HOST_UNIX",	HOST_UNIX);
+	REG_RAR_CLASS_CONST_LONG("HOST_MACOS",	HOST_MACOS);
+	REG_RAR_CLASS_CONST_LONG("HOST_BEOS",	HOST_BEOS);
+
+	//see WinNT.h
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_WIN_READONLY",				0x00001L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_WIN_HIDDEN",				0x00002L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_WIN_SYSTEM",				0x00004L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_WIN_DIRECTORY",				0x00010L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_WIN_ARCHIVE",				0x00020L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_WIN_DEVICE",				0x00040L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_WIN_NORMAL",				0x00080L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_WIN_TEMPORARY",				0x00100L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_WIN_SPARSE_FILE",			0x00200L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_WIN_REPARSE_POINT",			0x00400L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_WIN_COMPRESSED",			0x00800L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_WIN_OFFLINE",				0x01000L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_WIN_NOT_CONTENT_INDEXED",	0x02000L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_WIN_ENCRYPTED",				0x04000L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_WIN_VIRTUAL",				0x10000L);
+
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_UNIX_WORLD_EXECUTE",		0x00001L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_UNIX_WORLD_WRITE",			0x00002L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_UNIX_WORLD_READ",			0x00004L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_UNIX_GROUP_EXECUTE",		0x00008L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_UNIX_GROUP_WRITE",			0x00010L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_UNIX_GROUP_READ",			0x00020L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_UNIX_OWNER_EXECUTE",		0x00040L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_UNIX_OWNER_WRITE",			0x00080L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_UNIX_OWNER_READ",			0x00100L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_UNIX_STICKY",				0x00200L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_UNIX_SETGID",				0x00400L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_UNIX_SETUID",				0x00800L);
+
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_UNIX_FINAL_QUARTET",		0x0F000L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_UNIX_FIFO",					0x01000L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_UNIX_CHAR_DEV",				0x02000L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_UNIX_DIRECTORY",			0x04000L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_UNIX_BLOCK_DEV",			0x06000L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_UNIX_REGULAR_FILE",			0x08000L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_UNIX_SYM_LINK",				0x0A000L);
+	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_UNIX_SOCKET",				0x0C000L);
+}

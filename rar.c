@@ -49,24 +49,16 @@ extern "C" {
 
 #include "php_rar.h"
 
-static int le_rar_file;
-#define le_rar_file_name "Rar file"
-static zend_class_entry *rar_class_entry_ptr;
+int le_rar_file;
+char *le_rar_file_name = "Rar file";
 
 /* {{{ internal functions protos */
 static void _rar_file_list_dtor(zend_rsrc_list_entry * TSRMLS_DC);
 static int _rar_list_files(rar_file_t * TSRMLS_DC);
 static const char * _rar_error_to_string(int errcode);
-static void _rar_dos_date_to_text(int dos_time, char *date_string);
-static void _rar_entry_to_zval(struct RARHeaderDataEx *entry,
-							   zval *object,
-							   unsigned long packed_size TSRMLS_DC);
 static int _rar_raw_entries_to_files(rar_file_t *rar,
 								     const wchar_t * const file, //can be NULL
 								     zval *target TSRMLS_DC);
-static zval **_rar_entry_get_property(zval *, char *, int TSRMLS_DC);
-static void _rar_wide_to_utf(const wchar_t *src, char *dest, size_t dest_size);
-static void _rar_utf_to_wide(const char *src, wchar_t *dest, size_t dest_size);
 static void _rar_fix_wide(wchar_t *str);
 /* }}} */
 
@@ -83,6 +75,94 @@ int _rar_handle_error(int errcode TSRMLS_DC) /* {{{ */
 	php_error_docref(NULL TSRMLS_CC, E_WARNING, err);
 	return FAILURE;
 }
+
+/* From unicode.cpp
+ * I can't use that one directy because it takes a const wchar, not wchar_t.
+ * And I shouldn't because it's not a public API.
+ */
+void _rar_wide_to_utf(const wchar_t *src, char *dest, size_t dest_size) /* {{{ */
+{
+	long dsize= (long) dest_size;
+	dsize--;
+	while (*src != 0 && --dsize >= 0) {
+		uint c =*(src++);
+		if (c < 0x80)
+			*(dest++) = c;
+		else if (c < 0x800 && --dsize >= 0)	{
+			*(dest++) = (0xc0 | (c >> 6));
+			*(dest++) = (0x80 | (c & 0x3f));
+		}
+		else if (c < 0x10000 && (dsize -= 2) >= 0) {
+			*(dest++) = (0xe0 | (c >> 12));
+			*(dest++) = (0x80 | ((c >> 6) & 0x3f));
+			*(dest++) = (0x80 | (c & 0x3f));
+		}
+		else if (c < 0x200000 && (dsize -= 3) >= 0) {
+			*(dest++) = (0xf0 | (c >> 18));
+			*(dest++) = (0x80 | ((c >> 12) & 0x3f));
+			*(dest++) = (0x80 | ((c >> 6) & 0x3f));
+			*(dest++) = (0x80 | (c & 0x3f));
+		}
+	}
+	*dest = 0;
+}
+/* }}} */
+
+/* idem */
+void _rar_utf_to_wide(const char *src, wchar_t *dest, size_t dest_size) /* {{{ */
+{
+	long dsize = (long) dest_size;
+	dsize--;
+	while (*src != 0) {
+		uint c = (unsigned char) *(src++),
+			 d;
+		if (c < 0x80)
+			d = c;
+		else if ((c >> 5) == 6) {
+			if ((*src & 0xc0) != 0x80)
+				break;
+			d=((c & 0x1f) << 6)|(*src & 0x3f);
+			src++;
+		}
+		else if ((c>>4)==14) {
+			if ((src[0] & 0xc0) != 0x80 || (src[1] & 0xc0) != 0x80)
+				break;
+			d = ((c & 0xf) << 12) | ((src[0] & 0x3f) << 6) | (src[1] & 0x3f);
+			src += 2;
+		}
+		else if ((c>>3)==30) {
+			if ((src[0] & 0xc0) != 0x80 || (src[1] & 0xc0) != 0x80 || (src[2] & 0xc0) != 0x80)
+				break;
+			d = ((c & 7) << 18) | ((src[0] & 0x3f) << 12) | ((src[1] & 0x3f) << 6) | (src[2] & 0x3f);
+			src += 3;
+		}
+		else
+			break;
+		if (--dsize < 0)
+			break;
+		if (d > 0xffff) {
+			if (--dsize < 0 || d > 0x10ffff)
+				break;
+			*(dest++) = ((d - 0x10000) >> 10) + 0xd800;
+			*(dest++) = (d & 0x3ff) + 0xdc00;
+		}
+		else
+			*(dest++) = d;
+	}
+	*dest = 0;
+}
+/* }}} */
+
+/* Missing functions from VC6 {{{ */
+#if !HAVE_STRNLEN
+static size_t strnlen(const char *s, size_t maxlen) /* {{{ */
+{
+	char *r = memchr(s, '\0', maxlen);
+	return r ? r-s : maxlen;
+}
+/* }}} */
+#endif
+/* }}} */
 /* }}} */
 
 /* WARNING: It's the caller who must close the archive.
@@ -153,15 +233,6 @@ cleanup:
 }
 /* }}} */
 /* <internal> */
-
-#define RAR_GET_PROPERTY(var, prop_name) \
-	if (!entry_obj) { \
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "this method cannot be called statically"); \
-		RETURN_FALSE; \
-	} \
-	if ((var = _rar_entry_get_property(entry_obj, prop_name, sizeof(prop_name) TSRMLS_CC)) == NULL) { \
-		RETURN_FALSE; \
-	}
 
 static void _rar_file_list_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC) /* {{{ */
 {
@@ -282,71 +353,6 @@ static const char * _rar_error_to_string(int errcode) /* {{{ */
 }
 /* }}} */
 
-static void _rar_dos_date_to_text(int dos_time, char *date_string) /* {{{ */
-{
-	int second, minute, hour, day, month, year;
-	/* following lines were taken from timefn.cpp */
-	second = (dos_time & 0x1f)*2;
-	minute = (dos_time>>5) & 0x3f;
-	hour   = (dos_time>>11) & 0x1f;
-	day    = (dos_time>>16) & 0x1f;
-	month  = (dos_time>>21) & 0x0f;
-	year   = (dos_time>>25)+1980;
-	sprintf(date_string, "%u-%02u-%02u %02u:%02u:%02u", year, month, day, hour, minute, second);
-}
-/* }}} */
-
-/* should be passed the last entry that corresponds to a given file
- * only that one has the correct CRC. Still, it may have a wrong packedSize */
-static void _rar_entry_to_zval(struct RARHeaderDataEx *entry, zval *object,
-							   unsigned long packed_size TSRMLS_DC) /* {{{ */
-{
-	char tmp_s [MAX_LENGTH_OF_LONG + 1];
-	char time[50];
-	char *filename;
-	long unpSize;
-
-	if (sizeof(long) >= 8)
-		unpSize = ((long) entry->UnpSize) + (((long) entry->UnpSizeHigh) << 32);
-	else {
-		//for 32-bit long, at least don't give negative values
-		if ((unsigned long) entry->UnpSize > (unsigned long) LONG_MAX
-				|| entry->UnpSizeHigh != 0)
-			unpSize = LONG_MAX;
-		else
-			unpSize = (long) entry->UnpSize;
-	}
-
-	/* 2 instead of sizeof(wchar_t) would suffice, I think. I doubt
-	 * _rar_wide_to_utf handles characters not in UCS-2. But better be safe */
-	filename = (char*) emalloc(sizeof(entry->FileNameW) * sizeof(wchar_t));
-
-	if (packed_size > (unsigned long) LONG_MAX)
-		packed_size = LONG_MAX;
-	_rar_wide_to_utf(entry->FileNameW, filename,
-		sizeof(entry->FileNameW) * sizeof(wchar_t));
-	add_property_string(object, "name", filename, 1);
-	add_property_long(object, "unpacked_size", entry->UnpSize);
-	//packed size can be wrong in multi-volume archives
-	add_property_long(object, "packed_size", packed_size);
-	add_property_long(object, "host_os", entry->HostOS);
-	
-	_rar_dos_date_to_text(entry->FileTime, time);
-	add_property_string(object, "file_time", time, 1);
-	
-	sprintf(tmp_s, "%lx", entry->FileCRC);
-	add_property_string(object, "crc", tmp_s, 1);
-	
-	add_property_long(object, "attr",  entry->FileAttr);
-	add_property_long(object, "version",  entry->UnpVer);
-	add_property_long(object, "method",  entry->Method);
-	//if bits 5, 6 and 7 and set (starting from 0)
-	add_property_bool(object, "directory",  ((entry->Flags & 0xE0) == 0xE0));
-
-	efree(filename);
-}
-/* }}} */
-
 static int _rar_raw_entries_to_files(rar_file_t *rar,
 									 const wchar_t * const file, //can be NULL
 									 zval *target TSRMLS_DC) /* {{{ */
@@ -354,7 +360,7 @@ static int _rar_raw_entries_to_files(rar_file_t *rar,
 	wchar_t last_name[1024] = {L'\0'};
 	char strict_last_name[1024] = {'\0'};
 	unsigned long packed_size = 0UL;
-	struct RARHeaderDataEx *last_entry;
+	struct RARHeaderDataEx *last_entry = NULL;
 	int any_commit = FALSE;
 	int first_file_check = TRUE;
 	int i;
@@ -372,15 +378,15 @@ static int _rar_raw_entries_to_files(rar_file_t *rar,
 			entry = rar->entries[i];
 			current_name = entry->FileNameW;
 			strict_current_name = entry->FileName;
-		}
 
-		/* If file is continued from previous volume, skip it, as otherwise
-		 * incorrect packed and unpacked sizes would be returned */
-		if (first_file_check) {
-			if (entry->Flags & 0x01)
-				continue;
-			else
-				first_file_check = FALSE;
+			/* If file is continued from previous volume, skip it, as otherwise
+			 * incorrect packed and unpacked sizes would be returned */
+			if (first_file_check) {
+				if (entry->Flags & 0x01)
+					continue;
+				else
+					first_file_check = FALSE;
+			}
 		}
 		
 		/* The wide file name may result from conversion from the
@@ -394,29 +400,39 @@ static int _rar_raw_entries_to_files(rar_file_t *rar,
 		commit_file = ended_file && (file == NULL ||
 			(file != NULL && wcsncmp(last_name, file, 1024) == 0));
 
-		if (commit_file) {
-			//this entry corresponds to a new file
-			zval *tmp;
+		if (commit_file) { //this entry corresponds to a new file
+			zval *entry_obj,
+				 *rar_res;
 
-			any_commit = TRUE;
+			/* guaranteed by commit_file = ended_file &&...
+			 * with ended_file = has_last_entry && ...
+			 * with has_last_entry = (last_name != NULL)
+			 * and last_entry is set when last_name is set */
+			assert(last_entry != NULL);
+
+			any_commit = TRUE; //at least one commit done
 
 			//take care of last entry
 			/* if file is NULL, assume target is a zval that will hold the
 			 * entry, otherwise assume it is a numerical array */
 			if (file == NULL) {
-				MAKE_STD_ZVAL(tmp);
+				MAKE_STD_ZVAL(entry_obj);
 			}
 			else
-				tmp = target;
+				entry_obj = target;
 
-			object_init_ex(tmp, rar_class_entry_ptr);
-			add_property_resource(tmp, "rarfile", rar->id);
+			object_init_ex(entry_obj, rar_class_entry_ptr);
+			//add_property_resource(entry_obj, "rarfile", rar->id);
+			MAKE_STD_ZVAL(rar_res);
+			ZVAL_RESOURCE(rar_res, rar->id);
+			zend_update_property(rar_class_entry_ptr, entry_obj, "rarfile",
+				sizeof("rarfile") - 1, rar_res TSRMLS_CC);
 			/* to avoid destruction of the resource due to le->refcount hitting
 			 * 0 when this new zval we're creating is destroyed? */
 			zend_list_addref(rar->id);
-			_rar_entry_to_zval(last_entry, tmp, packed_size TSRMLS_CC);
+			_rar_entry_to_zval(last_entry, entry_obj, packed_size TSRMLS_CC);
 			if (file == NULL)
-				add_next_index_zval(target, tmp);
+				add_next_index_zval(target, entry_obj);
 		}
 
 		if (ended_file) {
@@ -447,95 +463,6 @@ static int _rar_raw_entries_to_files(rar_file_t *rar,
 	}
 
 	return any_commit;
-}
-/* }}} */
-
-static zval **_rar_entry_get_property(zval *id, char *name, int namelen TSRMLS_DC) /* {{{ */
-{
-	zval **tmp;
-
-	if (zend_hash_find(Z_OBJPROP_P(id), name, namelen, (void **)&tmp) == FAILURE) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to find property '%s'", name);
-		return NULL;
-	}
-	return tmp;
-}
-/* }}} */
-
-/* From unicode.cpp
- * I can't use that one directy because it takes a const wchar, not wchar_t.
- * And I shouldn't because it's not a public API.
- */
-static void _rar_wide_to_utf(const wchar_t *src, char *dest, size_t dest_size) /* {{{ */
-{
-	long dsize= (long) dest_size;
-	dsize--;
-	while (*src != 0 && --dsize >= 0) {
-		uint c =*(src++);
-		if (c < 0x80)
-			*(dest++) = c;
-		else if (c < 0x800 && --dsize >= 0)	{
-			*(dest++) = (0xc0 | (c >> 6));
-			*(dest++) = (0x80 | (c & 0x3f));
-		}
-		else if (c < 0x10000 && (dsize -= 2) >= 0) {
-			*(dest++) = (0xe0 | (c >> 12));
-			*(dest++) = (0x80 | ((c >> 6) & 0x3f));
-			*(dest++) = (0x80 | (c & 0x3f));
-		}
-		else if (c < 0x200000 && (dsize -= 3) >= 0) {
-			*(dest++) = (0xf0 | (c >> 18));
-			*(dest++) = (0x80 | ((c >> 12) & 0x3f));
-			*(dest++) = (0x80 | ((c >> 6) & 0x3f));
-			*(dest++) = (0x80 | (c & 0x3f));
-		}
-	}
-	*dest = 0;
-}
-/* }}} */
-
-/* idem */
-static void _rar_utf_to_wide(const char *src, wchar_t *dest, size_t dest_size) /* {{{ */
-{
-	long dsize = (long) dest_size;
-	dsize--;
-	while (*src != 0) {
-		uint c = (unsigned char) *(src++),
-			 d;
-		if (c < 0x80)
-			d = c;
-		else if ((c >> 5) == 6) {
-			if ((*src & 0xc0) != 0x80)
-				break;
-			d=((c & 0x1f) << 6)|(*src & 0x3f);
-			src++;
-		}
-		else if ((c>>4)==14) {
-			if ((src[0] & 0xc0) != 0x80 || (src[1] & 0xc0) != 0x80)
-				break;
-			d = ((c & 0xf) << 12) | ((src[0] & 0x3f) << 6) | (src[1] & 0x3f);
-			src += 2;
-		}
-		else if ((c>>3)==30) {
-			if ((src[0] & 0xc0) != 0x80 || (src[1] & 0xc0) != 0x80 || (src[2] & 0xc0) != 0x80)
-				break;
-			d = ((c & 7) << 18) | ((src[0] & 0x3f) << 12) | ((src[1] & 0x3f) << 6) | (src[2] & 0x3f);
-			src += 3;
-		}
-		else
-			break;
-		if (--dsize < 0)
-			break;
-		if (d > 0xffff) {
-			if (--dsize < 0 || d > 0x10ffff)
-				break;
-			*(dest++) = ((d - 0x10000) >> 10) + 0xd800;
-			*(dest++) = (d & 0x3ff) + 0xdc00;
-		}
-		else
-			*(dest++) = d;
-	}
-	*dest = 0;
 }
 /* }}} */
 
@@ -734,7 +661,6 @@ PHP_FUNCTION(rar_close)
 {
 	zval *file;
 	rar_file_t *rar = NULL;
-	int file_counter = 0;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &file) == FAILURE) {
 		return;
@@ -748,269 +674,6 @@ PHP_FUNCTION(rar_close)
 	RETURN_TRUE;
 }
 /* }}} */
-
-/* {{{ proto bool RarEntry::extract(string dir [, string filepath ])
-   Extract file from the archive */
-PHP_METHOD(rarentry, extract)
-{ //lots of variables, but no need to be intimidated
-	char					*dir,
-							*filepath = NULL;
-	int						dir_len,
-							filepath_len = 0;
-	char					*considered_path;
-	char					considered_path_res[MAXPATHLEN];
-	int						with_second_arg;
-
-	zval					**tmp,
-							**tmp_name;
-	rar_file_t				*rar = NULL;
-	zval					*entry_obj = getThis();
-	struct RARHeaderDataEx	entry;
-	HANDLE					extract_handle = NULL;
-	int						result;
-	int						found;
-	
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|s", &dir, &dir_len, &filepath, &filepath_len) == FAILURE ) {
-		return;
-	}
-
-	RAR_GET_PROPERTY(tmp, "rarfile");
-	ZEND_FETCH_RESOURCE(rar, rar_file_t *, tmp, -1, le_rar_file_name, le_rar_file);
-
-	/* Decide where to extract */
-	with_second_arg = (filepath_len != 0);
-
-	//the arguments are mutually exclusive. If the second is specified, must ignore the first
-	if (!with_second_arg) {
-		if (dir_len == 0) //both params empty
-			dir = ".";
-		considered_path = dir;
-	}
-	else {
-		considered_path = filepath;
-	}
-	
-	if (OPENBASEDIR_CHECKPATH(considered_path)) {
-		RETURN_FALSE;
-	}
-	if (!expand_filepath(considered_path, considered_path_res TSRMLS_CC)) {
-		RETURN_FALSE;
-	}
-	
-	/* Find file inside archive */
-	RAR_GET_PROPERTY(tmp_name, "name");
-
-	result = _rar_find_file(rar->extract_open_data, Z_STRVAL_PP(tmp_name),
-		&extract_handle, &found, &entry);
-
-	if (_rar_handle_error(result TSRMLS_CC) == FAILURE) {
-		RETVAL_FALSE;
-		goto cleanup;
-	}
-
-	if (!found) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,
-			"Can't find file %s in archive %s", Z_STRVAL_PP(tmp_name),
-			rar->list_open_data->ArcName);
-		RETVAL_FALSE;
-		goto cleanup;
-	}
-
-	/* Do extraction */
-	if (!with_second_arg)
-		result = RARProcessFile(extract_handle, RAR_EXTRACT,
-			considered_path_res, NULL);
-	else
-		result = RARProcessFile(extract_handle, RAR_EXTRACT,
-			NULL, considered_path_res);
-
-	if (_rar_handle_error(result TSRMLS_CC) == FAILURE) {
-		RETVAL_FALSE;
-	}
-	else {
-		RETVAL_TRUE;
-	}
-	
-cleanup:
-	if (extract_handle != NULL)
-		RARCloseArchive(extract_handle);
-}
-/* }}} */
-
-/* {{{ proto string RarEntry::getName()
-   Return entry name */
-PHP_METHOD(rarentry, getName)
-{
-	zval **tmp;
-	rar_file_t *rar = NULL;
-	zval *entry_obj = getThis();
-	
-	RAR_GET_PROPERTY(tmp, "name");
-
-	convert_to_string_ex(tmp);
-	RETURN_STRINGL(Z_STRVAL_PP(tmp), Z_STRLEN_PP(tmp), 1);
-}
-/* }}} */
-
-/* {{{ proto int RarEntry::getUnpackedSize()
-   Return unpacked size of the entry */
-PHP_METHOD(rarentry, getUnpackedSize)
-{
-	zval **tmp;
-	rar_file_t *rar = NULL;
-	zval *entry_obj = getThis();
-	
-	RAR_GET_PROPERTY(tmp, "unpacked_size");
-
-	convert_to_long_ex(tmp);
-	RETURN_LONG(Z_LVAL_PP(tmp));
-}
-/* }}} */
-
-/* {{{ proto int RarEntry::getPackedSize()
-   Return packed size of the entry */
-PHP_METHOD(rarentry, getPackedSize)
-{
-	zval **tmp;
-	rar_file_t *rar = NULL;
-	zval *entry_obj = getThis();
-	
-	RAR_GET_PROPERTY(tmp, "packed_size");
-
-	convert_to_long_ex(tmp);
-	RETURN_LONG(Z_LVAL_PP(tmp));
-}
-/* }}} */
-
-/* {{{ proto int RarEntry::getHostOs()
-   Return host OS of the entry */
-PHP_METHOD(rarentry, getHostOs)
-{
-	zval **tmp;
-	rar_file_t *rar = NULL;
-	zval *entry_obj = getThis();
-	
-	RAR_GET_PROPERTY(tmp, "host_os");
-
-	convert_to_long_ex(tmp);
-	RETURN_LONG(Z_LVAL_PP(tmp));
-}
-/* }}} */
-
-/* {{{ proto string RarEntry::getFileTime()
-   Return modification time of the entry */
-PHP_METHOD(rarentry, getFileTime)
-{
-	zval **tmp;
-	rar_file_t *rar = NULL;
-	zval *entry_obj = getThis();
-	
-	RAR_GET_PROPERTY(tmp, "file_time");
-
-	convert_to_string_ex(tmp);
-	RETURN_STRINGL(Z_STRVAL_PP(tmp), Z_STRLEN_PP(tmp), 1);
-}
-/* }}} */
-
-/* {{{ proto string RarEntry::getCrc()
-   Return CRC of the entry */
-PHP_METHOD(rarentry, getCrc)
-{
-	zval **tmp;
-	rar_file_t *rar = NULL;
-	zval *entry_obj = getThis();
-	
-	RAR_GET_PROPERTY(tmp, "crc");
-
-	convert_to_string_ex(tmp);
-	RETURN_STRINGL(Z_STRVAL_PP(tmp), Z_STRLEN_PP(tmp), 1);
-}
-/* }}} */
-
-/* {{{ proto int RarEntry::getAttr()
-   Return attributes of the entry */
-PHP_METHOD(rarentry, getAttr)
-{
-	zval **tmp;
-	rar_file_t *rar = NULL;
-	zval *entry_obj = getThis();
-	
-	RAR_GET_PROPERTY(tmp, "attr");
-
-	convert_to_long_ex(tmp);
-	RETURN_LONG(Z_LVAL_PP(tmp));
-}
-/* }}} */
-
-/* {{{ proto int RarEntry::getVersion()
-   Return version of the archiver, used to create this entry */
-PHP_METHOD(rarentry, getVersion)
-{
-	zval **tmp;
-	rar_file_t *rar = NULL;
-	zval *entry_obj = getThis();
-	
-	RAR_GET_PROPERTY(tmp, "version");
-
-	convert_to_long_ex(tmp);
-	RETURN_LONG(Z_LVAL_PP(tmp));
-}
-/* }}} */
-
-/* {{{ proto int RarEntry::getMethod()
-   Return packing method */
-PHP_METHOD(rarentry, getMethod)
-{
-	zval **tmp;
-	rar_file_t *rar = NULL;
-	zval *entry_obj = getThis();
-	
-	RAR_GET_PROPERTY(tmp, "method");
-
-	convert_to_long_ex(tmp);
-	RETURN_LONG(Z_LVAL_PP(tmp));
-}
-/* }}} */
-
-/* {{{ proto resource RarEntry::getStream()
-   Return packing method */
-PHP_METHOD(rarentry, getStream)
-{
-	zval **tmp, **name;
-	rar_file_t *rar = NULL;
-	zval *entry_obj = getThis();
-	php_stream *stream = NULL;
-	
-	RAR_GET_PROPERTY(name, "name");
-	RAR_GET_PROPERTY(tmp, "rarfile");
-	ZEND_FETCH_RESOURCE(rar, rar_file_t *, tmp, -1, le_rar_file_name, le_rar_file);
-
-	stream = php_stream_rar_open(rar->extract_open_data->ArcName,
-		Z_STRVAL_PP(name), "r" STREAMS_CC TSRMLS_CC);
-	
-	if (stream != NULL) {
-		php_stream_to_zval(stream, return_value);
-	}
-  else
-    RETVAL_FALSE;
-}
-/* }}} */
-
-/* {{{ proto int RarEntry::isDirectory()
-   Return if the entry is a directory */
-PHP_METHOD(rarentry, isDirectory)
-{
-	zval **tmp;
-	rar_file_t *rar = NULL;
-	zval *entry_obj = getThis();
-	
-	RAR_GET_PROPERTY(tmp, "directory");
-
-	convert_to_boolean_ex(tmp);
-	RETURN_BOOL(Z_BVAL_PP(tmp));
-}
-/* }}} */
-
 
 /* {{{ arginfo */
 ZEND_BEGIN_ARG_INFO_EX(arginfo_rar_open, 0, 0, 1)
@@ -1047,28 +710,12 @@ ZEND_END_ARG_INFO()
 /* {{{ rar_functions[]
  *
  */
-function_entry rar_functions[] = {
+static function_entry rar_functions[] = {
 	PHP_FE(rar_open,		arginfo_rar_open)
 	PHP_FE(rar_list,		arginfo_rar_list)
 	PHP_FE(rar_entry_get,	arginfo_rar_entry_get)
 	PHP_FE(rar_comment_get,	arginfo_rar_comment_get)
 	PHP_FE(rar_close,		arginfo_rar_close)
-	{NULL, NULL, NULL}
-};
-
-static zend_function_entry php_rar_class_functions[] = {
-	PHP_ME(rarentry,		extract,			arginfo_rarentry_extract,	ZEND_ACC_PUBLIC)
-	PHP_ME(rarentry,		getName,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
-	PHP_ME(rarentry,		getUnpackedSize,	arginfo_rar_void,	ZEND_ACC_PUBLIC)
-	PHP_ME(rarentry,		getPackedSize,		arginfo_rar_void,	ZEND_ACC_PUBLIC)
-	PHP_ME(rarentry,		getHostOs,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
-	PHP_ME(rarentry,		getFileTime,		arginfo_rar_void,	ZEND_ACC_PUBLIC)
-	PHP_ME(rarentry,		getCrc,				arginfo_rar_void,	ZEND_ACC_PUBLIC)
-	PHP_ME(rarentry,		getAttr,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
-	PHP_ME(rarentry,		getVersion,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
-	PHP_ME(rarentry,		getMethod,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
-	PHP_ME(rarentry,		getStream,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
-	PHP_ME(rarentry,		isDirectory,		arginfo_rar_void,	ZEND_ACC_PUBLIC)
 	{NULL, NULL, NULL}
 };
 /* }}} */
@@ -1077,9 +724,7 @@ static zend_function_entry php_rar_class_functions[] = {
  */
 PHP_MINIT_FUNCTION(rar)
 {
-	zend_class_entry rar_class_entry;	
-	INIT_CLASS_ENTRY(rar_class_entry, "RarEntry", php_rar_class_functions);
-	rar_class_entry_ptr = zend_register_internal_class(&rar_class_entry TSRMLS_CC);	
+	minit_rarentry(TSRMLS_C);
 
 	le_rar_file = zend_register_list_destructors_ex(_rar_file_list_dtor, NULL, le_rar_file_name, module_number);
 	
@@ -1104,14 +749,14 @@ PHP_MINFO_FUNCTION(rar)
 	php_info_print_table_row(2, "Rar EXT version", PHP_RAR_VERSION);
 	php_info_print_table_row(2, "Revision", "$Revision$");
 
-	if (RARVER_BETA != 0) {
-		sprintf(version,"%d.%02d beta%d patch%d %d-%d-%d", RARVER_MAJOR,
-			RARVER_MINOR, RARVER_BETA, RARVER_PATCH, RARVER_YEAR, RARVER_MONTH,
-			RARVER_DAY);
-	} else {
-		sprintf(version,"%d.%02d patch%d %d-%d-%d", RARVER_MAJOR, RARVER_MINOR,
-			RARVER_PATCH, RARVER_YEAR, RARVER_MONTH, RARVER_DAY);
-	}
+#if	RARVER_BETA != 0
+	sprintf(version,"%d.%02d beta%d patch%d %d-%d-%d", RARVER_MAJOR,
+		RARVER_MINOR, RARVER_BETA, RARVER_PATCH, RARVER_YEAR, RARVER_MONTH,
+		RARVER_DAY);
+#else
+	sprintf(version,"%d.%02d patch%d %d-%d-%d", RARVER_MAJOR, RARVER_MINOR,
+		RARVER_PATCH, RARVER_YEAR, RARVER_MONTH, RARVER_DAY);
+#endif
 
 	php_info_print_table_row(2, "UnRAR version", version);
 	php_info_print_table_end();
