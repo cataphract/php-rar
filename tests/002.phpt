@@ -26,104 +26,104 @@ echo "Done\n";
 array(2) {
   [0]=>
   object(RarEntry)#%d (%d) {
-    ["rarfile":"RarEntry":private]=>
+    ["rarfile"%sprivate]=>
     resource(%d) of type (Rar file)
-    ["name":"RarEntry":private]=>
+    ["name"%sprivate]=>
     string(9) "plain.txt"
-    ["unpacked_size":"RarEntry":private]=>
+    ["unpacked_size"%sprivate]=>
     int(15)
-    ["packed_size":"RarEntry":private]=>
+    ["packed_size"%sprivate]=>
     int(25)
-    ["host_os":"RarEntry":private]=>
+    ["host_os"%sprivate]=>
     int(3)
-    ["file_time":"RarEntry":private]=>
+    ["file_time"%sprivate]=>
     string(19) "2004-06-11 11:01:24"
-    ["crc":"RarEntry":private]=>
+    ["crc"%sprivate]=>
     string(8) "7728b6fe"
-    ["attr":"RarEntry":private]=>
+    ["attr"%sprivate]=>
     int(33188)
-    ["version":"RarEntry":private]=>
+    ["version"%sprivate]=>
     int(29)
-    ["method":"RarEntry":private]=>
+    ["method"%sprivate]=>
     int(51)
-    ["flags":"RarEntry":private]=>
+    ["flags"%sprivate]=>
     int(32800)
   }
   [1]=>
   object(RarEntry)#%d (%d) {
-    ["rarfile":"RarEntry":private]=>
+    ["rarfile"%sprivate]=>
     resource(%d) of type (Rar file)
-    ["name":"RarEntry":private]=>
+    ["name"%sprivate]=>
     string(30) "test file with whitespaces.txt"
-    ["unpacked_size":"RarEntry":private]=>
+    ["unpacked_size"%sprivate]=>
     int(14)
-    ["packed_size":"RarEntry":private]=>
+    ["packed_size"%sprivate]=>
     int(20)
-    ["host_os":"RarEntry":private]=>
+    ["host_os"%sprivate]=>
     int(3)
-    ["file_time":"RarEntry":private]=>
+    ["file_time"%sprivate]=>
     string(19) "2004-06-11 11:01:32"
-    ["crc":"RarEntry":private]=>
+    ["crc"%sprivate]=>
     string(8) "21890dd9"
-    ["attr":"RarEntry":private]=>
+    ["attr"%sprivate]=>
     int(33188)
-    ["version":"RarEntry":private]=>
+    ["version"%sprivate]=>
     int(29)
-    ["method":"RarEntry":private]=>
+    ["method"%sprivate]=>
     int(51)
-    ["flags":"RarEntry":private]=>
+    ["flags"%sprivate]=>
     int(32800)
   }
 }
 array(2) {
   [0]=>
   object(RarEntry)#%d (%d) {
-    ["rarfile":"RarEntry":private]=>
+    ["rarfile"%sprivate]=>
     resource(%d) of type (Rar file)
-    ["name":"RarEntry":private]=>
+    ["name"%sprivate]=>
     string(5) "1.txt"
-    ["unpacked_size":"RarEntry":private]=>
+    ["unpacked_size"%sprivate]=>
     int(5)
-    ["packed_size":"RarEntry":private]=>
+    ["packed_size"%sprivate]=>
     int(17)
-    ["host_os":"RarEntry":private]=>
+    ["host_os"%sprivate]=>
     int(2)
-    ["file_time":"RarEntry":private]=>
+    ["file_time"%sprivate]=>
     string(19) "2004-06-11 10:07:18"
-    ["crc":"RarEntry":private]=>
+    ["crc"%sprivate]=>
     string(8) "a0de71c0"
-    ["attr":"RarEntry":private]=>
+    ["attr"%sprivate]=>
     int(32)
-    ["version":"RarEntry":private]=>
+    ["version"%sprivate]=>
     int(29)
-    ["method":"RarEntry":private]=>
+    ["method"%sprivate]=>
     int(53)
-    ["flags":"RarEntry":private]=>
+    ["flags"%sprivate]=>
     int(36992)
   }
   [1]=>
   object(RarEntry)#%d (%d) {
-    ["rarfile":"RarEntry":private]=>
+    ["rarfile"%sprivate]=>
     resource(%d) of type (Rar file)
-    ["name":"RarEntry":private]=>
+    ["name"%sprivate]=>
     string(5) "2.txt"
-    ["unpacked_size":"RarEntry":private]=>
+    ["unpacked_size"%sprivate]=>
     int(5)
-    ["packed_size":"RarEntry":private]=>
+    ["packed_size"%sprivate]=>
     int(16)
-    ["host_os":"RarEntry":private]=>
+    ["host_os"%sprivate]=>
     int(2)
-    ["file_time":"RarEntry":private]=>
+    ["file_time"%sprivate]=>
     string(19) "2004-06-11 10:07:26"
-    ["crc":"RarEntry":private]=>
+    ["crc"%sprivate]=>
     string(8) "45a918de"
-    ["attr":"RarEntry":private]=>
+    ["attr"%sprivate]=>
     int(32)
-    ["version":"RarEntry":private]=>
+    ["version"%sprivate]=>
     int(29)
-    ["method":"RarEntry":private]=>
+    ["method"%sprivate]=>
     int(53)
-    ["flags":"RarEntry":private]=>
+    ["flags"%sprivate]=>
     int(37008)
   }
 }
