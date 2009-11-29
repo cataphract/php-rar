@@ -54,27 +54,27 @@ blah-blah-blah
 22222
 string(5) "22222"
 object(RarEntry)#%d (%d) {
-  ["rarfile":"RarEntry":private]=>
+  ["rarfile"%sprivate]=>
   resource(%d) of type (Rar file)
-  ["name":"RarEntry":private]=>
+  ["name"%sprivate]=>
   string(5) "2.txt"
-  ["unpacked_size":"RarEntry":private]=>
+  ["unpacked_size"%sprivate]=>
   int(5)
-  ["packed_size":"RarEntry":private]=>
+  ["packed_size"%sprivate]=>
   int(16)
-  ["host_os":"RarEntry":private]=>
+  ["host_os"%sprivate]=>
   int(2)
-  ["file_time":"RarEntry":private]=>
+  ["file_time"%sprivate]=>
   string(19) "2004-06-11 10:07:26"
-  ["crc":"RarEntry":private]=>
+  ["crc"%sprivate]=>
   string(8) "45a918de"
-  ["attr":"RarEntry":private]=>
+  ["attr"%sprivate]=>
   int(32)
-  ["version":"RarEntry":private]=>
+  ["version"%sprivate]=>
   int(29)
-  ["method":"RarEntry":private]=>
+  ["method"%sprivate]=>
   int(53)
-  ["flags":"RarEntry":private]=>
+  ["flags"%sprivate]=>
   int(37008)
 }
 bool(true)

@@ -105,10 +105,16 @@ void _rar_utf_to_wide(const char *src, wchar_t *dest, size_t dest_size);
 
 //PHP 5.2 compatibility
 #if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION < 3
+# define ALLOC_PERMANENT_ZVAL(z) \
+        (z) = (zval*) malloc(sizeof(zval));
 # define OPENBASEDIR_CHECKPATH(filename) \
 	(PG(safe_mode) && \
 	(!php_checkuid(filename, NULL, CHECKUID_CHECK_FILE_AND_DIR))) \
 	|| php_check_open_basedir(filename TSRMLS_CC)
+# undef ZEND_BEGIN_ARG_INFO_EX
+# define ZEND_BEGIN_ARG_INFO_EX(name, pass_rest_by_reference, return_reference, required_num_args) \
+	static const zend_arg_info name[] = { \
+		{ NULL, 0, NULL, 0, 0, 0, pass_rest_by_reference, return_reference, required_num_args },
 #endif
 
 /* rarentry.c */
