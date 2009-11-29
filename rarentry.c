@@ -1,4 +1,35 @@
+/*
+  +----------------------------------------------------------------------+
+  | PHP Version 5                                                        |
+  +----------------------------------------------------------------------+
+  | Copyright (c) 1997-2009 The PHP Group                                |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 3.0 of the PHP license,       |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.php.net/license/3_0.txt.                                  |
+  | If you did not receive a copy of the PHP license and are unable to   |
+  | obtain it through the world-wide-web, please send a note to          |
+  | license@php.net so we can mail you a copy immediately.               |
+  |                                                                      |
+  |                        **** WARNING ****                             |
+  |                                                                      |
+  | This module makes use of unRAR - free utility for RAR archives.      |
+  | Its license states that you MUST NOT use its code to develop         |
+  | a RAR (WinRAR) compatible archiver.                                  |
+  | Please, read unRAR license for full information.                     |
+  | unRAR & RAR copyrights are owned by Eugene Roshal                    |
+  +----------------------------------------------------------------------+
+  | Author: Antony Dovgal <tony@daylessday.org>                          |
+  | Author: Gustavo Lopes <cataphract@php.net>                           |
+  +----------------------------------------------------------------------+
+*/
+
 /* $Id$ */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include "php.h"
 #include "php_rar.h"
@@ -561,3 +592,7 @@ void minit_rarentry(TSRMLS_D) {
 	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_UNIX_SYM_LINK",				0x0A000L);
 	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_UNIX_SOCKET",				0x0C000L);
 }
+
+#ifdef __cplusplus
+}
+#endif
