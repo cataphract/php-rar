@@ -34,12 +34,12 @@ extern "C" {
 #include "php.h"
 #include "php_rar.h"
 
-/* {{{ Globals with external linakage */
+/* {{{ Globals with external linkage */
 zend_class_entry *rar_class_entry_ptr;
 /* }}} */
 
-/* {{{ Globals with internal linakage */
-static zend_object_handlers rar_object_handlers;
+/* {{{ Globals with internal linkage */
+static zend_object_handlers rarentry_object_handlers;
 /* }}} */
 
 /* {{{ Function prototypes for functions with internal linkage */
@@ -198,7 +198,7 @@ static zend_object_value rarentry_ce_create_object(zend_class_entry *class_type 
 		(zend_objects_store_dtor_t) zend_objects_destroy_object,
 		(zend_objects_free_object_storage_t) zend_objects_free_object_storage,
 		NULL TSRMLS_CC);
-	zov.handlers = &rar_object_handlers;
+	zov.handlers = &rarentry_object_handlers;
 	return zov;
 }
 /* }}} */
@@ -529,7 +529,8 @@ static zend_function_entry php_rar_class_functions[] = {
 void minit_rarentry(TSRMLS_D) {
 	zend_class_entry ce;
 
-	memcpy(&rar_object_handlers, zend_get_std_object_handlers(), sizeof rar_object_handlers);
+	memcpy(&rarentry_object_handlers, zend_get_std_object_handlers(),
+		sizeof rarentry_object_handlers);
 
 	INIT_CLASS_ENTRY(ce, "RarEntry", php_rar_class_functions);
 	ce.ce_flags |= ZEND_ACC_FINAL_CLASS;
