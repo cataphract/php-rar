@@ -24,51 +24,51 @@ echo "Done\n";
 ?>
 --EXPECTF--
 object(RarEntry)#%d (%d) {
-  ["rarfile%sprivate]=>
+  ["rarfile%sprivate%s=>
   resource(%d) of type (Rar file)
-  ["name%sprivate]=>
+  ["name%sprivate%s=>
   string(30) "test file with whitespaces.txt"
-  ["unpacked_size%sprivate]=>
+  ["unpacked_size%sprivate%s=>
   int(14)
-  ["packed_size%sprivate]=>
+  ["packed_size%sprivate%s=>
   int(20)
-  ["host_os%sprivate]=>
+  ["host_os%sprivate%s=>
   int(3)
-  ["file_time%sprivate]=>
+  ["file_time%sprivate%s=>
   string(19) "2004-06-11 11:01:32"
-  ["crc%sprivate]=>
+  ["crc%sprivate%s=>
   string(8) "21890dd9"
-  ["attr%sprivate]=>
+  ["attr%sprivate%s=>
   int(33188)
-  ["version%sprivate]=>
+  ["version%sprivate%s=>
   int(29)
-  ["method%sprivate]=>
+  ["method%sprivate%s=>
   int(51)
-  ["flags%sprivate]=>
+  ["flags%sprivate%s=>
   int(32800)
 }
 object(RarEntry)#%d (%d) {
-  ["rarfile%sprivate]=>
+  ["rarfile%sprivate%s=>
   resource(%d) of type (Rar file)
-  ["name%sprivate]=>
+  ["name%sprivate%s=>
   string(5) "2.txt"
-  ["unpacked_size%sprivate]=>
+  ["unpacked_size%sprivate%s=>
   int(5)
-  ["packed_size%sprivate]=>
+  ["packed_size%sprivate%s=>
   int(16)
-  ["host_os%sprivate]=>
+  ["host_os%sprivate%s=>
   int(2)
-  ["file_time%sprivate]=>
+  ["file_time%sprivate%s=>
   string(19) "2004-06-11 10:07:26"
-  ["crc%sprivate]=>
+  ["crc%sprivate%s=>
   string(8) "45a918de"
-  ["attr%sprivate]=>
+  ["attr%sprivate%s=>
   int(32)
-  ["version%sprivate]=>
+  ["version%sprivate%s=>
   int(29)
-  ["method%sprivate]=>
+  ["method%sprivate%s=>
   int(53)
-  ["flags%sprivate]=>
+  ["flags%sprivate%s=>
   int(37008)
 }
 
