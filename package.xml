@@ -8,22 +8,33 @@ http://pear.php.net/dtd/package-2.0.xsd">
  <summary>rar extension</summary>
  <description>PHP extension for reading Rar archives using bundled unRAR library.
  </description>
+
  <lead>
+  <name>Gustavo Lopes</name>
+  <user>cataphract</user>
+  <email>cataphract@php.net</email>
+  <active>yes</active>
+ </lead>
+
+ <developer>
   <name>Antony Dovgal</name>
   <user>tony2001</user>
   <email>tony@daylessday.org</email>
   <active>yes</active>
- </lead>
- <date>2008-02-26</date>
- <time>17:00:00</time>
+ </developer>
+
+ <date>2009-11-29</date>
+ <time>17:30:00</time>
  <version>
-  <release>1.0.0</release>
-  <api>1.0.0</api>
+  <release>2.0.0snap29112009</release>
+  <api>2.0.0snap29112009</api>
  </version>
+
  <stability>
-  <release>stable</release>
-  <api>stable</api>
+  <release>snapshot</release>
+  <api>devel</api>
  </stability>
+
  <license uri="http://www.php.net/license">PHP License</license>
  <notes>- Upgraded bundled UnRar to version 3.7.8.
 - Updated source code to use new parameter parsing API.
@@ -38,8 +49,36 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file name="002.phpt" role="test" />
     <file name="003.phpt" role="test" />
     <file name="004.phpt" role="test" />
+    <file name="005.phpt" role="test" />
+    <file name="006.phpt" role="test" />
+    <file name="007.phpt" role="test" />
+    <file name="008.phpt" role="test" />
+    <file name="009.phpt" role="test" />
+    <file name="010.phpt" role="test" />
+    <file name="011.phpt" role="test" />
+    <file name="012.phpt" role="test" />
+    <file name="013.phpt" role="test" />
+    <file name="014.phpt" role="test" />
+    <file name="015.phpt" role="test" />
+    <file name="016.phpt" role="test" />
+    <file name="017.phpt" role="test" />
+    <file name="018.phpt" role="test" />
+    <file name="019.phpt" role="test" />
+    <file name="020.phpt" role="test" />
+    <file name="021.phpt" role="test" />
+    <file name="022.phpt" role="test" />
+    <file name="commented.rar" role="test" />
+    <file name="corrupted.rar" role="test" />
+    <file name="directories.rar" role="test" />
     <file name="latest_winrar.rar" role="test" />
     <file name="linux_rar.rar" role="test" />
+    <file name="multi.part1.rar" role="test" />
+    <file name="multi.part2.rar" role="test" />
+    <file name="multi.part3.rar" role="test" />
+    <file name="rar_notrar.rar" role="test" />
+    <file name="rar_unicode.rar" role="test" />
+    <file name="solid.rar" role="test" />
+    <file name="store_method.rar" role="test" />
    </dir> <!-- /tests -->
    <dir name="unrar">
     <file name="arccmt.cpp" role="src" />
@@ -70,6 +109,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file name="extinfo.hpp" role="src" />
     <file name="extract.cpp" role="src" />
     <file name="extract.hpp" role="src" />
+    <file name="extractchunk.cpp" role="src" />
     <file name="filcreat.cpp" role="src" />
     <file name="filcreat.hpp" role="src" />
     <file name="file.cpp" role="src" />
@@ -85,8 +125,6 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file name="global.cpp" role="src" />
     <file name="global.hpp" role="src" />
     <file name="headers.hpp" role="src" />
-    <file name="int64.cpp" role="src" />
-    <file name="int64.hpp" role="src" />
     <file name="isnt.cpp" role="src" />
     <file name="isnt.hpp" role="src" />
     <file name="LICENSE.txt" role="doc" />
@@ -109,7 +147,6 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file name="rar.cpp" role="src" />
     <file name="rar.hpp" role="src" />
     <file name="rardefs.hpp" role="src" />
-    <file name="rarfn.hpp" role="src" />
     <file name="rarlang.hpp" role="src" />
     <file name="raros.hpp" role="src" />
     <file name="rartypes.hpp" role="src" />
@@ -164,25 +201,64 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file name="win32stm.cpp" role="src" />
    </dir> <!-- /unrar -->
    <file name="config.m4" role="src" />
+   <file name="config.w32" role="src" />
    <file name="CREDITS" role="doc" />
    <file name="example.php" role="doc" />
    <file name="php_rar.h" role="src" />
-   <file name="rar.cpp" role="src" />
+   <file name="rar.c" role="src" />
+   <file name="rar_stream.c" role="src" />
+   <file name="rarentry.c" role="src" />
   </dir> <!-- / -->
  </contents>
+
  <dependencies>
   <required>
    <php>
-    <min>4.0.0</min>
+    <min>5.2.0</min>
    </php>
    <pearinstaller>
-    <min>1.4.0b1</min>
+    <min>1.4.0</min>
    </pearinstaller>
   </required>
  </dependencies>
+
  <providesextension>rar</providesextension>
+
  <extsrcrelease />
+ 
  <changelog>
+  <release>
+   <version>
+	<release>2.0.0snap29112009</release>
+	<api>2.0.0snap29112009</api>
+   </version>
+   <stability>
+    <release>snapshot</release>
+	<api>devel</api>
+   </stability>
+   <date>2009-11-29</date>
+   <license uri="http://www.php.net/license">PHP License</license>
+   <notes>- Updated bundled UnRAR library to version 3.9.6.
+- Changed bundled UnRAR library to allow partial file extraction.
+- Fixed bug in UnRAR library that could cause a read out of buffer bounds on some corrupted RAR files.
+- Added a bunch of constants to RarEntry.
+- Added RarEntry::__toString() and RarEntry::isDirectory methods.
+- All RarEntry properties are now private. This doesn't change the API because those properties were never part of the contract.
+- Supports streaming from RAR archives.
+- Extensio now uses extended UnRAR library structures.
+- rar_open gives more detailed error messages on failure.
+- Fixed pecl bug #9470 (wrong CRC on multi-volume archives).
+- Added rar_comment_get.
+- Fixed by pecl bug #8821 (relative paths not working).
+- Handles unicode filenames (uses UTF-8 external encoding).
+- Fixed PECL bug #9649, resource is now destroyed regardless of the le->refcount.
+- Fixed volumes opened with middle volumes showing files continued from previous volume with incorrect packed and unpacked sizes.
+- Added arginfo.
+- Added a bunch of tests.
+- A lot of refactoring and compilation as C, not C++.
+   </notes>
+  </release>
+
   <release>
    <version>
     <release>0.3.1</release>
