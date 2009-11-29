@@ -15,12 +15,13 @@
   |                        **** WARNING ****                             |
   |                                                                      |
   | This module makes use of unRAR - free utility for RAR archives.      |
-  | It's license states, that you MUST NOT use it's code to develop      |
+  | Its license states, that you MUST NOT use its code to develop        |
   | a RAR (WinRAR) compatible archiver.                                  |
   | Please, read unRAR license for full information.                     |
   | unRAR & RAR copyrights are owned by Eugene Roshal                    |
   +----------------------------------------------------------------------+
   | Author: Antony Dovgal <tony@daylessday.org>                          |
+  | Author: Gustavo Lopes <cataphract@php.net>                           |
   +----------------------------------------------------------------------+
 */
 
@@ -60,6 +61,10 @@ enum HOST_SYSTEM {
   HOST_BEOS=5,HOST_MAX
 };
 
+/* rar.c */
+int le_rar_file;
+extern char *le_rar_file_name;
+
 PHP_MINIT_FUNCTION(rar);
 PHP_MSHUTDOWN_FUNCTION(rar);
 PHP_RINIT_FUNCTION(rar);
@@ -95,6 +100,8 @@ int _rar_find_file(struct RAROpenArchiveDataEx *open_data, /* IN */
 				   int *found, /* OUT */
 				   struct RARHeaderDataEx *header_data /* OUT, can be null */
 				   );
+void _rar_wide_to_utf(const wchar_t *src, char *dest, size_t dest_size);
+void _rar_utf_to_wide(const char *src, wchar_t *dest, size_t dest_size);
 
 //PHP 5.2 compatibility
 #if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION < 3
@@ -103,6 +110,12 @@ int _rar_find_file(struct RAROpenArchiveDataEx *open_data, /* IN */
 	(!php_checkuid(filename, NULL, CHECKUID_CHECK_FILE_AND_DIR))) \
 	|| php_check_open_basedir(filename TSRMLS_CC)
 #endif
+
+/* rarentry.c */
+extern zend_class_entry *rar_class_entry_ptr;
+void minit_rarentry(TSRMLS_D);
+void _rar_entry_to_zval(struct RARHeaderDataEx *entry, zval *object,
+							   unsigned long packed_size TSRMLS_DC);
 
 #endif	/* PHP_RAR_H */
 

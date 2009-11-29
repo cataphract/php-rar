@@ -232,7 +232,7 @@ php_stream *php_stream_rar_open(char *arc_name,
 			self->header_data.UnpSize));
 		int process_result = RARProcessFileChunkInit(self->rar_handle);
 
-		if (_rar_handle_error(result TSRMLS_CC) == FAILURE) {
+		if (_rar_handle_error(process_result TSRMLS_CC) == FAILURE) {
 			goto cleanup;
 		}
 

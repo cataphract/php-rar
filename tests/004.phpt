@@ -41,9 +41,6 @@ chdir(dirname(__FILE__));
 var_dump($entry2);
 var_dump($entry2->extract("",""));
 
-unset($entry2->name);
-var_dump($entry2->extract("",""));
-
 @unlink('2.txt');
 
 chdir($oldcwd);
@@ -56,30 +53,29 @@ blah-blah-blah
 22222
 22222
 string(5) "22222"
-object(RarEntry)#%d (10) {
-  ["rarfile"]=>
+object(RarEntry)#%d (%d) {
+  ["rarfile":"RarEntry":private]=>
   resource(%d) of type (Rar file)
-  ["name"]=>
+  ["name":"RarEntry":private]=>
   string(5) "2.txt"
-  ["unpacked_size"]=>
+  ["unpacked_size":"RarEntry":private]=>
   int(5)
-  ["packed_size"]=>
+  ["packed_size":"RarEntry":private]=>
   int(16)
-  ["host_os"]=>
+  ["host_os":"RarEntry":private]=>
   int(2)
-  ["file_time"]=>
+  ["file_time":"RarEntry":private]=>
   string(19) "2004-06-11 10:07:26"
-  ["crc"]=>
+  ["crc":"RarEntry":private]=>
   string(8) "45a918de"
-  ["attr"]=>
+  ["attr":"RarEntry":private]=>
   int(32)
-  ["version"]=>
+  ["version":"RarEntry":private]=>
   int(29)
-  ["method"]=>
+  ["method":"RarEntry":private]=>
   int(53)
+  ["flags":"RarEntry":private]=>
+  int(37008)
 }
 bool(true)
-
-Warning: RarEntry::extract(): Unable to find property 'name' in %s on line %d
-bool(false)
 Done
