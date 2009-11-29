@@ -427,8 +427,11 @@ static int _rar_raw_entries_to_files(rar_file_t *rar,
 			ZVAL_RESOURCE(rar_res, rar->id);
 			zend_update_property(rar_class_entry_ptr, entry_obj, "rarfile",
 				sizeof("rarfile") - 1, rar_res TSRMLS_CC);
+			/* zend_update_property calls write_property handler, which
+			 * increments the refcount. We must decrease it here */
+			zval_ptr_dtor(&rar_res);
 			/* to avoid destruction of the resource due to le->refcount hitting
-			 * 0 when this new zval we're creating is destroyed? */
+			 * 0 when this new resource zval we created is destroyed? */
 			zend_list_addref(rar->id);
 			_rar_entry_to_zval(last_entry, entry_obj, packed_size TSRMLS_CC);
 			if (file == NULL)

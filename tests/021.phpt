@@ -13,7 +13,7 @@ foreach ($entries as $e) {
 
 echo "Done\n";
 --EXPECTF--
-dirwithsth\fileindir.txt is not a directory.
+dirwithsth%cfileindir.txt is not a directory.
 dirwithsth is a directory.
 emptydir is a directory.
 Done
