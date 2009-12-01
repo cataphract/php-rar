@@ -205,14 +205,16 @@ static zend_object_value rarentry_ce_create_object(zend_class_entry *class_type 
 /* }}} */
 
 /* {{{ Methods */
-/* {{{ proto bool RarEntry::extract(string dir [, string filepath ])
+/* {{{ proto bool RarEntry::extract(string dir [, string filepath [, string password ]])
    Extract file from the archive */
 PHP_METHOD(rarentry, extract)
 { //lots of variables, but no need to be intimidated
 	char					*dir,
-							*filepath = NULL;
+							*filepath = NULL,
+							*password = NULL;
 	int						dir_len,
-							filepath_len = 0;
+							filepath_len = 0,
+							password_len = 0;
 	char					*considered_path;
 	char					considered_path_res[MAXPATHLEN];
 	int						with_second_arg;
@@ -226,7 +228,8 @@ PHP_METHOD(rarentry, extract)
 	int						result;
 	int						found;
 	
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|s", &dir, &dir_len, &filepath, &filepath_len) == FAILURE ) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|s", &dir, &dir_len,
+			&filepath, &filepath_len, &password, &password_len) == FAILURE ) {
 		return;
 	}
 
@@ -256,8 +259,11 @@ PHP_METHOD(rarentry, extract)
 	/* Find file inside archive */
 	RAR_GET_PROPERTY(tmp_name, "name");
 
+	if (password == NULL)
+		password = rar->password; //use rar_open password by default
+
 	result = _rar_find_file(rar->extract_open_data, Z_STRVAL_PP(tmp_name),
-		&extract_handle, &found, &entry);
+		password, &extract_handle, &found, &entry);
 
 	if (_rar_handle_error(result TSRMLS_CC) == FAILURE) {
 		RETVAL_FALSE;
@@ -419,21 +425,31 @@ PHP_METHOD(rarentry, getMethod)
 }
 /* }}} */
 
-/* {{{ proto resource RarEntry::getStream()
-   Return packing method */
+/* {{{ proto resource RarEntry::getStream([string password])
+   Return stream for current entry */
 PHP_METHOD(rarentry, getStream)
 {
 	zval **tmp, **name;
 	rar_file_t *rar = NULL;
 	zval *entry_obj = getThis();
 	php_stream *stream = NULL;
+	char *password = NULL;
+	int password_len; //ignored
 	
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|s",
+			&password, &password_len) == FAILURE ) {
+		return;
+	}
+
 	RAR_GET_PROPERTY(name, "name");
 	RAR_GET_PROPERTY(tmp, "rarfile");
 	ZEND_FETCH_RESOURCE(rar, rar_file_t *, tmp, -1, le_rar_file_name, le_rar_file);
 
+	if (password == NULL)
+		password = rar->password; //use rar_open password by default
+
 	stream = php_stream_rar_open(rar->extract_open_data->ArcName,
-		Z_STRVAL_PP(name), "r" STREAMS_CC TSRMLS_CC);
+		Z_STRVAL_PP(name), password, "r" STREAMS_CC TSRMLS_CC);
 	
 	if (stream != NULL) {
 		php_stream_to_zval(stream, return_value);
@@ -457,6 +473,23 @@ PHP_METHOD(rarentry, isDirectory)
 	is_dir = ((flags & 0xE0) == 0xE0);
 	
 	RETURN_BOOL(is_dir);
+}
+/* }}} */
+
+/* {{{ proto int RarEntry::isEncrypted()
+   Return whether the entry is encrypted and needs a password */
+PHP_METHOD(rarentry, isEncrypted)
+{
+	zval **tmp;
+	zval *entry_obj = getThis();
+	long flags;
+	int is_encrypted;
+	
+	RAR_GET_PROPERTY(tmp, "flags");
+	flags = Z_LVAL_PP(tmp);
+	is_encrypted = (flags & 0x04);
+	
+	RETURN_BOOL(is_encrypted);
 }
 /* }}} */
 
@@ -503,6 +536,11 @@ PHP_METHOD(rarentry, __toString)
 ZEND_BEGIN_ARG_INFO_EX(arginfo_rarentry_extract, 0, 0, 1)
 	ZEND_ARG_INFO(0, path)
 	ZEND_ARG_INFO(0, filename)
+	ZEND_ARG_INFO(0, password)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_rarentry_getstream, 0, 0, 0)
+	ZEND_ARG_INFO(0, password)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_rar_void, 0)
@@ -520,8 +558,9 @@ static zend_function_entry php_rar_class_functions[] = {
 	PHP_ME(rarentry,		getAttr,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
 	PHP_ME(rarentry,		getVersion,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
 	PHP_ME(rarentry,		getMethod,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
-	PHP_ME(rarentry,		getStream,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getStream,			arginfo_rarentry_getstream,	ZEND_ACC_PUBLIC)
 	PHP_ME(rarentry,		isDirectory,		arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		isEncrypted,		arginfo_rar_void,	ZEND_ACC_PUBLIC)
 	PHP_ME(rarentry,		__toString,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
 	{NULL, NULL, NULL}
 };

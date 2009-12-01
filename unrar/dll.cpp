@@ -229,12 +229,14 @@ int PASCAL ProcessFile(HANDLE hArcData, int Operation, char *DestPath,
    * (that was the behaviour before adding RAR_EXTRACT_CHUNK, which thus
    * remains unaltered) */
   if (Operation != RAR_EXTRACT_CHUNK)
-    InitDataIO = true;
+    InitDataIO = TRUE;
 
-  /* we must set this here because the function may return before executing the
-   * code that updates the variable. */
+  /* we must set these here because the function may return before executing the
+   * code that updates the variables. */
   if (ReadSize != NULL)
     *ReadSize = 0;
+  if (finished != NULL)
+	  *finished = TRUE;
 
   try
   {
@@ -323,7 +325,7 @@ int PASCAL ProcessFile(HANDLE hArcData, int Operation, char *DestPath,
         }
         else //chunk, no init
           //returns always true
-          //changes *ReadSize
+          //changes *ReadSize and *finished
           Data->Extract.ExtractCurrentFileChunk(&Data->Cmd, Data->Arc,
             ReadSize, finished);
       }
@@ -432,6 +434,8 @@ static int RarErrorToDll(int ErrCode)
       return(ERAR_ECREATE);
     case MEMORY_ERROR:
       return(ERAR_NO_MEMORY);
+    case NO_PASSWORD_ERROR: //not in original
+      return(ERAR_MISSING_PASSWORD);
     case SUCCESS:
       return(0);
     default:

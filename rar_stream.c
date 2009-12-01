@@ -198,6 +198,7 @@ php_stream_ops php_stream_rario_ops = {
 /* {{{ php_stream_rar_open */
 php_stream *php_stream_rar_open(char *arc_name,
 								char *utf_file_name,
+								char *password,
 								char *mode STREAMS_DC TSRMLS_DC)
 {
 	php_stream				*stream	= NULL;
@@ -213,8 +214,8 @@ php_stream *php_stream_rar_open(char *arc_name,
 	self->open_data.ArcName		= estrdup(arc_name);
 	self->open_data.OpenMode	= RAR_OM_EXTRACT;
 	
-	result = _rar_find_file(&self->open_data, utf_file_name, &self->rar_handle,
-		&found, &self->header_data);
+	result = _rar_find_file(&self->open_data, utf_file_name, password,
+		&self->rar_handle, &found, &self->header_data);
 
 	if (_rar_handle_error(result TSRMLS_CC) == FAILURE) {
 		goto cleanup;
@@ -239,8 +240,6 @@ php_stream *php_stream_rar_open(char *arc_name,
 		self->buffer = emalloc(buffer_size);
 		self->buffer_size = buffer_size;
 		stream = php_stream_alloc(&php_stream_rario_ops, self, NULL, mode);
-		if (buffer_size == 0) //if file is empty/is dir/is link, mark eof now
-			stream->eof = TRUE;
 	}
 
 cleanup:

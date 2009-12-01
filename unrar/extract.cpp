@@ -423,9 +423,14 @@ bool CmdExtract::ExtractCurrentFile(CommandData *Cmd,Archive &Arc,size_t HeaderS
       {
 #ifdef RARDLL
         if (*Cmd->Password==0)
+        {
           if (Cmd->Callback==NULL ||
-              Cmd->Callback(UCM_NEEDPASSWORD,Cmd->UserData,(LPARAM)Cmd->Password,sizeof(Cmd->Password))==-1)
-            return(false);
+			        Cmd->Callback(UCM_NEEDPASSWORD,Cmd->UserData,(LPARAM)Cmd->Password,sizeof(Cmd->Password))==-1)
+          {
+            Cmd->DllError = ERAR_MISSING_PASSWORD; //added by me
+            return false;
+          }
+		    }
         strcpy(Password,Cmd->Password);
 
 #else

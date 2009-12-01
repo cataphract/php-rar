@@ -60,6 +60,7 @@ static int _rar_raw_entries_to_files(rar_file_t *rar,
 								     const wchar_t * const file, //can be NULL
 								     zval *target TSRMLS_DC);
 static void _rar_fix_wide(wchar_t *str);
+static int CALLBACK _rar_unrar_callback(UINT msg, LPARAM UserData, LPARAM P1, LPARAM P2);
 /* }}} */
 
 /* <global> */
@@ -165,10 +166,10 @@ static size_t strnlen(const char *s, size_t maxlen) /* {{{ */
 /* }}} */
 /* }}} */
 
-/* WARNING: It's the caller who must close the archive.
- * Kind of against the conventions */
+/* WARNING: It's the caller who must close the archive. */
 int _rar_find_file(struct RAROpenArchiveDataEx *open_data, /* IN */
 				   const char *const utf_file_name, /* IN */
+				   char *password, /* IN, can be null */
 				   void **arc_handle, /* OUT: where to store rar archive handle  */
 				   int *found, /* OUT */
 				   struct RARHeaderDataEx *header_data /* OUT, can be null */
@@ -196,6 +197,7 @@ int _rar_find_file(struct RAROpenArchiveDataEx *open_data, /* IN */
 		retval = open_data->OpenResult;
 		goto cleanup;
 	}
+	RARSetCallback(*arc_handle, _rar_unrar_callback, (LPARAM) password);
 
 	utf_file_name_len = strlen(utf_file_name);
 	file_name = ecalloc(utf_file_name_len + 1, sizeof *file_name); 
@@ -345,6 +347,9 @@ static const char * _rar_error_to_string(int errcode) /* {{{ */
 		case ERAR_UNKNOWN:
 			ret = "ERAR_UNKNOWN (unknown RAR error)";
 			break;
+		case ERAR_MISSING_PASSWORD:
+			ret = "ERAR_MISSING_PASSWORD (password needed but not specified)";
+			break;
 		default:
 			ret = "unknown RAR error (should not happen)";
 			break;
@@ -480,6 +485,29 @@ static void _rar_fix_wide(wchar_t *str) /* {{{ */
 	*write = L'\0';
 }
 /* }}} */
+
+/* Only processes password callbacks */
+static int CALLBACK _rar_unrar_callback(UINT msg, LPARAM UserData, LPARAM P1, LPARAM P2) /* {{{ */
+{
+	//TSRMLS_FETCH();
+	
+	if (msg == UCM_NEEDPASSWORD) {
+		//user data is the password or null if none
+		char *password = (char*) UserData;
+
+		if (password == NULL) {
+			/*php_error_docref(NULL TSRMLS_CC, E_WARNING,
+				"Password needed, but it has not been specified");*/
+			return -1;
+		}
+		else {
+			strncpy((char*) P1, password, (size_t) P2);
+		}
+	}
+
+	return 0;
+}
+/* }}} */
 /* </internal> */
 
 #ifdef COMPILE_DL_RAR
@@ -531,11 +559,10 @@ PHP_FUNCTION(rar_open)
 
 	rar->arch_handle = RAROpenArchiveEx(rar->list_open_data);
 	if (rar->arch_handle != NULL && rar->list_open_data->OpenResult == 0) {
-		if (password_len) {
+		if (password_len > 0) {
 			rar->password = estrndup(password, password_len);
 		}
 		rar->id = ZEND_REGISTER_RESOURCE(return_value, rar, le_rar_file);
-		return;
 		//zend_list_insert(rar,le_rar_file);
 		//RETURN_RESOURCE(rar->id);
 	} else {
@@ -552,6 +579,7 @@ PHP_FUNCTION(rar_open)
 		efree(rar);
 		RETURN_FALSE;
 	}
+	RARSetCallback(rar->arch_handle, _rar_unrar_callback, (LPARAM) rar->password);
 }
 /* }}} */
 
