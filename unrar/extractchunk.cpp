@@ -71,19 +71,23 @@ bool CmdExtract::ExtractCurrentFileChunkInit(CommandData *Cmd,
       if (Cmd->Callback==NULL ||
           Cmd->Callback(UCM_NEEDPASSWORD,Cmd->UserData,(LPARAM)Cmd->Password,sizeof(Cmd->Password))==-1)
       {
-         ErrHandler.SetErrorCode(WARNING);
+        ErrHandler.SetErrorCode(WARNING);
         Cmd->DllError = ERAR_MISSING_PASSWORD;
         return false;
       }
     strcpy(Password,Cmd->Password);
   }
 
-  // Skip encrypted file if no password is specified.
-  if ((Arc.NewLhd.Flags & LHD_PASSWORD)!=0 && *Password==0)
-  {
-    ErrHandler.SetErrorCode(WARNING);
-    Cmd->DllError=ERAR_MISSING_PASSWORD;
-    return false;
+  if ((Arc.NewLhd.Flags & LHD_PASSWORD) != 0) {
+    if (*Cmd->Password == '\0') {
+      if (Cmd->Callback == NULL ||
+          Cmd->Callback(UCM_NEEDPASSWORD, Cmd->UserData, (LPARAM) Cmd->Password,
+          sizeof Cmd->Password) == -1) {
+        Cmd->DllError = ERAR_MISSING_PASSWORD;
+        return false;
+      }
+    }
+    strncpy(Password, Cmd->Password, sizeof Password);
   }
 
   if (Arc.NewLhd.UnpVer<13 || Arc.NewLhd.UnpVer>UNP_VER)
@@ -118,6 +122,12 @@ bool CmdExtract::ExtractCurrentFileChunk(CommandData *Cmd, Archive &Arc,
                                          size_t *ReadSize,
                                          int *finished)
 {
+  if (IsLink(Arc.NewLhd.FileAttr) || Arc.IsArcDir()) {
+    *ReadSize = 0;
+    *finished = TRUE;
+    return true;
+  }
+
   DataIO.SetUnpackToMemory((byte*) this->Buffer, this->BufferSize);
 
   if (Arc.NewLhd.Method==0x30) {

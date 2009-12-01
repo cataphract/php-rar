@@ -1,5 +1,5 @@
 --TEST--
-RarEntry::getStream() function (store methid)
+RarEntry::getStream() function (store method)
 --SKIPIF--
 <?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--

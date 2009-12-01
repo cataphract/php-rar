@@ -92,10 +92,13 @@ typedef struct rar {
 } rar_file_t;
 
 int _rar_handle_error(int errcode TSRMLS_DC);
-php_stream *php_stream_rar_open(char *arc_name, char *utf_file_name,
+php_stream *php_stream_rar_open(char *arc_name,
+								char *utf_file_name,
+								char *password,
 								char *mode STREAMS_DC TSRMLS_DC);
 int _rar_find_file(struct RAROpenArchiveDataEx *open_data, /* IN */
 				   const char *const utf_file_name, /* IN */
+				   char *password, /* IN, can be null */
 				   void **arc_handle, /* OUT: where to store rar archive handle  */
 				   int *found, /* OUT */
 				   struct RARHeaderDataEx *header_data /* OUT, can be null */

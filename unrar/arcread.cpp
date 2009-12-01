@@ -71,7 +71,8 @@ size_t Archive::ReadHeader()
           Cmd->Callback(UCM_NEEDPASSWORD,Cmd->UserData,(LPARAM)Cmd->Password,sizeof(Cmd->Password))==-1)
       {
         Close();
-        ErrHandler.Exit(USER_BREAK);
+        //ErrHandler.Exit(USER_BREAK); original
+        ErrHandler.Exit(NO_PASSWORD_ERROR);
       }
 
 #else

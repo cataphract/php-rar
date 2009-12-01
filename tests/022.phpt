@@ -7,10 +7,10 @@ RarEntry::extract() with directory
 $rar_file1 = rar_open(dirname(__FILE__).'/directories.rar');
 $e = rar_entry_get($rar_file1, "emptydir");
 
-$dir = "." . DIRECTORY_SEPARATOR . "emptydir";
+$dir = dirname(__FILE__) . DIRECTORY_SEPARATOR . "emptydir";
 $exists = is_dir($dir);
 var_dump($exists);
-$extrres = $e->extract(".");
+$extrres = $e->extract(dirname(__FILE__));
 var_dump($extrres);
 $exists = is_dir($dir);
 var_dump($exists);
@@ -18,7 +18,7 @@ var_dump($exists);
 
 echo "\n\n";
 
-$dir = "." . DIRECTORY_SEPARATOR . "emptydircust";
+$dir = dirname(__FILE__) . DIRECTORY_SEPARATOR . "emptydircust";
 $exists = is_dir($dir);
 var_dump($exists);
 $extrres = $e->extract(false, $dir);
