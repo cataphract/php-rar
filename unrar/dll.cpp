@@ -369,7 +369,7 @@ int PASCAL RARProcessFileW(HANDLE hArcData,int Operation,wchar *DestPath,wchar *
 int PASCAL RARProcessFileChunkInit(HANDLE hArcData)
 {
   return ProcessFile(hArcData, RAR_EXTRACT_CHUNK, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, true, NULL);
+    NULL, 0, NULL, true, NULL);
 }
 
 int PASCAL RARProcessFileChunk(HANDLE hArcData,
