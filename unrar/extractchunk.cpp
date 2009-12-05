@@ -69,7 +69,8 @@ bool CmdExtract::ExtractCurrentFileChunkInit(CommandData *Cmd,
   {
     if (*Cmd->Password==0)
       if (Cmd->Callback==NULL ||
-          Cmd->Callback(UCM_NEEDPASSWORD,Cmd->UserData,(LPARAM)Cmd->Password,sizeof(Cmd->Password))==-1)
+          Cmd->Callback(UCM_NEEDPASSWORD,Cmd->UserData,(LPARAM)Cmd->Password,
+          (LPARAM)sizeof(Cmd->Password))==-1)
       {
         ErrHandler.SetErrorCode(WARNING);
         Cmd->DllError = ERAR_MISSING_PASSWORD;
@@ -82,7 +83,7 @@ bool CmdExtract::ExtractCurrentFileChunkInit(CommandData *Cmd,
     if (*Cmd->Password == '\0') {
       if (Cmd->Callback == NULL ||
           Cmd->Callback(UCM_NEEDPASSWORD, Cmd->UserData, (LPARAM) Cmd->Password,
-          sizeof Cmd->Password) == -1) {
+          (LPARAM) sizeof(Cmd->Password)) == -1) {
         Cmd->DllError = ERAR_MISSING_PASSWORD;
         return false;
       }
