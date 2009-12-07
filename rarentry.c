@@ -234,7 +234,9 @@ PHP_METHOD(rarentry, extract)
 	}
 
 	RAR_GET_PROPERTY(tmp, "rarfile");
-	ZEND_FETCH_RESOURCE(rar, rar_file_t *, tmp, -1, le_rar_file_name, le_rar_file);
+	if (!_rar_get_file_resource(*tmp, &rar TSRMLS_CC)) {
+		RETURN_FALSE;
+	}
 
 	/* Decide where to extract */
 	with_second_arg = (filepath_len != 0);
@@ -443,7 +445,9 @@ PHP_METHOD(rarentry, getStream)
 
 	RAR_GET_PROPERTY(name, "name");
 	RAR_GET_PROPERTY(tmp, "rarfile");
-	ZEND_FETCH_RESOURCE(rar, rar_file_t *, tmp, -1, le_rar_file_name, le_rar_file);
+	if (!_rar_get_file_resource(*tmp, &rar TSRMLS_CC)) {
+		RETURN_FALSE;
+	}
 
 	if (password == NULL)
 		password = rar->password; //use rar_open password by default
@@ -493,7 +497,7 @@ PHP_METHOD(rarentry, isEncrypted)
 }
 /* }}} */
 
-/* {{{ proto int RarEntry::__toString()
+/* {{{ proto string RarEntry::__toString()
    Return string representation for entry */
 PHP_METHOD(rarentry, __toString)
 {
@@ -565,18 +569,20 @@ static zend_function_entry php_rar_class_functions[] = {
 	{NULL, NULL, NULL}
 };
 
-void minit_rarentry(TSRMLS_D) {
+void minit_rarentry(TSRMLS_D)
+{
 	zend_class_entry ce;
 
 	memcpy(&rarentry_object_handlers, zend_get_std_object_handlers(),
 		sizeof rarentry_object_handlers);
 
 	INIT_CLASS_ENTRY(ce, "RarEntry", php_rar_class_functions);
-	ce.ce_flags |= ZEND_ACC_FINAL_CLASS;
-	ce.clone = NULL;
-	//Custom creation currently not really needed, but you never know...
-	ce.create_object = &rarentry_ce_create_object;
 	rar_class_entry_ptr = zend_register_internal_class(&ce TSRMLS_CC);
+	rar_class_entry_ptr->ce_flags |= ZEND_ACC_FINAL_CLASS;
+	rar_class_entry_ptr->clone = NULL;
+	//Custom creation currently not really needed, but you never know...
+	rar_class_entry_ptr->create_object = &rarentry_ce_create_object;
+	
 
 	REG_RAR_PROPERTY("rarfile", "Associated RAR archive");
 	REG_RAR_PROPERTY("name", "File or directory name with path");

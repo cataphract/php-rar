@@ -55,7 +55,8 @@ blah-blah-blah
 string(5) "22222"
 object(RarEntry)#%d (%d) {
   ["rarfile%sprivate%s=>
-  resource(%d) of type (Rar file)
+  object(RarArchive)#3 (0) {
+  }
   ["name%sprivate%s=>
   string(5) "2.txt"
   ["unpacked_size%sprivate%s=>

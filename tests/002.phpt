@@ -17,9 +17,6 @@ $rar_file3 = rar_open(dirname(__FILE__).'/no_such_file.rar');
 $list3 = rar_list($rar_file3);
 var_dump($list3);
 
-$fp = fopen(__FILE__, "r");
-var_dump(rar_list($fp));
-
 echo "Done\n";
 ?>
 --EXPECTF--
@@ -27,7 +24,8 @@ array(2) {
   [0]=>
   object(RarEntry)#%d (%d) {
     ["rarfile%sprivate%s=>
-    resource(%d) of type (Rar file)
+    object(RarArchive)#%s (%s) {
+    }
     ["name%sprivate%s=>
     string(9) "plain.txt"
     ["unpacked_size%sprivate%s=>
@@ -52,7 +50,8 @@ array(2) {
   [1]=>
   object(RarEntry)#%d (%d) {
     ["rarfile%sprivate%s=>
-    resource(%d) of type (Rar file)
+    object(RarArchive)#%d (0) {
+    }
     ["name%sprivate%s=>
     string(30) "test file with whitespaces.txt"
     ["unpacked_size%sprivate%s=>
@@ -79,7 +78,8 @@ array(2) {
   [0]=>
   object(RarEntry)#%d (%d) {
     ["rarfile%sprivate%s=>
-    resource(%d) of type (Rar file)
+    object(RarArchive)#%d (%d) {
+    }
     ["name%sprivate%s=>
     string(5) "1.txt"
     ["unpacked_size%sprivate%s=>
@@ -104,7 +104,8 @@ array(2) {
   [1]=>
   object(RarEntry)#%d (%d) {
     ["rarfile%sprivate%s=>
-    resource(%d) of type (Rar file)
+    object(RarArchive)#%d (%d) {
+    }
     ["name%sprivate%s=>
     string(5) "2.txt"
     ["unpacked_size%sprivate%s=>
@@ -130,9 +131,6 @@ array(2) {
 
 Warning: rar_open(): Failed to open %s: ERAR_EOPEN (file open error) in %s on line %d
 
-Warning: rar_list() expects parameter 1 to be resource, boolean given in %s on line %d
+Warning: rar_list() expects parameter 1 to be RarArchive, boolean given in %s on line %d
 NULL
-
-Warning: rar_list(): supplied resource is not a valid Rar file resource in %s on line %d
-bool(false)
 Done
