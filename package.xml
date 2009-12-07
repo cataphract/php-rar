@@ -1,31 +1,40 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<package packagerversion="1.7.1" version="2.0" xmlns="http://pear.php.net/dtd/package-2.0" xmlns:tasks="http://pear.php.net/dtd/tasks-1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0 http://pear.php.net/dtd/tasks-1.0.xsd http://pear.php.net/dtd/package-2.0 http://pear.php.net/dtd/package-2.0.xsd">
+<package packagerversion="1.5.4" version="2.0" xmlns="http://pear.php.net/dtd/package-2.0" xmlns:tasks="http://pear.php.net/dtd/tasks-1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0
+http://pear.php.net/dtd/tasks-1.0.xsd
+http://pear.php.net/dtd/package-2.0
+http://pear.php.net/dtd/package-2.0.xsd">
  <name>rar</name>
  <channel>pecl.php.net</channel>
  <summary>rar extension</summary>
- <description>PHP extension for reading RAR archives using bundled unRAR library.</description>
+ <description>PHP extension for reading RAR archives using bundled unRAR library.
+ </description>
+
  <lead>
   <name>Gustavo Lopes</name>
   <user>cataphract</user>
   <email>cataphract@php.net</email>
   <active>yes</active>
  </lead>
+
  <developer>
   <name>Antony Dovgal</name>
   <user>tony2001</user>
   <email>tony@daylessday.org</email>
   <active>yes</active>
  </developer>
+
  <date>2009-12-07</date>
- <time>15:35:56</time>
+ <time>15:24:00</time>
  <version>
   <release>2.0.0b2</release>
   <api>2.0.0b2</api>
  </version>
+
  <stability>
   <release>beta</release>
   <api>beta</api>
  </stability>
+
  <license uri="http://www.php.net/license">PHP License</license>
  <notes>- Updated bundled UnRAR library to version 3.9.6.
 - Added OOP interface for rar_* functions with the RarArchive class.
@@ -33,7 +42,7 @@
 - Fixed bug in UnRAR library that could cause a read out of buffer bounds on some corrupted RAR files.
 - Added a bunch of constants to RarEntry.
 - Added RarEntry::__toString() and RarEntry::isDirectory methods.
-- All RarEntry properties are now private. This doesn&apos;t change the API because those properties were never part of the contract.
+- All RarEntry properties are now private. This doesn't change the API because those properties were never part of the contract.
 - Supports streaming from RAR archives.
 - Extensio now uses extended UnRAR library structures.
 - rar_open gives more detailed error messages on failure.
@@ -41,188 +50,194 @@
 - Added rar_comment_get.
 - Fixed by pecl bug #8821 (relative paths not working).
 - Handles unicode filenames (uses UTF-8 external encoding).
-- Fixed PECL bug #9649, resource is now destroyed regardless of the le-&gt;refcount.
+- Fixed PECL bug #9649, resource is now destroyed regardless of the le->refcount.
 - Fixed volumes opened with middle volumes showing files continued from previous volume with incorrect packed and unpacked sizes.
 - Added arginfo.
 - Added a bunch of tests.
-- A lot of refactoring and compilation as C, not C++.</notes>
+- A lot of refactoring and compilation as C, not C++.
+ </notes>
  <contents>
   <dir name="/">
-   <file md5sum="f4587066a210474d6e1429806451a667" name="tests/001.phpt" role="test" />
-   <file md5sum="d7fc57e848902aa0c407ebc9e5e873e4" name="tests/002.phpt" role="test" />
-   <file md5sum="94739c239a1d5d027df2801df1b0c898" name="tests/003.phpt" role="test" />
-   <file md5sum="3ebfc2d64205bcfa81195a1a6e9fe8b8" name="tests/004.phpt" role="test" />
-   <file md5sum="16dd6a13196bf9d1384009459a5be9a8" name="tests/005.phpt" role="test" />
-   <file md5sum="c6abc5c959be65825294adeb6bba989f" name="tests/006.phpt" role="test" />
-   <file md5sum="0eed0782f21a469964b4119a2154a535" name="tests/007.phpt" role="test" />
-   <file md5sum="8e0ccf2f2e3f5f14118fb3f6131106af" name="tests/008.phpt" role="test" />
-   <file md5sum="dc93b537e9736d16a7c1d2a38d1f476c" name="tests/009.phpt" role="test" />
-   <file md5sum="63aea0bf73640fb50a35b3dfbde9fdeb" name="tests/010.phpt" role="test" />
-   <file md5sum="d330f6a63a1ac14b7b8aeed4abc13669" name="tests/011.phpt" role="test" />
-   <file md5sum="a6f996f7d73d10e120e4cbb6e6c9cd3a" name="tests/012.phpt" role="test" />
-   <file md5sum="33f082c67331cd20c5918d3fc4187353" name="tests/013.phpt" role="test" />
-   <file md5sum="6c27598af5431af63727c06bfaa8eada" name="tests/014.phpt" role="test" />
-   <file md5sum="8df86ea483abe2d1993c3b7e25a80516" name="tests/015.phpt" role="test" />
-   <file md5sum="3f20b082e1739e51fd9897a2375cd812" name="tests/016.phpt" role="test" />
-   <file md5sum="5204c9b57e5468a1fa9482281b97895c" name="tests/017.phpt" role="test" />
-   <file md5sum="478599f82e744741e5d8f43b9be39aec" name="tests/018.phpt" role="test" />
-   <file md5sum="ade24a28f1b34d1db44efa95b08c9f7d" name="tests/019.phpt" role="test" />
-   <file md5sum="578af82bbb9426d55d06a5ffc3539b8a" name="tests/020.phpt" role="test" />
-   <file md5sum="d6c67832dbd79830168755cb91d42913" name="tests/021.phpt" role="test" />
-   <file md5sum="ea0f3f4e2d0b1a0a32530144ca3b868f" name="tests/022.phpt" role="test" />
-   <file md5sum="eaaa78c47096711069f1bf81e3043e98" name="tests/023.phpt" role="test" />
-   <file md5sum="f644fe83ee611d7a279e7699064d48ae" name="tests/024.phpt" role="test" />
-   <file md5sum="a8142dcca88d6a49079ecea58b71816a" name="tests/025.phpt" role="test" />
-   <file md5sum="fed2d4d6df8c2bc1c566e7ecd1d19267" name="tests/026.phpt" role="test" />
-   <file md5sum="6d548b5c5b47654451f39796091177f4" name="tests/027.phpt" role="test" />
-   <file md5sum="da482b8ff793ec1afdd26c83965e0700" name="tests/028.phpt" role="test" />
-   <file md5sum="29f96b3616fc326878d6ce1068bc4274" name="tests/029.phpt" role="test" />
-   <file md5sum="c6fc4278a9883580800c50c1b58769a9" name="tests/030.phpt" role="test" />
-   <file md5sum="7d97a8b4762d7bd4114751ff1ab017cb" name="tests/031.phpt" role="test" />
-   <file md5sum="a96cf63ef52506e02988a1db9835d759" name="tests/commented.rar" role="test" />
-   <file md5sum="4b8a69195d430500092fa6106294073a" name="tests/corrupted.rar" role="test" />
-   <file md5sum="3f241e127841bea1daf55e6b1654c8df" name="tests/directories.rar" role="test" />
-   <file md5sum="d6ff1e05f58cd15169978ea7894e7bc8" name="tests/dirlink_unix.rar" role="test" />
-   <file md5sum="f7e014943c9188de7d3421d82ebdcdb6" name="tests/encrypted_headers.rar" role="test" />
-   <file md5sum="5218d85ba4777cb8f4487bcf0fb5b162" name="tests/encrypted_only_files.rar" role="test" />
-   <file md5sum="5466dba6a38375ecfd5fc079fb29d1d2" name="tests/latest_winrar.rar" role="test" />
-   <file md5sum="202264a2c14372685c3d6eade275eaaa" name="tests/linux_rar.rar" role="test" />
-   <file md5sum="dfa9b8322c0f67a7f8e9c74e47b9b810" name="tests/multi.part1.rar" role="test" />
-   <file md5sum="f521ecb7a80b91d21484333ee0da94a2" name="tests/multi.part2.rar" role="test" />
-   <file md5sum="b4e49bf21f4187ad475aa074d0881759" name="tests/multi.part3.rar" role="test" />
-   <file md5sum="09f30e43f423e05b022b44956075a4b6" name="tests/rar_notrar.rar" role="test" />
-   <file md5sum="f7a687a9901ad1aa38bf7e9ae2c390b2" name="tests/rar_unicode.rar" role="test" />
-   <file md5sum="bb5c106347ff88fa00dfdfda201b1c3d" name="tests/solid.rar" role="test" />
-   <file md5sum="704e4f881b85c478ddf0ac1aa5d51068" name="tests/store_method.rar" role="test" />
-   <file md5sum="bef89d269c6456681ccbeb975f13dff1" name="unrar/arccmt.cpp" role="src" />
-   <file md5sum="71e9d3b3b2f9b98c358f3be93cbf05d0" name="unrar/archive.cpp" role="src" />
-   <file md5sum="986716ad3eab921eba255babee29904c" name="unrar/archive.hpp" role="src" />
-   <file md5sum="c6bc01d7d35928477eaa96dd0e655438" name="unrar/arcread.cpp" role="src" />
-   <file md5sum="f551cd385d4f0008f69c44c5306ba84f" name="unrar/array.hpp" role="src" />
-   <file md5sum="c84f789e6ad60f0fbc4ed0101fa5b6a0" name="unrar/beosea.cpp" role="src" />
-   <file md5sum="2790acfcec43e08d2f7bf3ca31a520c7" name="unrar/cmddata.cpp" role="src" />
-   <file md5sum="0e372b281a49a964f204e8b3d78fda2b" name="unrar/cmddata.hpp" role="src" />
-   <file md5sum="12397356e522bd2bac7986fa0300a74c" name="unrar/coder.cpp" role="src" />
-   <file md5sum="3248ff92fba6772a99b124b149c63313" name="unrar/coder.hpp" role="src" />
-   <file md5sum="22f20dfdc48e06f117a1ad2af8bd58d9" name="unrar/compress.hpp" role="src" />
-   <file md5sum="1df0b037b251410083c590b62c890012" name="unrar/consio.cpp" role="src" />
-   <file md5sum="8bf1cccc665867cbd05a823482a7bc9e" name="unrar/consio.hpp" role="src" />
-   <file md5sum="d7d256d062151c55a4fcc4081690f637" name="unrar/crc.cpp" role="src" />
-   <file md5sum="e72357db73778a8bcd369a3a1ec07605" name="unrar/crc.hpp" role="src" />
-   <file md5sum="a926ff62a304f67a3a249c3053543f3e" name="unrar/crypt.cpp" role="src" />
-   <file md5sum="9b6ab3f81b994d76f39614860c14ed30" name="unrar/crypt.hpp" role="src" />
-   <file md5sum="2ecc08715656e6bf4856dd68efacce6c" name="unrar/dll.cpp" role="src" />
-   <file md5sum="efa7bc7e911d1bb1d8239fb22f4fedbe" name="unrar/dll.def" role="src" />
-   <file md5sum="ff22d16bccbdee1745d9cbd9dcfd5725" name="unrar/dll.hpp" role="src" />
-   <file md5sum="9a9f95186aa52dc5308ef90e0aacca8e" name="unrar/encname.cpp" role="src" />
-   <file md5sum="f810c2746aab14afb66db933b6790fc2" name="unrar/encname.hpp" role="src" />
-   <file md5sum="e61f2baf9838a67c442141d276bdaaa7" name="unrar/errhnd.cpp" role="src" />
-   <file md5sum="1dac830ebb9af480a2de603d487f3d34" name="unrar/errhnd.hpp" role="src" />
-   <file md5sum="09faddaab39c0d38be474fd95b1848cb" name="unrar/extinfo.cpp" role="src" />
-   <file md5sum="dc8b7b12b077d25696aa6c5de4c67de6" name="unrar/extinfo.hpp" role="src" />
-   <file md5sum="a11424702b2fb83eec2101ff5cb3e4ee" name="unrar/extract.cpp" role="src" />
-   <file md5sum="90ca41a0bd22b0f153f8141da5beb04f" name="unrar/extract.hpp" role="src" />
-   <file md5sum="d9183d07ca3b9535ceec4eb2fad6b476" name="unrar/extractchunk.cpp" role="src" />
-   <file md5sum="1235cb4cc3f8b52d6e0bd9694b60c2ef" name="unrar/filcreat.cpp" role="src" />
-   <file md5sum="d5e61972af95817a455a46e7d8de316b" name="unrar/filcreat.hpp" role="src" />
-   <file md5sum="e2b415d692e1036b3b831abd5f7d7c10" name="unrar/file.cpp" role="src" />
-   <file md5sum="893ade22ed1bf10df3363e8a4dadecd8" name="unrar/file.hpp" role="src" />
-   <file md5sum="3e2e812afe43ccee986369d993b52b22" name="unrar/filefn.cpp" role="src" />
-   <file md5sum="840c6051e96c1327a57865d2bc590ca2" name="unrar/filefn.hpp" role="src" />
-   <file md5sum="96e2f90f3ccacdc08f879775b70ba306" name="unrar/filestr.cpp" role="src" />
-   <file md5sum="13b1bb46f8cc912bf8f1956b60857dee" name="unrar/filestr.hpp" role="src" />
-   <file md5sum="1d7d6376d7485622d3fd9334fdebb4c2" name="unrar/find.cpp" role="src" />
-   <file md5sum="d7ecac3a9188a2e4faab254b718b3d95" name="unrar/find.hpp" role="src" />
-   <file md5sum="c2d06f69c7e837518e8025b3d1ef1dc7" name="unrar/getbits.cpp" role="src" />
-   <file md5sum="5b78173354f7e681d0129f03669e653e" name="unrar/getbits.hpp" role="src" />
-   <file md5sum="ff33b4a645ad793576b082863e55ddfb" name="unrar/global.cpp" role="src" />
-   <file md5sum="a2a0a3ad5c84e8eca14ea67cf8a1be1f" name="unrar/global.hpp" role="src" />
-   <file md5sum="d10b0e557d790ec2493b04a43f37051c" name="unrar/headers.hpp" role="src" />
-   <file md5sum="313db0fac632461bc2de8a393e43cfd8" name="unrar/isnt.cpp" role="src" />
-   <file md5sum="006d7e71c164d6d72d3e8a632cef3668" name="unrar/isnt.hpp" role="src" />
-   <file md5sum="1dea2bc531f817291a51c64de711a7da" name="unrar/LICENSE.txt" role="doc" />
-   <file md5sum="b952bfe1b15cf06582471a34abf9a16f" name="unrar/list.cpp" role="src" />
-   <file md5sum="b8288a7ef926cf07aa6151a936b01fff" name="unrar/list.hpp" role="src" />
-   <file md5sum="11e825598190032d5455f5f68fc0146b" name="unrar/loclang.hpp" role="src" />
-   <file md5sum="149f254dcb9a2a63b0d2189887837bc8" name="unrar/log.cpp" role="src" />
-   <file md5sum="3977c1a6fc79f926f9bd4d2924a86df2" name="unrar/log.hpp" role="src" />
-   <file md5sum="ead06170129ca83d7d22ad5342108a7e" name="unrar/match.cpp" role="src" />
-   <file md5sum="b6cded6122f6ea2fc4a018b53230b12d" name="unrar/match.hpp" role="src" />
-   <file md5sum="d424e7b08ca76ce98f964137cbbbe37c" name="unrar/model.cpp" role="src" />
-   <file md5sum="edd9d8cb0d586a84946c93d5c5d885c2" name="unrar/model.hpp" role="src" />
-   <file md5sum="86879eae5e6e97cb4677d4c13b3c78a8" name="unrar/msc.dep" role="src" />
-   <file md5sum="ac1c678006b953b8ef7d3dd6528c0a56" name="unrar/options.cpp" role="src" />
-   <file md5sum="2d942505ded366d6fff0c69206a873dd" name="unrar/options.hpp" role="src" />
-   <file md5sum="77f7a94483095a4bb4b5f36cc86ad953" name="unrar/os.hpp" role="src" />
-   <file md5sum="60faf033974b16c21fdc23f086fa9475" name="unrar/os2ea.cpp" role="src" />
-   <file md5sum="52a05e5f6de4021be36924900b54b397" name="unrar/pathfn.cpp" role="src" />
-   <file md5sum="12d06a8b91155160115672437f8f6648" name="unrar/pathfn.hpp" role="src" />
-   <file md5sum="8928a1d9ab4dc248fffb391a1e291a07" name="unrar/rar.cpp" role="src" />
-   <file md5sum="a9acfc75b9b3bae94f43b21d19857827" name="unrar/rar.hpp" role="src" />
-   <file md5sum="ec7575d3c4c76d1fbaa120a0ee0a02c6" name="unrar/rardefs.hpp" role="src" />
-   <file md5sum="ce908cf3df6a4e3e70f3e8dc5ba73dca" name="unrar/rarlang.hpp" role="src" />
-   <file md5sum="7194998ce6556378971b0643ae40364e" name="unrar/raros.hpp" role="src" />
-   <file md5sum="2004824b0eeb5dff9179dba0b6ca2b0f" name="unrar/rartypes.hpp" role="src" />
-   <file md5sum="6da76cf9b9ae3995686c5bb81a2863fe" name="unrar/rarvm.cpp" role="src" />
-   <file md5sum="ad315fd6fc01261ddf3aa0e706bb99ad" name="unrar/rarvm.hpp" role="src" />
-   <file md5sum="5eecd72d7b0d3d3f5b7d98de4942d857" name="unrar/rarvmtbl.cpp" role="src" />
-   <file md5sum="ffb4f8cc0fc08895de02c6ed623dd32c" name="unrar/rawread.cpp" role="src" />
-   <file md5sum="c712f589e8f36fc0e2e6436b54aa3dfc" name="unrar/rawread.hpp" role="src" />
-   <file md5sum="d3470a7b351b74a2e0e9011d5c0ae431" name="unrar/rdwrfn.cpp" role="src" />
-   <file md5sum="84805ef64b2937a177be034ebf25d8d4" name="unrar/rdwrfn.hpp" role="src" />
-   <file md5sum="62f98f4b4529bef7618d32f657242e67" name="unrar/README.txt" role="doc" />
-   <file md5sum="65b12854dae4bddfb7a7e883c3200ac8" name="unrar/recvol.cpp" role="src" />
-   <file md5sum="359526506cd509eb487bc3281102a9b4" name="unrar/recvol.hpp" role="src" />
-   <file md5sum="8724a89c2dc0f9cf74675b23d7f85472" name="unrar/resource.cpp" role="src" />
-   <file md5sum="ac2a0e96c84f40665ebe208a555ae810" name="unrar/resource.hpp" role="src" />
-   <file md5sum="edaf225083289c940e58338392d04170" name="unrar/rijndael.cpp" role="src" />
-   <file md5sum="c7adcae186dd51bdced9b993a2e69e90" name="unrar/rijndael.hpp" role="src" />
-   <file md5sum="6233648b5df760d500b53502d4496587" name="unrar/rs.cpp" role="src" />
-   <file md5sum="6380159962ec833f8398cf7d2b9f90b3" name="unrar/rs.hpp" role="src" />
-   <file md5sum="ce0cc8a9a38f02168ee7c6778ee84340" name="unrar/savepos.cpp" role="src" />
-   <file md5sum="8bf0585f43e6d3eb4fa0e324bc32fc98" name="unrar/savepos.hpp" role="src" />
-   <file md5sum="19fdabb89664aedeaff900a998873e87" name="unrar/scantree.cpp" role="src" />
-   <file md5sum="dc12d3e27c2459d3638c5262ee397775" name="unrar/scantree.hpp" role="src" />
-   <file md5sum="3b9f81480f40d51c9ad6829fa95147d5" name="unrar/sha1.cpp" role="src" />
-   <file md5sum="bcc01b4c61f34c50760e3e3d44c4fdbd" name="unrar/sha1.hpp" role="src" />
-   <file md5sum="66d9b701f99d2f2589092336c2af7dbb" name="unrar/smallfn.cpp" role="src" />
-   <file md5sum="04142281ec96d1b1a79696a85150fef4" name="unrar/smallfn.hpp" role="src" />
-   <file md5sum="5058516a8a990177a0e493223e0d60dc" name="unrar/strfn.cpp" role="src" />
-   <file md5sum="682690539de7f25e49f98152d1372312" name="unrar/strfn.hpp" role="src" />
-   <file md5sum="37c0149a8a6ad4c5bc5786930a90617a" name="unrar/strlist.cpp" role="src" />
-   <file md5sum="c3428d96c5e092b89241825afd8e7b12" name="unrar/strlist.hpp" role="src" />
-   <file md5sum="1bf4edc7bdcc23a157d243fa2524254a" name="unrar/suballoc.cpp" role="src" />
-   <file md5sum="3b900853ccf149da23b3db14ea4cb66d" name="unrar/suballoc.hpp" role="src" />
-   <file md5sum="9fe0c1e1fbc3aafc1d4175e9c33f420c" name="unrar/system.cpp" role="src" />
-   <file md5sum="3746671d0b7ff389a18281b9c5432e1f" name="unrar/system.hpp" role="src" />
-   <file md5sum="fa933ea7a149688352bc3f57dacd86d9" name="unrar/timefn.cpp" role="src" />
-   <file md5sum="6ded74c14fea8cbe434dac058be4be5c" name="unrar/timefn.hpp" role="src" />
-   <file md5sum="2be615c92adf178f825db3cd8b9b98e0" name="unrar/ulinks.cpp" role="src" />
-   <file md5sum="e8edfa7f92e3b21792b9e50537b5b969" name="unrar/ulinks.hpp" role="src" />
-   <file md5sum="ae12b94bc679e3244e45310b2c7b2599" name="unrar/unicode.cpp" role="src" />
-   <file md5sum="a1249a8eeaeae53ec934cc621389f718" name="unrar/unicode.hpp" role="src" />
-   <file md5sum="4f365c94c4282134e0b065c4cbd135b5" name="unrar/unios2.cpp" role="src" />
-   <file md5sum="df3c83fe4533b6da785b10923eea05d4" name="unrar/unpack.cpp" role="src" />
-   <file md5sum="87297b12f981a98058acc8b02f415a74" name="unrar/unpack.hpp" role="src" />
-   <file md5sum="8a954ac29c66067c354b9196ce179e17" name="unrar/unpack15.cpp" role="src" />
-   <file md5sum="4b9d801b336b0183ceafc986749d91fb" name="unrar/unpack20.cpp" role="src" />
-   <file md5sum="eba80c88d7a6bedca73437307097525a" name="unrar/uowners.cpp" role="src" />
-   <file md5sum="5a5264f6055ed6ad2e31edc29afa7e9e" name="unrar/version.hpp" role="src" />
-   <file md5sum="5c288d6e7a3d51ca53b0f5e704586f8a" name="unrar/volume.cpp" role="src" />
-   <file md5sum="a4e707d5644f9a93ff1568e7f03dc1ec" name="unrar/volume.hpp" role="src" />
-   <file md5sum="b9f84ec35e5982af493b651e09b33f91" name="unrar/win32acl.cpp" role="src" />
-   <file md5sum="3cef94ab44455296268a182ed8759971" name="unrar/win32stm.cpp" role="src" />
-   <file md5sum="b59a85ef06e5f2493ab7b584df4139ba" name="config.m4" role="src" />
-   <file md5sum="c3c56212122c3bee4140d4da7a55cd3e" name="config.w32" role="src" />
-   <file md5sum="2eff7ab6134b662876827581b8df082b" name="CREDITS" role="doc" />
-   <file md5sum="99acacc62b24719c8195fb36b425859b" name="example.php" role="doc" />
-   <file md5sum="c192c12b4f74bfc561c437f74272ef94" name="php_rar.h" role="src" />
-   <file md5sum="5929b9467e9e2b4a4a964ee80390ca0b" name="rar.c" role="src" />
-   <file md5sum="fe2bd7fb0f64469345bb6b0ebd23b90b" name="rar_stream.c" role="src" />
-   <file md5sum="9ce8038de7b2b5c331cb50ecfe1b9431" name="rararch.c" role="src" />
-   <file md5sum="f0cc13744363440c1a34ef7ae0063487" name="rarentry.c" role="src" />
-  </dir>
+   <dir name="tests">
+    <file name="001.phpt" role="test" />
+    <file name="002.phpt" role="test" />
+    <file name="003.phpt" role="test" />
+    <file name="004.phpt" role="test" />
+    <file name="005.phpt" role="test" />
+    <file name="006.phpt" role="test" />
+    <file name="007.phpt" role="test" />
+    <file name="008.phpt" role="test" />
+    <file name="009.phpt" role="test" />
+    <file name="010.phpt" role="test" />
+    <file name="011.phpt" role="test" />
+    <file name="012.phpt" role="test" />
+    <file name="013.phpt" role="test" />
+    <file name="014.phpt" role="test" />
+    <file name="015.phpt" role="test" />
+    <file name="016.phpt" role="test" />
+    <file name="017.phpt" role="test" />
+    <file name="018.phpt" role="test" />
+    <file name="019.phpt" role="test" />
+    <file name="020.phpt" role="test" />
+    <file name="021.phpt" role="test" />
+    <file name="022.phpt" role="test" />
+	<file name="023.phpt" role="test" />
+	<file name="024.phpt" role="test" />
+	<file name="025.phpt" role="test" />
+	<file name="026.phpt" role="test" />
+	<file name="027.phpt" role="test" />
+	<file name="028.phpt" role="test" />
+	<file name="029.phpt" role="test" />
+	<file name="030.phpt" role="test" />
+	<file name="031.phpt" role="test" />
+    <file name="commented.rar" role="test" />
+    <file name="corrupted.rar" role="test" />
+    <file name="directories.rar" role="test" />
+	<file name="dirlink_unix.rar" role="test" />
+	<file name="encrypted_headers.rar" role="test" />
+	<file name="encrypted_only_files.rar" role="test" />
+    <file name="latest_winrar.rar" role="test" />
+    <file name="linux_rar.rar" role="test" />
+    <file name="multi.part1.rar" role="test" />
+    <file name="multi.part2.rar" role="test" />
+    <file name="multi.part3.rar" role="test" />
+    <file name="rar_notrar.rar" role="test" />
+    <file name="rar_unicode.rar" role="test" />
+    <file name="solid.rar" role="test" />
+    <file name="store_method.rar" role="test" />
+   </dir> <!-- /tests -->
+   <dir name="unrar">
+    <file name="arccmt.cpp" role="src" />
+    <file name="archive.cpp" role="src" />
+    <file name="archive.hpp" role="src" />
+    <file name="arcread.cpp" role="src" />
+    <file name="array.hpp" role="src" />
+    <file name="beosea.cpp" role="src" />
+    <file name="cmddata.cpp" role="src" />
+    <file name="cmddata.hpp" role="src" />
+    <file name="coder.cpp" role="src" />
+    <file name="coder.hpp" role="src" />
+    <file name="compress.hpp" role="src" />
+    <file name="consio.cpp" role="src" />
+    <file name="consio.hpp" role="src" />
+    <file name="crc.cpp" role="src" />
+    <file name="crc.hpp" role="src" />
+    <file name="crypt.cpp" role="src" />
+    <file name="crypt.hpp" role="src" />
+    <file name="dll.cpp" role="src" />
+    <file name="dll.def" role="src" />
+    <file name="dll.hpp" role="src" />
+    <file name="encname.cpp" role="src" />
+    <file name="encname.hpp" role="src" />
+    <file name="errhnd.cpp" role="src" />
+    <file name="errhnd.hpp" role="src" />
+    <file name="extinfo.cpp" role="src" />
+    <file name="extinfo.hpp" role="src" />
+    <file name="extract.cpp" role="src" />
+    <file name="extract.hpp" role="src" />
+    <file name="extractchunk.cpp" role="src" />
+    <file name="filcreat.cpp" role="src" />
+    <file name="filcreat.hpp" role="src" />
+    <file name="file.cpp" role="src" />
+    <file name="file.hpp" role="src" />
+    <file name="filefn.cpp" role="src" />
+    <file name="filefn.hpp" role="src" />
+    <file name="filestr.cpp" role="src" />
+    <file name="filestr.hpp" role="src" />
+    <file name="find.cpp" role="src" />
+    <file name="find.hpp" role="src" />
+    <file name="getbits.cpp" role="src" />
+    <file name="getbits.hpp" role="src" />
+    <file name="global.cpp" role="src" />
+    <file name="global.hpp" role="src" />
+    <file name="headers.hpp" role="src" />
+    <file name="isnt.cpp" role="src" />
+    <file name="isnt.hpp" role="src" />
+    <file name="LICENSE.txt" role="doc" />
+    <file name="list.cpp" role="src" />
+    <file name="list.hpp" role="src" />
+    <file name="loclang.hpp" role="src" />
+    <file name="log.cpp" role="src" />
+    <file name="log.hpp" role="src" />
+    <file name="match.cpp" role="src" />
+    <file name="match.hpp" role="src" />
+    <file name="model.cpp" role="src" />
+    <file name="model.hpp" role="src" />
+    <file name="msc.dep" role="src" />
+    <file name="options.cpp" role="src" />
+    <file name="options.hpp" role="src" />
+    <file name="os.hpp" role="src" />
+    <file name="os2ea.cpp" role="src" />
+    <file name="pathfn.cpp" role="src" />
+    <file name="pathfn.hpp" role="src" />
+    <file name="rar.cpp" role="src" />
+    <file name="rar.hpp" role="src" />
+    <file name="rardefs.hpp" role="src" />
+    <file name="rarlang.hpp" role="src" />
+    <file name="raros.hpp" role="src" />
+    <file name="rartypes.hpp" role="src" />
+    <file name="rarvm.cpp" role="src" />
+    <file name="rarvm.hpp" role="src" />
+    <file name="rarvmtbl.cpp" role="src" />
+    <file name="rawread.cpp" role="src" />
+    <file name="rawread.hpp" role="src" />
+    <file name="rdwrfn.cpp" role="src" />
+    <file name="rdwrfn.hpp" role="src" />
+    <file name="README.txt" role="doc" />
+    <file name="recvol.cpp" role="src" />
+    <file name="recvol.hpp" role="src" />
+    <file name="resource.cpp" role="src" />
+    <file name="resource.hpp" role="src" />
+    <file name="rijndael.cpp" role="src" />
+    <file name="rijndael.hpp" role="src" />
+    <file name="rs.cpp" role="src" />
+    <file name="rs.hpp" role="src" />
+    <file name="savepos.cpp" role="src" />
+    <file name="savepos.hpp" role="src" />
+    <file name="scantree.cpp" role="src" />
+    <file name="scantree.hpp" role="src" />
+    <file name="sha1.cpp" role="src" />
+    <file name="sha1.hpp" role="src" />
+    <file name="smallfn.cpp" role="src" />
+    <file name="smallfn.hpp" role="src" />
+    <file name="strfn.cpp" role="src" />
+    <file name="strfn.hpp" role="src" />
+    <file name="strlist.cpp" role="src" />
+    <file name="strlist.hpp" role="src" />
+    <file name="suballoc.cpp" role="src" />
+    <file name="suballoc.hpp" role="src" />
+    <file name="system.cpp" role="src" />
+    <file name="system.hpp" role="src" />
+    <file name="timefn.cpp" role="src" />
+    <file name="timefn.hpp" role="src" />
+    <file name="ulinks.cpp" role="src" />
+    <file name="ulinks.hpp" role="src" />
+    <file name="unicode.cpp" role="src" />
+    <file name="unicode.hpp" role="src" />
+    <file name="unios2.cpp" role="src" />
+    <file name="unpack.cpp" role="src" />
+    <file name="unpack.hpp" role="src" />
+    <file name="unpack15.cpp" role="src" />
+    <file name="unpack20.cpp" role="src" />
+    <file name="uowners.cpp" role="src" />
+    <file name="version.hpp" role="src" />
+    <file name="volume.cpp" role="src" />
+    <file name="volume.hpp" role="src" />
+    <file name="win32acl.cpp" role="src" />
+    <file name="win32stm.cpp" role="src" />
+   </dir> <!-- /unrar -->
+   <file name="config.m4" role="src" />
+   <file name="config.w32" role="src" />
+   <file name="CREDITS" role="doc" />
+   <file name="example.php" role="doc" />
+   <file name="php_rar.h" role="src" />
+   <file name="rar.c" role="src" />
+   <file name="rar_stream.c" role="src" />
+   <file name="rararch.c" role="src" />
+   <file name="rarentry.c" role="src" />
+  </dir> <!-- / -->
  </contents>
+
  <dependencies>
   <required>
    <php>
@@ -233,8 +248,11 @@
    </pearinstaller>
   </required>
  </dependencies>
+
  <providesextension>rar</providesextension>
+
  <extsrcrelease />
+ 
  <changelog>
   <release>
    <version>
@@ -250,9 +268,11 @@
    <notes>- Upgraded bundled UnRar to version 3.7.8.
 - Updated source code to use new parameter parsing API.
 - Fixed PECL bug #9002 (rar_list invalidates rar resource)
-- Fixed PECL bug #11430 (rar_extract() doesn&apos;t close handles gracefully)
-- rar_open() now throws an error when failed to open the specified file.</notes>
+- Fixed PECL bug #11430 (rar_extract() doesn't close handles gracefully)
+- rar_open() now throws an error when failed to open the specified file.
+   </notes>
   </release>
+
   <release>
    <version>
     <release>0.3.1</release>
@@ -265,8 +285,10 @@
    <date>2006-08-28</date>
    <license uri="http://www.php.net/license">PHP License</license>
    <notes>- Updated bundled unrar to version 3.6.8.
-- Fixed PHP4 compatibility.</notes>
+- Fixed PHP4 compatibility.
+   </notes>
   </release>
+  
   <release>
    <version>
     <release>0.3.0</release>
@@ -279,7 +301,8 @@
    <date>2006-06-06</date>
    <license uri="http://www.php.net/license">PHP License</license>
    <notes>- Updated bundled unrar to version 3.6.2 (fixes compile errors with GCC4).
-- Several minor fixes.</notes>
+- Several minor fixes.
+   </notes>
   </release>
   <release>
    <version>
@@ -296,7 +319,8 @@
 2) Fixed Win32 build issues (thanks to Edin).
 Currently only 5.x builds are available.
 3) Added OS constants.
-4) Fixed 0 bugs. There are no bugs, wee =)</notes>
+4) Fixed 0 bugs. There are no bugs, wee =)
+   </notes>
   </release>
   <release>
    <version>
@@ -309,7 +333,11 @@ Currently only 5.x builds are available.
    </stability>
    <date>2004-06-11</date>
    <license uri="http://www.php.net/license">PHP License</license>
-   <notes>1) Initial release</notes>
+   <notes>1) Initial release
+   </notes>
   </release>
  </changelog>
 </package>
+<!--
+vim:et:ts=1:sw=1
+-->
