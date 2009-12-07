@@ -61,27 +61,11 @@ enum HOST_SYSTEM {
   HOST_BEOS=5,HOST_MAX
 };
 
-/* rar.c */
-int le_rar_file;
-extern char *le_rar_file_name;
-
-PHP_MINIT_FUNCTION(rar);
-PHP_MSHUTDOWN_FUNCTION(rar);
-PHP_RINIT_FUNCTION(rar);
-PHP_RSHUTDOWN_FUNCTION(rar);
-PHP_MINFO_FUNCTION(rar);
-
-PHP_FUNCTION(rar_open);
-PHP_FUNCTION(rar_list);
-PHP_FUNCTION(rar_entry_get);
-PHP_FUNCTION(rar_command_get);
-PHP_FUNCTION(rar_close);
-
 //maximum comment size if 64KB
 #define RAR_MAX_COMMENT_SIZE 65536
 
 typedef struct rar {
-	int							id;
+	zend_object_handle			id;
 	int							entry_count; //>= number of files
 	struct RARHeaderDataEx		**entries;
 	struct RAROpenArchiveDataEx	*list_open_data;
@@ -90,21 +74,6 @@ typedef struct rar {
 	void						*arch_handle;
 	char						*password;
 } rar_file_t;
-
-int _rar_handle_error(int errcode TSRMLS_DC);
-php_stream *php_stream_rar_open(char *arc_name,
-								char *utf_file_name,
-								char *password,
-								char *mode STREAMS_DC TSRMLS_DC);
-int _rar_find_file(struct RAROpenArchiveDataEx *open_data, /* IN */
-				   const char *const utf_file_name, /* IN */
-				   char *password, /* IN, can be null */
-				   void **arc_handle, /* OUT: where to store rar archive handle  */
-				   int *found, /* OUT */
-				   struct RARHeaderDataEx *header_data /* OUT, can be null */
-				   );
-void _rar_wide_to_utf(const wchar_t *src, char *dest, size_t dest_size);
-void _rar_utf_to_wide(const char *src, wchar_t *dest, size_t dest_size);
 
 //PHP 5.2 compatibility
 #if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION < 3
@@ -120,11 +89,48 @@ void _rar_utf_to_wide(const char *src, wchar_t *dest, size_t dest_size);
 		{ NULL, 0, NULL, 0, 0, 0, pass_rest_by_reference, return_reference, required_num_args },
 #endif
 
+/* rar.c */
+PHP_MINIT_FUNCTION(rar);
+PHP_MSHUTDOWN_FUNCTION(rar);
+PHP_RINIT_FUNCTION(rar);
+PHP_RSHUTDOWN_FUNCTION(rar);
+PHP_MINFO_FUNCTION(rar);
+
+int _rar_handle_error(int errcode TSRMLS_DC);
+const char * _rar_error_to_string(int errcode);
+void _rar_wide_to_utf(const wchar_t *src, char *dest, size_t dest_size);
+void _rar_utf_to_wide(const char *src, wchar_t *dest, size_t dest_size);
+int _rar_find_file(struct RAROpenArchiveDataEx *open_data, /* IN */
+				   const char *const utf_file_name, /* IN */
+				   char *password, /* IN, can be null */
+				   void **arc_handle, /* OUT: where to store rar archive handle  */
+				   int *found, /* OUT */
+				   struct RARHeaderDataEx *header_data /* OUT, can be null */
+				   );
+int CALLBACK _rar_unrar_callback(UINT msg, LPARAM UserData, LPARAM P1, LPARAM P2);
+
+/* rararch.c */
+int _rar_get_file_resource(zval *zval_file, rar_file_t **rar_file TSRMLS_DC);
+int _rar_get_file_resource_ex(zval *zval_file, rar_file_t **rar_file, int silent TSRMLS_DC);
+void minit_rararch(TSRMLS_D);
+
+PHP_FUNCTION(rar_open);
+PHP_FUNCTION(rar_list);
+PHP_FUNCTION(rar_entry_get);
+PHP_FUNCTION(rar_comment_get);
+PHP_FUNCTION(rar_close);
+
 /* rarentry.c */
 extern zend_class_entry *rar_class_entry_ptr;
 void minit_rarentry(TSRMLS_D);
 void _rar_entry_to_zval(struct RARHeaderDataEx *entry, zval *object,
 							   unsigned long packed_size TSRMLS_DC);
+
+/* rar_stream.c */
+php_stream *php_stream_rar_open(char *arc_name,
+								char *utf_file_name,
+								char *password,
+								char *mode STREAMS_DC TSRMLS_DC);
 
 #endif	/* PHP_RAR_H */
 

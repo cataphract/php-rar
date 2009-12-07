@@ -17,8 +17,10 @@ var_dump($rar_file3);
 echo "Done\n";
 ?>
 --EXPECTF--
-resource(%d) of type (Rar file)
-resource(%d) of type (Rar file)
+object(RarArchive)#%d (%d) {
+}
+object(RarArchive)#%d (%d) {
+}
 
 Warning: rar_open(): Failed to open %s/no_such_file.rar: ERAR_EOPEN (file open error) in %s on line %d
 bool(false)

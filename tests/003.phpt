@@ -17,15 +17,13 @@ $rar_file3 = rar_open(dirname(__FILE__).'/no_such_file.rar');
 $entry3 = rar_entry_get($rar_file3, '2.txt');
 var_dump($entry3);
 
-$fp = fopen(__FILE__, "r");
-var_dump(rar_entry_get($fp, '2.txt'));
-
 echo "Done\n";
 ?>
 --EXPECTF--
 object(RarEntry)#%d (%d) {
   ["rarfile%sprivate%s=>
-  resource(%d) of type (Rar file)
+  object(RarArchive)#%d (%d) {
+  }
   ["name%sprivate%s=>
   string(30) "test file with whitespaces.txt"
   ["unpacked_size%sprivate%s=>
@@ -49,7 +47,8 @@ object(RarEntry)#%d (%d) {
 }
 object(RarEntry)#%d (%d) {
   ["rarfile%sprivate%s=>
-  resource(%d) of type (Rar file)
+  object(RarArchive)#%d (%d) {
+  }
   ["name%sprivate%s=>
   string(5) "2.txt"
   ["unpacked_size%sprivate%s=>
@@ -74,9 +73,6 @@ object(RarEntry)#%d (%d) {
 
 Warning: rar_open(): Failed to open %s: ERAR_EOPEN (file open error) in %s on line %d
 
-Warning: rar_entry_get() expects parameter 1 to be resource, boolean given in %s on line %d
+Warning: rar_entry_get() expects parameter 1 to be RarArchive, boolean given in %s on line %d
 NULL
-
-Warning: rar_entry_get(): supplied resource is not a valid Rar file resource in %s on line %d
-bool(false)
 Done
