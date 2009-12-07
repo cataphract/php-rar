@@ -6,7 +6,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
  <name>rar</name>
  <channel>pecl.php.net</channel>
  <summary>rar extension</summary>
- <description>PHP extension for reading Rar archives using bundled unRAR library.
+ <description>PHP extension for reading RAR archives using bundled unRAR library.
  </description>
 
  <lead>
@@ -23,11 +23,11 @@ http://pear.php.net/dtd/package-2.0.xsd">
   <active>yes</active>
  </developer>
 
- <date>2009-11-29</date>
- <time>17:51:00</time>
+ <date>2009-12-07</date>
+ <time>15:24:00</time>
  <version>
-  <release>2.0.0b1</release>
-  <api>2.0.0b1</api>
+  <release>2.0.0b2</release>
+  <api>2.0.0b2</api>
  </version>
 
  <stability>
@@ -37,6 +37,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
 
  <license uri="http://www.php.net/license">PHP License</license>
  <notes>- Updated bundled UnRAR library to version 3.9.6.
+- Added OOP interface for rar_* functions with the RarArchive class.
 - Changed bundled UnRAR library to allow partial file extraction.
 - Fixed bug in UnRAR library that could cause a read out of buffer bounds on some corrupted RAR files.
 - Added a bunch of constants to RarEntry.
@@ -85,6 +86,10 @@ http://pear.php.net/dtd/package-2.0.xsd">
 	<file name="025.phpt" role="test" />
 	<file name="026.phpt" role="test" />
 	<file name="027.phpt" role="test" />
+	<file name="028.phpt" role="test" />
+	<file name="029.phpt" role="test" />
+	<file name="030.phpt" role="test" />
+	<file name="031.phpt" role="test" />
     <file name="commented.rar" role="test" />
     <file name="corrupted.rar" role="test" />
     <file name="directories.rar" role="test" />
@@ -228,6 +233,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
    <file name="php_rar.h" role="src" />
    <file name="rar.c" role="src" />
    <file name="rar_stream.c" role="src" />
+   <file name="rararch.c" role="src" />
    <file name="rarentry.c" role="src" />
   </dir> <!-- / -->
  </contents>
