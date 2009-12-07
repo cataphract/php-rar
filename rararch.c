@@ -451,7 +451,7 @@ PHP_FUNCTION(rar_entry_get)
    Return comment of the rar archive */
 PHP_FUNCTION(rar_comment_get)
 {
-	zval *file = NULL;
+	zval *file = getThis();
 	rar_file_t *rar = NULL;
 	unsigned cmt_state;
 
@@ -484,7 +484,7 @@ PHP_FUNCTION(rar_comment_get)
    Close Rar archive and free all resources */
 PHP_FUNCTION(rar_close)
 {
-	zval *file = NULL;
+	zval *file = getThis();
 	rar_file_t *rar = NULL;
 
 	if (file == NULL && zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O",
