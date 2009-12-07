@@ -30,7 +30,7 @@ echo "Done\n";
 --> should fail (no password):
 int(2)
 
-Warning: RarEntry::getStream(): ERAR_MISSING_PASSWORD (password needed but not specified) in D:\Users\Cataphract\Documents\php_rar\trunk\tests\026.php on line 6
+Warning: RarEntry::getStream(): ERAR_MISSING_PASSWORD (password needed but not specified) in %s on line %d
 bool(false)
 
 --> success (password is the same as the one given on rar_open):

@@ -4,7 +4,7 @@ RarArchive::getComment() basic test
 <?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
-$rar_arch = RarArchive::open('commented.rar'); 
+$rar_arch = RarArchive::open(dirname(__FILE__) . '/commented.rar'); 
 echo $rar_arch->getComment();
 echo "\n";
 echo "Done\n";

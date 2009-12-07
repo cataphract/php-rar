@@ -37,8 +37,8 @@
 #define PASCAL
 #define LONG long
 #define HANDLE void *
-//void* more adequate than original long because it's used mainly as a pointer:
-#define LPARAM void *
+//mostly used as a pointer. Originally long
+#define LPARAM long long
 #define UINT unsigned int
 #endif
 
