@@ -201,16 +201,6 @@ void _rar_utf_to_wide(const char *src, wchar_t *dest, size_t dest_size) /* {{{ *
 }
 /* }}} */
 
-/* Missing function in VC6 */
-#if !HAVE_STRNLEN
-static size_t strnlen(const char *s, size_t maxlen) /* {{{ */
-{
-	char *r = memchr(s, '\0', maxlen);
-	return r ? r-s : maxlen;
-}
-/* }}} */
-#endif
-
 /* WARNING: It's the caller who must close the archive. */
 int _rar_find_file(struct RAROpenArchiveDataEx *open_data, /* IN */
 				   const char *const utf_file_name, /* IN */

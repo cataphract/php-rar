@@ -300,6 +300,16 @@ static void rararch_ce_free_object_storage(ze_rararch_object *object TSRMLS_DC) 
 }
 /* }}} */
 
+/* Missing function in VC6 */
+#if !HAVE_STRNLEN
+static size_t strnlen(const char *s, size_t maxlen) /* {{{ */
+{
+	char *r = memchr(s, '\0', maxlen);
+	return r ? r-s : maxlen;
+}
+/* }}} */
+#endif
+/* }}} */
 
 /* module functions */
 
