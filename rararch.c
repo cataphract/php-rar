@@ -416,9 +416,17 @@ PHP_FUNCTION(rar_entry_get)
 	int filename_len;
 	wchar_t *filename_c = NULL;
 
-	if (file == NULL && zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Os",
-		&file, rararch_ce_ptr, &filename, &filename_len) == FAILURE) {
-		return;
+	if (file == NULL) {
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Os",
+			&file, rararch_ce_ptr, &filename, &filename_len) == FAILURE) {
+			return;
+		}
+	}
+	else {
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s",
+			&filename, &filename_len) == FAILURE) {
+			return;
+		}
 	}
 
 	if (!_rar_get_file_resource(file, &rar TSRMLS_CC)) {
