@@ -32,7 +32,7 @@ echo "unix symlink attr: " . (($e->getAttr() & RarEntry::ATTRIBUTE_UNIX_FINAL_QU
 	== RarEntry::ATTRIBUTE_UNIX_SYM_LINK) ."\n";
 $stream = $e->getStream();
 $cont = stream_get_contents($stream);
-echo "$cont (strlen() " . strlen($cont) . ")\n";
+echo "$cont (strlen() " . strlen($cont) . ")\n"; //varies on windows and linux
 
 echo "Done\n";
 --EXPECTF--
@@ -50,5 +50,5 @@ perms: 777
 win directory bit: 1
 unix directory attr: 
 unix symlink attr: 1
-emptydir (strlen() 8)
+%s
 Done

@@ -11,7 +11,7 @@ foreach ($arch->list() as $e) {
 
 echo "Done\n";
 --EXPECTF--
-RarEntry for file "emptydir\link" (36ac99f1)
+RarEntry for file "emptydir%clink" (36ac99f1)
 RarEntry for file "file" (b95e8411)
 RarEntry for file "link" (43e55b49)
 RarEntry for directory "emptydir" (0)
