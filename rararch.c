@@ -31,7 +31,8 @@
 extern "C" {
 #endif
 
-#include "php.h"
+#include <php.h>
+#include <zend_interfaces.h>
 #include "php_rar.h"
 
 /* {{{ Type definitions reserved for this translation unit */
@@ -39,6 +40,11 @@ typedef struct _ze_rararch_object {
 	zend_object	parent;
 	rar_file_t  *rar_file;
 } ze_rararch_object;
+typedef struct _rararch_iterator {
+	zend_object_iterator	parent;
+	int						index;	/* index in RARHeaderEx array */
+	zval					*value;	
+} rararch_iterator;
 /* }}} */
 
 /* {{{ Globals with internal linkage */
@@ -50,6 +56,7 @@ static zend_object_handlers rararch_object_handlers;
 static int _rar_list_files(rar_file_t * TSRMLS_DC);
 static int _rar_raw_entries_to_files(rar_file_t *rar,
 								     const wchar_t * const file, //can be NULL
+									 int *index,
 								     zval *target TSRMLS_DC);
 static zend_object_value rararch_ce_create_object(zend_class_entry *class_type TSRMLS_DC);
 static void rararch_ce_destroy_object(ze_rararch_object *object,
@@ -117,17 +124,21 @@ static int _rar_list_files(rar_file_t *rar TSRMLS_DC) /* {{{ */
 
 static int _rar_raw_entries_to_files(rar_file_t *rar,
 									 const wchar_t * const file, //can be NULL
-									 zval *target TSRMLS_DC) /* {{{ */
+									 int *index, //start index, can be NULL
+									 zval *target //array or initialized object zval
+									 TSRMLS_DC) /* {{{ */
 {
 	wchar_t last_name[1024] = {L'\0'};
 	char strict_last_name[1024] = {'\0'};
 	unsigned long packed_size = 0UL;
 	struct RARHeaderDataEx *last_entry = NULL;
 	int any_commit = FALSE;
-	int first_file_check = TRUE;
+	int first_file_check = (index == NULL) || (*index == 0);
+	int target_is_obj = (file != NULL || index != NULL);
 	int i;
 
-	for (i = 0; i <= rar->entry_count; i++) {
+	assert(rar->entry_count == 0 || rar->entries != NULL);
+	for (i = (index == NULL ? 0 : *index); i <= rar->entry_count; i++) {
 		struct RARHeaderDataEx *entry;
 		const wchar_t *current_name;
 		const char *strict_current_name;
@@ -159,7 +170,7 @@ static int _rar_raw_entries_to_files(rar_file_t *rar,
 		 * don't trust the wide file name. */
 		ended_file = has_last_entry && (!read_entry ||
 			(strncmp(strict_last_name, strict_current_name, 1024) != 0));
-		commit_file = ended_file && (file == NULL ||
+		commit_file = ended_file && (index != NULL || file == NULL ||
 			(file != NULL && wcsncmp(last_name, file, 1024) == 0));
 
 		if (commit_file) { //this entry corresponds to a new file
@@ -175,9 +186,9 @@ static int _rar_raw_entries_to_files(rar_file_t *rar,
 			any_commit = TRUE; //at least one commit done
 
 			//take care of last entry
-			/* if file is NULL, assume target is a zval that will hold the
+			/* if target_is_obj, assume target is a zval that will hold the
 			 * entry, otherwise assume it is a numerical array */
-			if (file == NULL) {
+			if (!target_is_obj) {
 				MAKE_STD_ZVAL(entry_obj);
 			}
 			else
@@ -202,8 +213,10 @@ static int _rar_raw_entries_to_files(rar_file_t *rar,
 
 			//remaining properties:
 			_rar_entry_to_zval(last_entry, entry_obj, packed_size TSRMLS_CC);
-			if (file == NULL)
+			if (!target_is_obj) //target is an array, add to it
 				add_next_index_zval(target, entry_obj);
+			else
+				break; //we're done
 		}
 
 		if (ended_file) {
@@ -232,6 +245,9 @@ static int _rar_raw_entries_to_files(rar_file_t *rar,
 			strncpy(strict_last_name, strict_current_name, 1024);
 		}
 	}
+
+	if (index != NULL)
+		*index = i;
 
 	return any_commit;
 }
@@ -410,7 +426,7 @@ PHP_FUNCTION(rar_list)
 	
 	array_init(return_value);
 	
-	_rar_raw_entries_to_files(rar, NULL, return_value TSRMLS_CC);
+	_rar_raw_entries_to_files(rar, NULL, NULL, return_value TSRMLS_CC);
 }
 /* }}} */
 
@@ -453,7 +469,8 @@ PHP_FUNCTION(rar_entry_get)
 	filename_c = ecalloc(filename_len + 1, sizeof *filename_c); 
 	_rar_utf_to_wide(filename, filename_c, filename_len + 1);
 
-	found = _rar_raw_entries_to_files(rar, filename_c, return_value TSRMLS_CC);
+	found = _rar_raw_entries_to_files(rar, filename_c, NULL, return_value
+		TSRMLS_CC);
 	if (!found) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,
 			"cannot find file \"%s\" in Rar archive \"%s\".",
@@ -583,6 +600,152 @@ static zend_function_entry php_rararch_class_functions[] = {
 	{NULL, NULL, NULL}
 };
 
+/* {{{ Iteration. Very boring stuff indeed. */
+
+/* {{{ Iteration Prototypes */
+static zend_object_iterator *rararch_it_get_iterator(zend_class_entry *ce,
+													 zval *object,
+													 int by_ref TSRMLS_DC);
+static void rararch_it_invalidate_current(zend_object_iterator *iter TSRMLS_DC);
+static void rararch_it_dtor(zend_object_iterator *iter TSRMLS_DC);
+static void rararch_it_fetch(rararch_iterator *it TSRMLS_DC);
+static int rararch_it_valid(zend_object_iterator *iter TSRMLS_DC);
+static void rararch_it_current_data(zend_object_iterator *iter,
+									zval ***data TSRMLS_DC);
+static void rararch_it_move_forward(zend_object_iterator *iter TSRMLS_DC);
+static void rararch_it_rewind(zend_object_iterator *iter TSRMLS_DC);
+/* }}} */
+
+/* {{{ rararch_it_get_iterator */
+static zend_object_iterator *rararch_it_get_iterator(zend_class_entry *ce,
+													 zval *object,
+													 int by_ref TSRMLS_DC)
+{
+	rararch_iterator	*it;
+	rar_file_t			*rar;
+	int					res;
+
+	if (by_ref) {
+		zend_error(E_ERROR, "An iterator cannot be used with foreach by reference");
+	}
+
+	it = emalloc(sizeof *it);
+
+	res = _rar_get_file_resource_ex(object, &rar, 1 TSRMLS_CC);
+	if (!res)
+		zend_error(E_ERROR, "Cannot fecth RarArchive object");
+	if (rar->entries == NULL) {
+		res = _rar_list_files(rar TSRMLS_CC); 
+		if (_rar_handle_error(res TSRMLS_CC) == FAILURE) {
+			rar->entry_count = 0;
+		}
+	}
+
+	Z_ADDREF_P(object);
+	it->parent.data = object;
+	it->parent.funcs = ce->iterator_funcs.funcs;
+	it->index = 0;
+	it->value = NULL;
+	return (zend_object_iterator*) it;
+}
+/* }}} */
+
+/* {{{ rararch_it_invalidate_current */
+static void rararch_it_invalidate_current(zend_object_iterator *iter TSRMLS_DC)
+{
+	rararch_iterator *it = (rararch_iterator *) iter;
+	if (it->value != NULL) {
+		zval_ptr_dtor(&it->value);
+		it->value = NULL;
+	}
+}
+/* }}} */
+
+/* {{{ rararch_it_dtor */
+static void rararch_it_dtor(zend_object_iterator *iter TSRMLS_DC)
+{
+	rararch_iterator *it = (rararch_iterator *) iter;
+	
+	rararch_it_invalidate_current((zend_object_iterator *) it TSRMLS_CC);
+	
+	zval_ptr_dtor((zval**) &it->parent.data); /* decrease refcount on zval object */
+	efree(it);
+}
+/* }}} */
+
+/* {{{ rararch_it_fetch - populates it->current */
+static void rararch_it_fetch(rararch_iterator *it TSRMLS_DC)
+{
+	rar_file_t		*rar_file;
+	int				res;
+
+	assert(it->value == NULL);
+	MAKE_STD_ZVAL(it->value);
+
+	res = _rar_get_file_resource_ex(it->parent.data, &rar_file, 1 TSRMLS_CC);
+	if (!res)
+		zend_error(E_ERROR, "Cannot fecth RarArchive object");
+
+	res = _rar_raw_entries_to_files(rar_file, NULL, &it->index, it->value
+		TSRMLS_CC);
+	if (!res)
+		ZVAL_FALSE(it->value);
+}
+/* }}} */
+
+/* {{{ rararch_it_valid */
+static int rararch_it_valid(zend_object_iterator *iter TSRMLS_DC)
+{
+	zval *value = ((rararch_iterator *) iter)->value;
+	assert(value != NULL);
+	return (Z_TYPE_P(value) != IS_BOOL)?SUCCESS:FAILURE;
+}
+/* }}} */
+
+/* {{{ rararch_it_current_data */
+static void rararch_it_current_data(zend_object_iterator *iter,
+									zval ***data TSRMLS_DC)
+{
+	zval *value = ((rararch_iterator *) iter)->value;
+	assert(value != NULL);
+	*data = &value;
+}
+/* }}} */
+
+/* {{{ rararch_it_move_forward */
+static void rararch_it_move_forward(zend_object_iterator *iter TSRMLS_DC)
+{
+	rararch_iterator *it = (rararch_iterator *) iter;
+	rararch_it_invalidate_current((zend_object_iterator *) it TSRMLS_CC);
+	it->value = NULL;
+	rararch_it_fetch(it TSRMLS_CC);
+}
+/* }}} */
+
+/* {{{ rararch_it_rewind */
+static void rararch_it_rewind(zend_object_iterator *iter TSRMLS_DC)
+{
+	rararch_iterator *it = (rararch_iterator *) iter;
+	rararch_it_invalidate_current((zend_object_iterator *) it TSRMLS_CC);
+	it->index = 0;
+	it->value = NULL;
+	rararch_it_fetch(it TSRMLS_CC);
+}
+/* }}} */
+
+/* iterator handler table */
+static zend_object_iterator_funcs rararch_it_funcs = {
+	rararch_it_dtor,
+	rararch_it_valid,
+	rararch_it_current_data,
+	NULL,
+	rararch_it_move_forward,
+	rararch_it_rewind,
+	rararch_it_invalidate_current
+};
+
+/* }}} */
+
 void minit_rararch(TSRMLS_D)
 {
 	zend_class_entry ce;
@@ -595,6 +758,9 @@ void minit_rararch(TSRMLS_D)
 	rararch_ce_ptr->ce_flags |= ZEND_ACC_FINAL_CLASS;
 	rararch_ce_ptr->clone = NULL;
 	rararch_ce_ptr->create_object = &rararch_ce_create_object;
+	rararch_ce_ptr->get_iterator = rararch_it_get_iterator;
+	rararch_ce_ptr->iterator_funcs.funcs = &rararch_it_funcs;
+	zend_class_implements(rararch_ce_ptr TSRMLS_CC, 1, zend_ce_traversable);
 }
 
 #ifdef __cplusplus
