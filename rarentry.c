@@ -154,13 +154,14 @@ static zval **_rar_entry_get_property(zval *entry_obj, char *name, int namelen T
 	//perhaps cleaner alternative: use Z_OBJ_HANDLER_P(entry_obj, read_property)
 	//another way to avoid mem allocation would be to get the mangled name from
 	//ce->properties_info.name (properties_info hash table indexes by unmangled name)
+	//see also zend_read_property
 	
 	zend_mangle_property_name(&mangled_name, &mangled_name_len, "RarEntry",
 		sizeof("RarEntry") - 1, name, namelen, 0);
 	if (zend_hash_find(Z_OBJPROP_P(entry_obj), mangled_name, mangled_name_len,
 			(void**) &tmp) == FAILURE) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,
-			"Bug: unable to find property '%s'", name);
+			"Bug: unable to find property '%s'. Please report.", name);
 		efree(mangled_name);
 		return NULL;
 	}
@@ -273,7 +274,7 @@ PHP_METHOD(rarentry, extract)
 	}
 
 	if (!found) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,
+		_rar_handle_ext_error(TSRMLS_C,
 			"Can't find file %s in archive %s", Z_STRVAL_PP(tmp_name),
 			rar->list_open_data->ArcName);
 		RETVAL_FALSE;
@@ -566,6 +567,7 @@ static zend_function_entry php_rar_class_functions[] = {
 	PHP_ME(rarentry,		isDirectory,		arginfo_rar_void,	ZEND_ACC_PUBLIC)
 	PHP_ME(rarentry,		isEncrypted,		arginfo_rar_void,	ZEND_ACC_PUBLIC)
 	PHP_ME(rarentry,		__toString,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	PHP_ME_MAPPING(__construct,	rar_bogus_ctor,	arginfo_rar_void,	ZEND_ACC_PRIVATE | ZEND_ACC_CTOR)
 	{NULL, NULL, NULL}
 };
 
@@ -582,7 +584,6 @@ void minit_rarentry(TSRMLS_D)
 	rar_class_entry_ptr->clone = NULL;
 	//Custom creation currently not really needed, but you never know...
 	rar_class_entry_ptr->create_object = &rarentry_ce_create_object;
-	
 
 	REG_RAR_PROPERTY("rarfile", "Associated RAR archive");
 	REG_RAR_PROPERTY("name", "File or directory name with path");

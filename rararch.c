@@ -83,7 +83,7 @@ int _rar_get_file_resource_ex(zval *zval_file, rar_file_t **rar_file, int silent
 
 	*rar_file = zobj->rar_file;
 	if ((*rar_file)->arch_handle == NULL && !silent) { //rar_close was called
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,	"The archive is already closed.");
+		_rar_handle_ext_error(TSRMLS_C, "The archive is already closed.");
 		return 0;
 	}
 
@@ -385,9 +385,16 @@ PHP_FUNCTION(rar_open)
 	} else {
 		const char *err_str = _rar_error_to_string(rar->list_open_data->OpenResult);
 		if (err_str == NULL)
-			err_str = "Unrar lib did not return an error. Should not happen.";
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Failed to open %s: %s",
-			filename, err_str);
+			_rar_handle_ext_error(TSRMLS_C, "%s", "Archive opened failed "
+			"(returned NULL handle), but did not return an error. "
+			"Should not happen.");
+		else {
+			char *preamble;
+			spprintf(&preamble, 0, "Failed to open %s: ", filename);
+			_rar_handle_error_ex(preamble,
+				rar->list_open_data->OpenResult TSRMLS_CC);
+			efree(preamble);
+		}
 		efree(rar->list_open_data->ArcName);
 		efree(rar->list_open_data->CmtBuf);
 		efree(rar->list_open_data);
@@ -472,13 +479,33 @@ PHP_FUNCTION(rar_entry_get)
 	found = _rar_raw_entries_to_files(rar, filename_c, NULL, return_value
 		TSRMLS_CC);
 	if (!found) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,
+		_rar_handle_ext_error(TSRMLS_C,
 			"cannot find file \"%s\" in Rar archive \"%s\".",
 			filename, rar->list_open_data->ArcName);
 		RETVAL_FALSE;	
 	}
 	
 	efree(filename_c);
+}
+/* }}} */
+
+/* {{{ proto string rar_solid_get(RarArchive rarfile)
+   Return whether RAR archive is solid */
+PHP_FUNCTION(rar_solid_get)
+{
+	zval *file = getThis();
+	rar_file_t *rar = NULL;
+
+	if (file == NULL && zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O",
+		&file, rararch_ce_ptr) == FAILURE) {
+		return;
+	}
+
+	if (!_rar_get_file_resource(file, &rar TSRMLS_CC)) {
+		RETURN_FALSE;
+	}
+
+	RETURN_BOOL((rar->list_open_data->Flags & 0x0008) != 0);
 }
 /* }}} */
 
@@ -594,9 +621,11 @@ static zend_function_entry php_rararch_class_functions[] = {
 	PHP_ME_MAPPING(open,		rar_open,			arginfo_rararchive_open,		ZEND_ACC_STATIC | ZEND_ACC_PUBLIC)
 	PHP_ME_MAPPING(list,		rar_list,			arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
 	PHP_ME_MAPPING(getEntry,	rar_entry_get,		arginfo_rararchive_getentry,	ZEND_ACC_PUBLIC)
+	PHP_ME_MAPPING(isSolid,		rar_solid_get,		arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
 	PHP_ME_MAPPING(getComment,	rar_comment_get,	arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
 	PHP_ME_MAPPING(close,		rar_close,			arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
 	PHP_ME(rararch,				__toString,			arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
+	PHP_ME_MAPPING(__construct,	rar_bogus_ctor,		arginfo_rararchive_void,		ZEND_ACC_PRIVATE | ZEND_ACC_CTOR)
 	{NULL, NULL, NULL}
 };
 

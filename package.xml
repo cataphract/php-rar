@@ -90,6 +90,12 @@ http://pear.php.net/dtd/package-2.0.xsd">
 	<file name="029.phpt" role="test" />
 	<file name="030.phpt" role="test" />
 	<file name="031.phpt" role="test" />
+	<file name="032.phpt" role="test" />
+	<file name="033.phpt" role="test" />
+	<file name="034.phpt" role="test" />
+	<file name="035.phpt" role="test" />
+	<file name="036.phpt" role="test" />
+	<file name="037.phpt" role="test" />
     <file name="commented.rar" role="test" />
     <file name="corrupted.rar" role="test" />
     <file name="directories.rar" role="test" />
@@ -235,6 +241,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
    <file name="rar_stream.c" role="src" />
    <file name="rararch.c" role="src" />
    <file name="rarentry.c" role="src" />
+   <file name="rar_error.c" role="src" />
   </dir> <!-- / -->
  </contents>
 

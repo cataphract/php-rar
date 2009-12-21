@@ -41,9 +41,10 @@ extern "C" {
 
 #include <wchar.h>
 
-#include "php.h"
-#include "php_ini.h"
-#include "ext/standard/info.h"
+#include <php.h>
+#include <php_ini.h>
+#include <ext/standard/info.h>
+#include <ext/spl/spl_exceptions.h>
 
 #if HAVE_RAR
 
@@ -53,77 +54,7 @@ extern "C" {
 static void _rar_fix_wide(wchar_t *str);
 /* }}} */
 
-/* Functions with external linkage {{{ */
-int _rar_handle_error(int errcode TSRMLS_DC) /* {{{ */
-{
-	const char *err = _rar_error_to_string(errcode);
-
-	if (err == NULL) {
-		return SUCCESS;
-	}
-	
-	php_error_docref(NULL TSRMLS_CC, E_WARNING, err);
-	return FAILURE;
-}
-/* }}} */
-
-//returns a string or NULL if not an error
-const char * _rar_error_to_string(int errcode) /* {{{ */
-{
-	const char *ret;
-	switch (errcode) {
-		case 0:
-			/* no error */
-		case 1:
-			/* no error (comment completely read) */
-		case ERAR_END_ARCHIVE:
-			/* no error */
-			ret = NULL;
-			break;
-		case ERAR_NO_MEMORY:
-			ret = "ERAR_NO_MEMORY (not enough memory)";
-			break;
-		case ERAR_BAD_DATA:
-			ret = "ERAR_BAD_DATA";
-			break;
-		case ERAR_BAD_ARCHIVE:
-			ret = "ERAR_BAD_ARCHIVE";
-			break;
-		case ERAR_UNKNOWN_FORMAT:
-			ret = "ERAR_UNKNOWN_FORMAT";
-			break;
-		case ERAR_EOPEN:
-			ret = "ERAR_EOPEN (file open error)";
-			break;
-		case ERAR_ECREATE:
-			ret = "ERAR_ECREATE";
-			break;
-		case ERAR_ECLOSE:
-			ret = "ERAR_ECLOSE (error closing file)";
-			break;
-		case ERAR_EREAD:
-			ret = "ERAR_EREAD";
-			break;
-		case ERAR_EWRITE:
-			ret = "ERAR_EWRITE";
-			break;
-		case ERAR_SMALL_BUF:
-			ret = "ERAR_SMALL_BUF";
-			break;
-		case ERAR_UNKNOWN:
-			ret = "ERAR_UNKNOWN (unknown RAR error)";
-			break;
-		case ERAR_MISSING_PASSWORD:
-			ret = "ERAR_MISSING_PASSWORD (password needed but not specified)";
-			break;
-		default:
-			ret = "unknown RAR error (should not happen)";
-			break;
-	}
-	return ret;
-}
-/* }}} */
-
+/* {{{ Functions with external linkage */
 /* From unicode.cpp
  * I can't use that one directy because it takes a const wchar, not wchar_t.
  * And I shouldn't because it's not a public API.
@@ -292,6 +223,16 @@ int CALLBACK _rar_unrar_callback(UINT msg, LPARAM UserData, LPARAM P1, LPARAM P2
 	return 0;
 }
 /* }}} */
+PHP_FUNCTION(rar_bogus_ctor) /* {{{ */
+{
+	/* This exception should not be thrown. The point is to add this as
+	 * a class constructor and make it private. This code would be able to
+	 * run only if the constructor were made public */
+	zend_throw_exception(spl_ce_RuntimeException,
+		"An object of this type cannot be created with the new operator.",
+		0 TSRMLS_CC);
+}
+/* }}} */
 /* }}} */
 
 /* {{{ Functions with internal linkage */
@@ -329,6 +270,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_rar_entry_get, 0, 0, 2)
 	ZEND_ARG_INFO(0, filename)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_rar_solid_get, 0, 0, 1)
+	ZEND_ARG_INFO(0, rarfile)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_rar_comment_get, 0, 0, 1)
 	ZEND_ARG_INFO(0, rarfile)
 ZEND_END_ARG_INFO()
@@ -345,6 +290,7 @@ static function_entry rar_functions[] = {
 	PHP_FE(rar_open,		arginfo_rar_open)
 	PHP_FE(rar_list,		arginfo_rar_list)
 	PHP_FE(rar_entry_get,	arginfo_rar_entry_get)
+	PHP_FE(rar_solid_get,	arginfo_rar_solid_get)
 	PHP_FE(rar_comment_get,	arginfo_rar_comment_get)
 	PHP_FE(rar_close,		arginfo_rar_close)
 	{NULL, NULL, NULL}
@@ -357,6 +303,7 @@ PHP_MINIT_FUNCTION(rar)
 {
 	minit_rararch(TSRMLS_C);
 	minit_rarentry(TSRMLS_C);
+	minit_rarerror(TSRMLS_C);
 	
 	REGISTER_LONG_CONSTANT("RAR_HOST_MSDOS",	HOST_MSDOS,	CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("RAR_HOST_OS2",		HOST_OS2,	CONST_CS | CONST_PERSISTENT);
