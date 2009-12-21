@@ -26,6 +26,6 @@ if test "$PHP_RAR" != "no"; then
   PHP_SUBST(RAR_SHARED_LIBADD)  
   PHP_ADD_LIBRARY_WITH_PATH(stdc++, "", RAR_SHARED_LIBADD)
 
-  PHP_NEW_EXTENSION(rar, rar.c rararch.c rarentry.c rar_stream.c $unrar_sources, $ext_shared,,-DRARDLL -DGUI -DSILENT -Wno-write-strings -I@ext_srcdir@/unrar)  
+  PHP_NEW_EXTENSION(rar, rar.c rar_error.c rararch.c rarentry.c rar_stream.c $unrar_sources, $ext_shared,,-DRARDLL -DGUI -DSILENT -Wno-write-strings -I@ext_srcdir@/unrar)  
   PHP_ADD_BUILD_DIR($ext_builddir/unrar)  
 fi

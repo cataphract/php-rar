@@ -222,8 +222,8 @@ php_stream *php_stream_rar_open(char *arc_name,
 	}
 
 	if (!found)
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,
-			"Can't find file %s in archive %s", utf_file_name, arc_name);
+		_rar_handle_ext_error(TSRMLS_C, "Can't find file %s in archive %s",
+			utf_file_name, arc_name);
 
 	{
 		//no need to allocate a buffer bigger than the file uncomp size

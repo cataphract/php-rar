@@ -96,8 +96,8 @@ PHP_RINIT_FUNCTION(rar);
 PHP_RSHUTDOWN_FUNCTION(rar);
 PHP_MINFO_FUNCTION(rar);
 
-int _rar_handle_error(int errcode TSRMLS_DC);
-const char * _rar_error_to_string(int errcode);
+PHP_FUNCTION(rar_bogus_ctor);
+
 void _rar_wide_to_utf(const wchar_t *src, char *dest, size_t dest_size);
 void _rar_utf_to_wide(const char *src, wchar_t *dest, size_t dest_size);
 int _rar_find_file(struct RAROpenArchiveDataEx *open_data, /* IN */
@@ -109,6 +109,14 @@ int _rar_find_file(struct RAROpenArchiveDataEx *open_data, /* IN */
 				   );
 int CALLBACK _rar_unrar_callback(UINT msg, LPARAM UserData, LPARAM P1, LPARAM P2);
 
+/* rar_error.c */
+zend_class_entry *rarexception_ce_ptr;
+const char * _rar_error_to_string(int errcode);
+int _rar_handle_error(int errcode TSRMLS_DC);
+int _rar_handle_error_ex(const char *preamble, int errcode TSRMLS_DC);
+void _rar_handle_ext_error(TSRMLS_D, const char *format, ...);
+void minit_rarerror(TSRMLS_D);
+
 /* rararch.c */
 int _rar_get_file_resource(zval *zval_file, rar_file_t **rar_file TSRMLS_DC);
 int _rar_get_file_resource_ex(zval *zval_file, rar_file_t **rar_file, int silent TSRMLS_DC);
@@ -117,6 +125,7 @@ void minit_rararch(TSRMLS_D);
 PHP_FUNCTION(rar_open);
 PHP_FUNCTION(rar_list);
 PHP_FUNCTION(rar_entry_get);
+PHP_FUNCTION(rar_solid_get);
 PHP_FUNCTION(rar_comment_get);
 PHP_FUNCTION(rar_close);
 
