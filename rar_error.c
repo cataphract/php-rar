@@ -154,7 +154,6 @@ const char * _rar_error_to_string(int errcode) /* {{{ */
    Set whether exceptions are to be used */
 PHP_METHOD(rarexception, setUsingExceptions)
 {
-	zval **tmp;
 	long argval;
 	int result;
 
