@@ -126,7 +126,7 @@ void minit_rararch(TSRMLS_D);
 PHP_FUNCTION(rar_open);
 PHP_FUNCTION(rar_list);
 PHP_FUNCTION(rar_entry_get);
-PHP_FUNCTION(rar_solid_get);
+PHP_FUNCTION(rar_solid_is);
 PHP_FUNCTION(rar_comment_get);
 PHP_FUNCTION(rar_close);
 
