@@ -262,25 +262,13 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_rar_open, 0, 0, 1)
 	ZEND_ARG_INFO(0, password)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_rar_list, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_rar_void_archmeth, 0, 0, 1)
 	ZEND_ARG_INFO(0, rarfile)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_rar_entry_get, 0, 0, 2)
 	ZEND_ARG_INFO(0, rarfile)
 	ZEND_ARG_INFO(0, filename)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_rar_solid_get, 0, 0, 1)
-	ZEND_ARG_INFO(0, rarfile)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_rar_comment_get, 0, 0, 1)
-	ZEND_ARG_INFO(0, rarfile)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_rar_close, 0, 0, 1)
-	ZEND_ARG_INFO(0, rarfile)
 ZEND_END_ARG_INFO()
 /* }}} */
 
@@ -289,11 +277,11 @@ ZEND_END_ARG_INFO()
  */
 static function_entry rar_functions[] = {
 	PHP_FE(rar_open,		arginfo_rar_open)
-	PHP_FE(rar_list,		arginfo_rar_list)
+	PHP_FE(rar_list,		arginfo_rar_void_archmeth)
 	PHP_FE(rar_entry_get,	arginfo_rar_entry_get)
-	PHP_FE(rar_solid_get,	arginfo_rar_solid_get)
-	PHP_FE(rar_comment_get,	arginfo_rar_comment_get)
-	PHP_FE(rar_close,		arginfo_rar_close)
+	PHP_FE(rar_solid_is,	arginfo_rar_void_archmeth)
+	PHP_FE(rar_comment_get,	arginfo_rar_void_archmeth)
+	PHP_FE(rar_close,		arginfo_rar_void_archmeth)
 	{NULL, NULL, NULL}
 };
 /* }}} */

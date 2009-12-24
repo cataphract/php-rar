@@ -489,9 +489,9 @@ PHP_FUNCTION(rar_entry_get)
 }
 /* }}} */
 
-/* {{{ proto string rar_solid_get(RarArchive rarfile)
+/* {{{ proto string rar_solid_is(RarArchive rarfile)
    Return whether RAR archive is solid */
-PHP_FUNCTION(rar_solid_get)
+PHP_FUNCTION(rar_solid_is)
 {
 	zval *file = getThis();
 	rar_file_t *rar = NULL;
@@ -621,7 +621,7 @@ static zend_function_entry php_rararch_class_functions[] = {
 	PHP_ME_MAPPING(open,		rar_open,			arginfo_rararchive_open,		ZEND_ACC_STATIC | ZEND_ACC_PUBLIC)
 	PHP_ME_MAPPING(list,		rar_list,			arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
 	PHP_ME_MAPPING(getEntry,	rar_entry_get,		arginfo_rararchive_getentry,	ZEND_ACC_PUBLIC)
-	PHP_ME_MAPPING(isSolid,		rar_solid_get,		arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
+	PHP_ME_MAPPING(isSolid,		rar_solid_is,		arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
 	PHP_ME_MAPPING(getComment,	rar_comment_get,	arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
 	PHP_ME_MAPPING(close,		rar_close,			arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
 	PHP_ME(rararch,				__toString,			arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
