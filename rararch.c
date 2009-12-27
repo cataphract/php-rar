@@ -83,7 +83,7 @@ int _rar_get_file_resource_ex(zval *zval_file, rar_file_t **rar_file, int silent
 
 	*rar_file = zobj->rar_file;
 	if ((*rar_file)->arch_handle == NULL && !silent) { //rar_close was called
-		_rar_handle_ext_error(TSRMLS_C, "The archive is already closed.");
+		_rar_handle_ext_error("The archive is already closed." TSRMLS_CC);
 		return 0;
 	}
 
@@ -385,7 +385,7 @@ PHP_FUNCTION(rar_open)
 	} else {
 		const char *err_str = _rar_error_to_string(rar->list_open_data->OpenResult);
 		if (err_str == NULL)
-			_rar_handle_ext_error(TSRMLS_C, "%s", "Archive opened failed "
+			_rar_handle_ext_error("%s" TSRMLS_CC, "Archive opened failed "
 			"(returned NULL handle), but did not return an error. "
 			"Should not happen.");
 		else {
@@ -479,9 +479,9 @@ PHP_FUNCTION(rar_entry_get)
 	found = _rar_raw_entries_to_files(rar, filename_c, NULL, return_value
 		TSRMLS_CC);
 	if (!found) {
-		_rar_handle_ext_error(TSRMLS_C,
-			"cannot find file \"%s\" in Rar archive \"%s\".",
-			filename, rar->list_open_data->ArcName);
+		_rar_handle_ext_error(
+			"cannot find file \"%s\" in Rar archive \"%s\"."
+			TSRMLS_CC, filename, rar->list_open_data->ArcName);
 		RETVAL_FALSE;	
 	}
 	

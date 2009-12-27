@@ -222,7 +222,7 @@ php_stream *php_stream_rar_open(char *arc_name,
 	}
 
 	if (!found)
-		_rar_handle_ext_error(TSRMLS_C, "Can't find file %s in archive %s",
+		_rar_handle_ext_error("Can't find file %s in archive %s" TSRMLS_CC,
 			utf_file_name, arc_name);
 
 	{

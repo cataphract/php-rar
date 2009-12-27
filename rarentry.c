@@ -274,8 +274,8 @@ PHP_METHOD(rarentry, extract)
 	}
 
 	if (!found) {
-		_rar_handle_ext_error(TSRMLS_C,
-			"Can't find file %s in archive %s", Z_STRVAL_PP(tmp_name),
+		_rar_handle_ext_error("Can't find file %s in archive %s" TSRMLS_CC,
+			Z_STRVAL_PP(tmp_name),
 			rar->list_open_data->ArcName);
 		RETVAL_FALSE;
 		goto cleanup;
