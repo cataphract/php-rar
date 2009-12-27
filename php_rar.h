@@ -113,7 +113,7 @@ int CALLBACK _rar_unrar_callback(UINT msg, LPARAM UserData, LPARAM P1, LPARAM P2
 zend_class_entry *rarexception_ce_ptr;
 int _rar_handle_error(int errcode TSRMLS_DC);
 int _rar_handle_error_ex(const char *preamble, int errcode TSRMLS_DC);
-void _rar_handle_ext_error(TSRMLS_D, const char *format, ...);
+void _rar_handle_ext_error(const char *format TSRMLS_DC, ...);
 int _rar_using_exceptions(TSRMLS_D);
 const char * _rar_error_to_string(int errcode);
 void minit_rarerror(TSRMLS_D);
