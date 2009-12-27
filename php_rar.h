@@ -87,6 +87,10 @@ typedef struct rar {
 # define ZEND_BEGIN_ARG_INFO_EX(name, pass_rest_by_reference, return_reference, required_num_args) \
 	static const zend_arg_info name[] = { \
 		{ NULL, 0, NULL, 0, 0, 0, pass_rest_by_reference, return_reference, required_num_args },
+# define Z_ADDREF_P(pz) \
+	(++(pz)->refcount)
+# define Z_ADDREF_PP(ppz) \
+	Z_ADDREF_P(*(ppz))
 #endif
 
 /* rar.c */
