@@ -308,6 +308,7 @@ static void rararch_ce_free_object_storage(ze_rararch_object *object TSRMLS_DC) 
 	efree(rar->list_open_data);
 	efree(rar->extract_open_data->ArcName);
 	efree(rar->extract_open_data);
+	efree(rar);
 	
 	/* could call zend_objects_free_object_storage here (not before!), but
 	 * instead I'll mimic its behaviour */
@@ -670,7 +671,7 @@ static zend_object_iterator *rararch_it_get_iterator(zend_class_entry *ce,
 		}
 	}
 
-	Z_ADDREF_P(object);
+	zval_add_ref(&object);
 	it->parent.data = object;
 	it->parent.funcs = ce->iterator_funcs.funcs;
 	it->index = 0;

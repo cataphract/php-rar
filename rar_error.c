@@ -193,8 +193,7 @@ PHP_METHOD(rarexception, isUsingExceptions)
 	//property always exists
 	assert(pval != NULL);
 	assert(Z_TYPE_PP(pval) == IS_BOOL);	
-
-	Z_ADDREF_PP(pval);
+	
 	RETURN_ZVAL(*pval, 0, 0);
 }
 /* }}} */
