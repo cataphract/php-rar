@@ -23,11 +23,11 @@ http://pear.php.net/dtd/package-2.0.xsd">
   <active>no</active>
  </developer>
 
- <date>2009-12-07</date>
- <time>15:24:00</time>
+ <date>2010-01-16</date>
+ <time>20:44:00</time>
  <version>
-  <release>2.0.0b2</release>
-  <api>2.0.0b2</api>
+  <release>2.0.0rc1</release>
+  <api>2.0.0rc1</api>
  </version>
 
  <stability>
@@ -36,22 +36,37 @@ http://pear.php.net/dtd/package-2.0.xsd">
  </stability>
 
  <license uri="http://www.php.net/license">PHP License</license>
- <notes>- Updated bundled UnRAR library to version 3.9.6.
-- Added OOP interface for rar_* functions with the RarArchive class.
-- Changed bundled UnRAR library to allow partial file extraction.
-- Fixed bug in UnRAR library that could cause a read out of buffer bounds on some corrupted RAR files.
+ <notes>Changes in respect to release 1.0.0:
+PHP SUPPORT:
+- Support for PHP 4.3 dropped. PHP 5.2.x or 5.3.x is required.
+API BACKWARDS INCOMPATIBLE CHANGES:
+- Handles unicode filenames (uses UTF-8 external encoding). The file names inside the RAR archives are always returned in UTF-8. This will probably break your scripts.
+- Calling rar_close/RarArchive::close() invalidates RarEntry objects (actually, only extraction is forbidden, but don't rely on it).
+API backwards compatible changes:
+- Supports streaming from RAR archives. See RarEntry::getStream() method.
 - Added a bunch of constants to RarEntry.
-- Added RarEntry::__toString() and RarEntry::isDirectory methods.
-- All RarEntry properties are now private. This doesn't change the API because those properties were never part of the contract.
-- Supports streaming from RAR archives.
-- Extensio now uses extended UnRAR library structures.
-- rar_open gives more detailed error messages on failure.
-- Fixed pecl bug #9470 (wrong CRC on multi-volume archives).
-- Added rar_comment_get.
-- Fixed by pecl bug #8821 (relative paths not working).
-- Handles unicode filenames (uses UTF-8 external encoding).
-- Fixed PECL bug #9649, resource is now destroyed regardless of the le->refcount.
+- Added RarEntry::__toString() method.
+- Added RarEntry::isDirectory() method.
+- Added RarEntry::isEncrypted() method.
+- Added OOP interface for rar_* functions with the RarArchive class.
+- Added rar_comment_get/RarArchive::getComment().
+- Added RarArchive::isSolid()/rar_solid_is().
+- Added RarArchive::__toString() method.
+- Added RarException class.
+- Exception throwing for expectable errors can be turned on by calling RarException::setUsingExceptions(). To check whether exception throwing is turned on, RarException::isUsingExceptions() can be used.
+Bug fixes:
+- Fixed by PECL bug #8821 (relative paths not working).
+- Fixed PECL bug #9470 (wrong CRC on multi-volume archives).
+- Fixed PECL bug #9649 (rar_close() not closing file descriptors if there were undestroyed RarEntry objects)
 - Fixed volumes opened with middle volumes showing files continued from previous volume with incorrect packed and unpacked sizes.
+- Fixed bug in UnRAR library that could cause a read out of buffer bounds on some corrupted RAR files.
+- Fixed RarEntry::getPackedSize() and RarEntry::getUnpackedSize() giving incorrect results for files > 2 GiB. Still, on platforms with 32-bit integers, MAX_INT will be returned for such files, othwerwise the correct value is given.
+Other changes:
+- Updated bundled UnRAR library to version 3.9.6.
+- Changed bundled UnRAR library to allow partial file extraction.
+- All RarEntry properties are now private. This doesn't break the API because those properties were never part of the contract.
+- rar_open gives more detailed error messages on failure.
+- Extension now uses extended UnRAR library structures.
 - Added arginfo.
 - Added a bunch of tests.
 - A lot of refactoring and compilation as C, not C++.
@@ -232,15 +247,15 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file name="win32acl.cpp" role="src" />
     <file name="win32stm.cpp" role="src" />
    </dir> <!-- /unrar -->
-   <file name="config.m4" role="src" />
-   <file name="config.w32" role="src" />
-   <file name="CREDITS" role="doc" />
-   <file name="example.php" role="doc" />
-   <file name="php_rar.h" role="src" />
-   <file name="rar.c" role="src" />
-   <file name="rar_stream.c" role="src" />
-   <file name="rararch.c" role="src" />
-   <file name="rarentry.c" role="src" />
+    <file name="config.m4" role="src" />
+    <file name="config.w32" role="src" />
+    <file name="CREDITS" role="doc" />
+    <file name="example.php" role="doc" />
+    <file name="php_rar.h" role="src" />
+    <file name="rar.c" role="src" />
+    <file name="rar_stream.c" role="src" />
+    <file name="rararch.c" role="src" />
+    <file name="rarentry.c" role="src" />
    <file name="rar_error.c" role="src" />
   </dir> <!-- / -->
  </contents>
@@ -253,6 +268,9 @@ http://pear.php.net/dtd/package-2.0.xsd">
    <pearinstaller>
     <min>1.4.0</min>
    </pearinstaller>
+   <extension>
+       <name>spl</name>
+   </extension>
   </required>
  </dependencies>
 
