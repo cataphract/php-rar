@@ -27,7 +27,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
  <time>20:44:00</time>
  <version>
   <release>2.0.0RC1</release>
-  <api>2.0.0rc1</api>
+  <api>2.0.0RC1</api>
  </version>
 
  <stability>
@@ -111,6 +111,7 @@ Other changes:
     <file name="035.phpt" role="test" />
     <file name="036.phpt" role="test" />
     <file name="037.phpt" role="test" />
+	<file name="038.phpt" role="test" />
     <file name="commented.rar" role="test" />
     <file name="corrupted.rar" role="test" />
     <file name="directories.rar" role="test" />

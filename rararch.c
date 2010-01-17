@@ -40,6 +40,7 @@ typedef struct _ze_rararch_object {
 	zend_object	parent;
 	rar_file_t  *rar_file;
 } ze_rararch_object;
+
 typedef struct _rararch_iterator {
 	zend_object_iterator	parent;
 	int						index;	/* index in RARHeaderEx array */
@@ -71,6 +72,10 @@ int _rar_get_file_resource(zval *zval_file, rar_file_t **rar_file TSRMLS_DC) /* 
 }
 /* }}} */
 
+/* Receives archive zval, returns object struct.
+ * If silent is FALSE, it checks whether the archive is alredy closed, and if it
+ * is, an exception/error is raised and 0 is returned
+ */
 int _rar_get_file_resource_ex(zval *zval_file, rar_file_t **rar_file, int silent TSRMLS_DC) /* {{{ */
 {
 	ze_rararch_object *zobj;
@@ -636,7 +641,7 @@ static zend_function_entry php_rararch_class_functions[] = {
 static zend_object_iterator *rararch_it_get_iterator(zend_class_entry *ce,
 													 zval *object,
 													 int by_ref TSRMLS_DC);
-static void rararch_it_invalidate_current(zend_object_iterator *iter TSRMLS_DC);
+static void rararch_it_delete_cache(zend_object_iterator *iter TSRMLS_DC);
 static void rararch_it_dtor(zend_object_iterator *iter TSRMLS_DC);
 static void rararch_it_fetch(rararch_iterator *it TSRMLS_DC);
 static int rararch_it_valid(zend_object_iterator *iter TSRMLS_DC);
@@ -656,14 +661,18 @@ static zend_object_iterator *rararch_it_get_iterator(zend_class_entry *ce,
 	int					res;
 
 	if (by_ref) {
-		zend_error(E_ERROR, "An iterator cannot be used with foreach by reference");
+		zend_error(E_ERROR,
+			"An iterator cannot be used with foreach by reference");
 	}
 
 	it = emalloc(sizeof *it);
 
 	res = _rar_get_file_resource_ex(object, &rar, 1 TSRMLS_CC);
 	if (!res)
-		zend_error(E_ERROR, "Cannot fecth RarArchive object");
+		zend_error(E_ERROR, "Cannot fetch RarArchive object");
+	if (rar->arch_handle == NULL)
+		zend_error(E_ERROR, "The archive is already closed, "
+		"cannot give an iterator");
 	if (rar->entries == NULL) {
 		res = _rar_list_files(rar TSRMLS_CC); 
 		if (_rar_handle_error(res TSRMLS_CC) == FAILURE) {
@@ -736,9 +745,9 @@ static int rararch_it_valid(zend_object_iterator *iter TSRMLS_DC)
 static void rararch_it_current_data(zend_object_iterator *iter,
 									zval ***data TSRMLS_DC)
 {
-	zval *value = ((rararch_iterator *) iter)->value;
-	assert(value != NULL);
-	*data = &value;
+	zval **value = &(((rararch_iterator *) iter)->value);
+	assert(*value != NULL);
+	*data = value;
 }
 /* }}} */
 
