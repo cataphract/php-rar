@@ -158,7 +158,7 @@ const char * _rar_error_to_string(int errcode) /* {{{ */
    Set whether exceptions are to be used */
 PHP_METHOD(rarexception, setUsingExceptions)
 {
-	long argval;
+	zend_bool argval;
 	int result;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "b", &argval) == FAILURE ) {
@@ -166,7 +166,8 @@ PHP_METHOD(rarexception, setUsingExceptions)
 	}
 
 	result = zend_update_static_property_bool(rarexception_ce_ptr,
-		"usingExceptions", sizeof("usingExceptions") -1, argval TSRMLS_CC);
+		"usingExceptions", sizeof("usingExceptions") -1,
+		(long) argval TSRMLS_CC);
 
 	if (result == FAILURE) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,
