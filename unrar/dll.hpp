@@ -30,6 +30,7 @@
 #define RAR_DLL_VERSION       4
 
 //Must be the same as MAXWINSIZE
+//not in original
 #define RAR_CHUNK_BUFFER_SIZE   0x400000
 
 #ifdef _UNIX

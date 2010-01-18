@@ -189,6 +189,9 @@ int PASCAL RARReadHeaderEx(HANDLE hArcData,struct RARHeaderDataEx *D)
 #ifdef _WIN_32
       char AnsiName[NM];
       OemToChar(Data->Arc.NewLhd.FileName,AnsiName);
+      //The way to handle CharToWide failed calls differs to the method
+      //unrar 3.9.7 introduced. 3.9.7 only returns an empty string, while I
+      //call UtfToWide, which merely discarts invalid characters
       result = CharToWide(AnsiName,D->FileNameW);
 #else
       result = CharToWide(Data->Arc.NewLhd.FileName,D->FileNameW);
@@ -309,14 +312,14 @@ int PASCAL ProcessFile(HANDLE hArcData, int Operation, char *DestPath,
       }
 
       bool Repeat=false;
-      bool res;
       if (Operation != RAR_EXTRACT_CHUNK)
-        res = Data->Extract.ExtractCurrentFile(&Data->Cmd,Data->Arc,
+        Data->Extract.ExtractCurrentFile(&Data->Cmd,Data->Arc,
           Data->HeaderSize,Repeat);
       else
       {
         if (InitDataIO) //chunk, init
         {
+          bool res;
           res = Data->Extract.ExtractCurrentFileChunkInit(&Data->Cmd, Data->Arc,
             Data->HeaderSize, Repeat);
           if (!res && Data->Cmd.DllError == 0)

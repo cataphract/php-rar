@@ -23,8 +23,8 @@ http://pear.php.net/dtd/package-2.0.xsd">
   <active>no</active>
  </developer>
 
- <date>2010-01-16</date>
- <time>20:44:00</time>
+ <date>2010-01-18</date>
+ <time>04:06:00</time>
  <version>
   <release>2.0.0RC1</release>
   <api>2.0.0RC1</api>
@@ -62,7 +62,7 @@ Bug fixes:
 - Fixed bug in UnRAR library that could cause a read out of buffer bounds on some corrupted RAR files.
 - Fixed RarEntry::getPackedSize() and RarEntry::getUnpackedSize() giving incorrect results for files > 2 GiB. Still, on platforms with 32-bit integers, MAX_INT will be returned for such files, othwerwise the correct value is given.
 Other changes:
-- Updated bundled UnRAR library to version 3.9.6.
+- Updated bundled UnRAR library to version 3.9.7 (RAR 3.9.1).
 - Changed bundled UnRAR library to allow partial file extraction.
 - All RarEntry properties are now private. This doesn't break the API because those properties were never part of the contract.
 - rar_open gives more detailed error messages on failure.
@@ -147,7 +147,6 @@ Other changes:
     <file name="crypt.cpp" role="src" />
     <file name="crypt.hpp" role="src" />
     <file name="dll.cpp" role="src" />
-    <file name="dll.def" role="src" />
     <file name="dll.hpp" role="src" />
     <file name="encname.cpp" role="src" />
     <file name="encname.hpp" role="src" />
@@ -185,7 +184,6 @@ Other changes:
     <file name="match.hpp" role="src" />
     <file name="model.cpp" role="src" />
     <file name="model.hpp" role="src" />
-    <file name="msc.dep" role="src" />
     <file name="options.cpp" role="src" />
     <file name="options.hpp" role="src" />
     <file name="os.hpp" role="src" />
