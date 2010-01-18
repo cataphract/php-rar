@@ -21,10 +21,6 @@ if (PHP_RAR != "no") {
 		unpack.cpp cmddata.cpp dll.cpp \
 		filestr.cpp recvol.cpp rs.cpp \
 		scantree.cpp extractchunk.cpp log.cpp", "rar");
-
-        if (!PHP_RAR_SHARED) {
-                ADD_DEF_FILE(configure_module_dirname + "\\unrar\\dll.def");
-        }
 	
 	AC_DEFINE("HAVE_RAR", 1, "Rar support");
 }
