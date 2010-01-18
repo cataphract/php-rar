@@ -4,6 +4,7 @@ CmdExtract::CmdExtract()
 {
   TotalFileCount=0;
   *Password=0;
+  //next two lines added by me
   Buffer = NULL;
   BufferSize = 0;
   Unp=new Unpack(&DataIO);
@@ -354,15 +355,15 @@ bool CmdExtract::ExtractCurrentFile(CommandData *Cmd,Archive &Arc,size_t HeaderS
   if ((Arc.NewLhd.Flags & (LHD_SPLIT_BEFORE/*|LHD_SOLID*/)) && FirstFile)
   {
     char CurVolName[NM];
-	  /* Added the line below. The library was crashing without it, because
-	   * ArcName wouldn't be initialized. this code path is executed when
-	   * you open a volume, ask to unpack a file and that file doesn't start
-	   * in the opened volume. This function now changes this->ArcName into
-	   * the name of the first volume, sets the parameter Repeat to true and
-	   * returns false.
+    /* Added the line below. The library was crashing without it, because
+     * ArcName wouldn't be initialized. this code path is executed when
+     * you open a volume, ask to unpack a file and that file doesn't start
+     * in the opened volume. This function now changes this->ArcName into
+     * the name of the first volume, sets the parameter Repeat to true and
+     * returns false.
      * Possibly ArcName was supposed to be set from another method before.
      * Would need further investigation. */
-	  strncpy(ArcName, Arc.FileName, NM);
+    strncpy(ArcName, Arc.FileName, NM);
     strcpy(CurVolName,ArcName);
 
     VolNameToFirstName(ArcName,ArcName,(Arc.NewMhd.Flags & MHD_NEWNUMBERING)!=0);
@@ -430,7 +431,7 @@ bool CmdExtract::ExtractCurrentFile(CommandData *Cmd,Archive &Arc,size_t HeaderS
             Cmd->DllError = ERAR_MISSING_PASSWORD; //added by me
             return false;
           }
-		    }
+        }
         strcpy(Password,Cmd->Password);
 
 #else
@@ -926,6 +927,7 @@ bool CmdExtract::ExtractCurrentFile(CommandData *Cmd,Archive &Arc,size_t HeaderS
   return(true);
 }
 
+//added by me
 #if !defined(MIN)
 #define MIN(a, b)  (((a)<(b))?(a):(b))
 #endif

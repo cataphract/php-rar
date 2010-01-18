@@ -42,6 +42,7 @@ class CmdExtract
     static void UnstoreFile(ComprDataIO &DataIO,int64 DestUnpSize);
 
     bool SignatureFound;
+    //next two lines added by me
 	void *Buffer;
 	size_t BufferSize;
 };

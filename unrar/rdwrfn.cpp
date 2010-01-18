@@ -169,6 +169,7 @@ void ComprDataIO::UnpWrite(byte *Addr,size_t Count)
       UnpackToMemorySize-=Count;
     }
     else
+        //added by me
 	    Cmd->DllError = ERAR_SMALL_BUF;
   }
   else
