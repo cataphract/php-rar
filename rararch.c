@@ -106,7 +106,9 @@ static int _rar_list_files(rar_file_t *rar TSRMLS_DC) /* {{{ */
 		struct RARHeaderDataEx entry;
 		result = RARReadHeaderEx(rar->arch_handle, &entry);
 		//value of 2nd argument is irrelevant in RAR_OM_LIST_[SPLIT] mode
-		RARProcessFile(rar->arch_handle, RAR_SKIP, NULL, NULL);
+		if (result == 0) {
+			result = RARProcessFile(rar->arch_handle, RAR_SKIP, NULL, NULL);
+		}
 		if (result == 0) {
 			assert(capacity >= rar->entry_count);
 			if (capacity == rar->entry_count) { //0, 2, 6, 14, 30...

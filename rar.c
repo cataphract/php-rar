@@ -205,7 +205,7 @@ cleanup:
 /* Only processes password callbacks */
 int CALLBACK _rar_unrar_callback(UINT msg, LPARAM UserData, LPARAM P1, LPARAM P2) /* {{{ */
 {
-	//TSRMLS_FETCH();
+	TSRMLS_FETCH();
 	
 	if (msg == UCM_NEEDPASSWORD) {
 		//user data is the password or null if none
@@ -218,6 +218,14 @@ int CALLBACK _rar_unrar_callback(UINT msg, LPARAM UserData, LPARAM P1, LPARAM P2
 		}
 		else {
 			strncpy((char*) P1, password, (size_t) P2);
+		}
+	}
+	else if (msg == UCM_CHANGEVOLUME) {
+		if (((int) P2) == RAR_VOL_ASK) {
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,
+				"Volume %s was not found.", (char*) P1);
+			/* this means a volume is missing. return -1 to abort */
+			return -1;
 		}
 	}
 
