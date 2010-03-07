@@ -111,7 +111,8 @@ Other changes:
     <file name="035.phpt" role="test" />
     <file name="036.phpt" role="test" />
     <file name="037.phpt" role="test" />
-	<file name="038.phpt" role="test" />
+    <file name="038.phpt" role="test" />
+    <file name="039.phpt" role="test" />
     <file name="commented.rar" role="test" />
     <file name="corrupted.rar" role="test" />
     <file name="directories.rar" role="test" />
@@ -120,6 +121,7 @@ Other changes:
     <file name="encrypted_only_files.rar" role="test" />
     <file name="latest_winrar.rar" role="test" />
     <file name="linux_rar.rar" role="test" />
+    <file name="multi_broken.part1.rar" role="test" />
     <file name="multi.part1.rar" role="test" />
     <file name="multi.part2.rar" role="test" />
     <file name="multi.part3.rar" role="test" />
