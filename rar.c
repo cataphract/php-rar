@@ -283,7 +283,7 @@ ZEND_END_ARG_INFO()
 /* {{{ rar_functions[]
  *
  */
-static function_entry rar_functions[] = {
+static zend_function_entry rar_functions[] = {
 	PHP_FE(rar_open,		arginfo_rar_open)
 	PHP_FE(rar_list,		arginfo_rar_void_archmeth)
 	PHP_FE(rar_entry_get,	arginfo_rar_entry_get)
