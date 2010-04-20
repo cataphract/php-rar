@@ -23,53 +23,29 @@ http://pear.php.net/dtd/package-2.0.xsd">
   <active>no</active>
  </developer>
 
- <date>2010-01-18</date>
- <time>04:06:00</time>
+ <date>2010-04-20</date>
+ <time>13:00:00</time>
  <version>
-  <release>2.0.0RC1</release>
-  <api>2.0.0RC1</api>
+  <release>2.0.0</release>
+  <api>2.0.0</api>
  </version>
 
  <stability>
-  <release>beta</release>
-  <api>beta</api>
+  <release>stable</release>
+  <api>stable</api>
  </stability>
 
  <license uri="http://www.php.net/license">PHP License</license>
- <notes>Changes in respect to release 1.0.0:
-PHP SUPPORT:
+ <notes>Changes with respect to release 2.0.0RC1:
+- Fixed infinite loop when opening RAR archive missing a volume (later report in bug #17177).
+- Fixed bug #17025 (changed the name of method RarArchive::list into RarArchive::getEntries). If backwards compatibility with the release candidate is required, RarArchive::list can be reintroduced by defining RAR_ARCHIVE_LIST_ALIAS.
+Incompatible changes with respect to release 1.0.0:
+PHP Support:
 - Support for PHP 4.3 dropped. PHP 5.2.x or 5.3.x is required.
-API BACKWARDS INCOMPATIBLE CHANGES:
+API backwards incompatible changes:
 - Handles unicode filenames (uses UTF-8 external encoding). The file names inside the RAR archives are always returned in UTF-8. This will probably break your scripts.
 - Calling rar_close/RarArchive::close() invalidates RarEntry objects (actually, only extraction is forbidden, but don't rely on it).
-API backwards compatible changes:
-- Supports streaming from RAR archives. See RarEntry::getStream() method.
-- Added a bunch of constants to RarEntry.
-- Added RarEntry::__toString() method.
-- Added RarEntry::isDirectory() method.
-- Added RarEntry::isEncrypted() method.
-- Added OOP interface for rar_* functions with the RarArchive class.
-- Added rar_comment_get/RarArchive::getComment().
-- Added RarArchive::isSolid()/rar_solid_is().
-- Added RarArchive::__toString() method.
-- Added RarException class.
-- Exception throwing for expectable errors can be turned on by calling RarException::setUsingExceptions(). To check whether exception throwing is turned on, RarException::isUsingExceptions() can be used.
-Bug fixes:
-- Fixed by PECL bug #8821 (relative paths not working).
-- Fixed PECL bug #9470 (wrong CRC on multi-volume archives).
-- Fixed PECL bug #9649 (rar_close() not closing file descriptors if there were undestroyed RarEntry objects)
-- Fixed volumes opened with middle volumes showing files continued from previous volume with incorrect packed and unpacked sizes.
-- Fixed bug in UnRAR library that could cause a read out of buffer bounds on some corrupted RAR files.
-- Fixed RarEntry::getPackedSize() and RarEntry::getUnpackedSize() giving incorrect results for files > 2 GiB. Still, on platforms with 32-bit integers, MAX_INT will be returned for such files, othwerwise the correct value is given.
-Other changes:
-- Updated bundled UnRAR library to version 3.9.7 (RAR 3.9.1).
-- Changed bundled UnRAR library to allow partial file extraction.
-- All RarEntry properties are now private. This doesn't break the API because those properties were never part of the contract.
-- rar_open gives more detailed error messages on failure.
-- Extension now uses extended UnRAR library structures.
-- Added arginfo.
-- Added a bunch of tests.
-- A lot of refactoring and compilation as C, not C++.
+For the other changes, see the changelog for version 2.0.0RC1.
  </notes>
  <contents>
   <dir name="/">
@@ -280,6 +256,54 @@ Other changes:
  <extsrcrelease />
  
  <changelog>
+  <release>
+   <version>
+    <release>2.0.0RC1</release>
+    <api>2.0.0RC1</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <date>2010-01-17</date>
+   <license uri="http://www.php.net/license">PHP License</license>
+   <notes>Changes in respect to release 1.0.0:
+PHP SUPPORT:
+- Support for PHP 4.3 dropped. PHP 5.2.x or 5.3.x is required.
+API BACKWARDS INCOMPATIBLE CHANGES:
+- Handles unicode filenames (uses UTF-8 external encoding). The file names inside the RAR archives are always returned in UTF-8. This will probably break your scripts.
+- Calling rar_close/RarArchive::close() invalidates RarEntry objects (actually, only extraction is forbidden, but don't rely on it).
+API backwards compatible changes:
+- Supports streaming from RAR archives. See RarEntry::getStream() method.
+- Added a bunch of constants to RarEntry.
+- Added RarEntry::__toString() method.
+- Added RarEntry::isDirectory() method.
+- Added RarEntry::isEncrypted() method.
+- Added OOP interface for rar_* functions with the RarArchive class.
+- Added rar_comment_get/RarArchive::getComment().
+- Added RarArchive::isSolid()/rar_solid_is().
+- Added RarArchive::__toString() method.
+- Added RarException class.
+- Exception throwing for expectable errors can be turned on by calling RarException::setUsingExceptions(). To check whether exception throwing is turned on, RarException::isUsingExceptions() can be used.
+Bug fixes:
+- Fixed by PECL bug #8821 (relative paths not working).
+- Fixed PECL bug #9470 (wrong CRC on multi-volume archives).
+- Fixed PECL bug #9649 (rar_close() not closing file descriptors if there were undestroyed RarEntry objects)
+- Fixed volumes opened with middle volumes showing files continued from previous volume with incorrect packed and unpacked sizes.
+- Fixed bug in UnRAR library that could cause a read out of buffer bounds on some corrupted RAR files.
+- Fixed RarEntry::getPackedSize() and RarEntry::getUnpackedSize() giving incorrect results for files > 2 GiB. Still, on platforms with 32-bit integers, MAX_INT will be returned for such files, othwerwise the correct value is given.
+Other changes:
+- Updated bundled UnRAR library to version 3.9.7 (RAR 3.9.1).
+- Changed bundled UnRAR library to allow partial file extraction.
+- All RarEntry properties are now private. This doesn't break the API because those properties were never part of the contract.
+- rar_open gives more detailed error messages on failure.
+- Extension now uses extended UnRAR library structures.
+- Added arginfo.
+- Added a bunch of tests.
+- A lot of refactoring and compilation as C, not C++.
+   </notes>
+  </release>
+  
   <release>
    <version>
     <release>1.0.0</release>
