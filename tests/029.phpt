@@ -1,11 +1,11 @@
 --TEST--
-RarArchive::list() basic test
+RarArchive::getEntries() basic test
 --SKIPIF--
 <?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 $arch = RarArchive::open(dirname(__FILE__) . "/dirlink_unix.rar");
-foreach ($arch->list() as $e) {
+foreach ($arch->getEntries() as $e) {
 	echo $e . "\n";
 }
 
