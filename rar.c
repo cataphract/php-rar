@@ -321,7 +321,7 @@ PHP_MINFO_FUNCTION(rar)
 	php_info_print_table_start();
 	php_info_print_table_header(2, "Rar support", "enabled");
 	php_info_print_table_row(2, "Rar EXT version", PHP_RAR_VERSION);
-	php_info_print_table_row(2, "Revision", "$Revision$");
+	php_info_print_table_row(2, "Revision", PHP_RAR_REVISION);
 
 #if	RARVER_BETA != 0
 	sprintf(version,"%d.%02d beta%d patch%d %d-%d-%d", RARVER_MAJOR,
