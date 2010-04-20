@@ -627,8 +627,11 @@ ZEND_END_ARG_INFO()
 
 static zend_function_entry php_rararch_class_functions[] = {
 	PHP_ME_MAPPING(open,		rar_open,			arginfo_rararchive_open,		ZEND_ACC_STATIC | ZEND_ACC_PUBLIC)
-	PHP_ME_MAPPING(list,		rar_list,			arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
+	PHP_ME_MAPPING(getEntries,	rar_list,			arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
 	PHP_ME_MAPPING(getEntry,	rar_entry_get,		arginfo_rararchive_getentry,	ZEND_ACC_PUBLIC)
+#ifdef RAR_ARCHIVE_LIST_ALIAS
+	PHP_ME_MAPPING(list,		rar_list,			arginfo_rararchive_void,		ZEND_ACC_PUBLIC | ZEND_ACC_DEPRECATED)
+#endif
 	PHP_ME_MAPPING(isSolid,		rar_solid_is,		arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
 	PHP_ME_MAPPING(getComment,	rar_comment_get,	arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
 	PHP_ME_MAPPING(close,		rar_close,			arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
