@@ -1,4 +1,4 @@
-  ******    *****   ******   UnRAR - free utility for RAR archives
+ ******    *****   ******   UnRAR - free utility for RAR archives
  **   **  **   **  **   **  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  ******   *******  ******    License for use and distribution of
  **   **  **   **  **   **   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
