@@ -60,18 +60,18 @@ void _rar_entry_to_zval(struct RARHeaderDataEx *entry, zval *object,
 	char tmp_s [MAX_LENGTH_OF_LONG + 1];
 	char time[50];
 	char *filename;
-	long unp_size;
+	long unp_size; /* zval stores PHP ints as long, so use that here */
 
-	if (sizeof(long) >= 8)
-		unp_size = ((long) entry->UnpSize) + (((long) entry->UnpSizeHigh) << 32);
-	else {
-		//for 32-bit long, at least don't give negative values
-		if ((unsigned long) entry->UnpSize > (unsigned long) LONG_MAX
-				|| entry->UnpSizeHigh != 0)
-			unp_size = LONG_MAX;
-		else
-			unp_size = (long) entry->UnpSize;
-	}
+#if ULONG_MAX > 0xffffffffUL
+	unp_size = ((long) entry->UnpSize) + (((long) entry->UnpSizeHigh) << 32);
+#else
+	//for 32-bit long, at least don't give negative values
+	if ((unsigned long) entry->UnpSize > (unsigned long) LONG_MAX
+			|| entry->UnpSizeHigh != 0)
+		unp_size = LONG_MAX;
+	else
+		unp_size = (long) entry->UnpSize;
+#endif
 
 	/* 2 instead of sizeof(wchar_t) would suffice, I think. I doubt
 	 * _rar_wide_to_utf handles characters not in UCS-2. But better be safe */
