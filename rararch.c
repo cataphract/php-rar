@@ -231,18 +231,19 @@ static int _rar_raw_entries_to_files(rar_file_t *rar,
 		}
 
 		if (read_entry) { //sum packed size of current entry
-			//we would exceed size of ulong. cap at ulong_max
+			/* we would exceed size of ulong. cap at ulong_max
+			 * equivalent to packed_size + entry->PackSize > ULONG_MAX,
+			 * but without overflowing */
 			if (ULONG_MAX - packed_size < entry->PackSize)
 				packed_size = ULONG_MAX;
 			else {
 				packed_size += entry->PackSize;
-				if (entry->UnpSizeHigh != 0) {
-					if (sizeof(unsigned long) >= 8) {
-						packed_size += ((unsigned long) entry->UnpSizeHigh) << 32;
-					}
-					else {
-						packed_size = ULONG_MAX; //cap
-					}
+				if (entry->PackSizeHigh != 0) {
+#if ULONG_MAX > 0xffffffffUL
+					packed_size += ((unsigned long) entry->PackSizeHigh) << 32;
+#else
+					packed_size = ULONG_MAX; //cap
+#endif
 				}
 			}
 
