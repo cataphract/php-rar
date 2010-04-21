@@ -20,7 +20,7 @@ foreach ($entries as $e) {
 		echo "Could not get stream.\n\n";
 		continue;
 	}
-	while (!feof($stream)) {
+	while (!feof($stream) && $i != 2) {
 		echo fread($stream, 8192);
 	}
 	fclose($stream);
@@ -37,6 +37,5 @@ test%s: The great battle of Gunprex versus Optiter!!!!!1
 Gunprex, Fire!
 So long, Optiter!
 
-test%s: it,greIater!
-%s
+test%s: 
 Done
