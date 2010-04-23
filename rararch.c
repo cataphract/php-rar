@@ -180,7 +180,7 @@ static int _rar_raw_entries_to_files(rar_file_t *rar,
 		commit_file = ended_file && (index != NULL || file == NULL ||
 			(file != NULL && wcsncmp(last_name, file, 1024) == 0));
 
-		if (commit_file) { //this entry corresponds to a new file
+		if (commit_file) { //this entry corresponds to a new file; commit last
 			zval *entry_obj,
 				 *rararch_obj;
 
@@ -364,17 +364,16 @@ PHP_FUNCTION(rar_open)
 	if (!expand_filepath(filename, resolved_path TSRMLS_CC)) {
 		RETURN_FALSE;
 	}
+	assert(strnlen(resolved_path, MAXPATHLEN) < MAXPATHLEN);
 	
 	rar = emalloc(sizeof *rar);
 	rar->list_open_data = ecalloc(1, sizeof *rar->list_open_data);
-	rar->list_open_data->ArcName = estrndup(resolved_path,
-		strnlen(resolved_path, MAXPATHLEN));
+	rar->list_open_data->ArcName = estrdup(resolved_path);
 	rar->list_open_data->OpenMode = RAR_OM_LIST_INCSPLIT;
 	rar->list_open_data->CmtBuf = ecalloc(RAR_MAX_COMMENT_SIZE, 1);
 	rar->list_open_data->CmtBufSize = RAR_MAX_COMMENT_SIZE;
 	rar->extract_open_data = ecalloc(1, sizeof *rar->extract_open_data);
-	rar->extract_open_data->ArcName = estrndup(resolved_path,
-		strnlen(resolved_path, MAXPATHLEN));
+	rar->extract_open_data->ArcName = estrdup(resolved_path);
 	rar->extract_open_data->OpenMode = RAR_OM_EXTRACT;
 	rar->extract_open_data->CmtBuf = NULL; //not interested in it again
 	rar->cb_userdata.password = NULL;
@@ -396,7 +395,6 @@ PHP_FUNCTION(rar_open)
 				rar->cb_userdata.callable = callable;
 				zval_add_ref(&rar->cb_userdata.callable);
 				SEPARATE_ZVAL(&rar->cb_userdata.callable);
-
 			}
 			else {
 				_rar_handle_ext_error("%s" TSRMLS_CC, "Expected the third "
