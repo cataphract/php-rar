@@ -60,6 +60,7 @@ void _rar_entry_to_zval(struct RARHeaderDataEx *entry, zval *object,
 	char tmp_s [MAX_LENGTH_OF_LONG + 1];
 	char time[50];
 	char *filename;
+	int  filename_size, filename_len;
 	long unp_size; /* zval stores PHP ints as long, so use that here */
 
 #if ULONG_MAX > 0xffffffffUL
@@ -73,20 +74,19 @@ void _rar_entry_to_zval(struct RARHeaderDataEx *entry, zval *object,
 		unp_size = (long) entry->UnpSize;
 #endif
 
-	/* 2 instead of sizeof(wchar_t) would suffice, I think. I doubt
-	 * _rar_wide_to_utf handles characters not in UCS-2. But better be safe */
-	filename = (char*) emalloc(sizeof(entry->FileNameW) * sizeof(wchar_t));
+	filename_size = sizeof(entry->FileNameW) * sizeof(wchar_t);
+	filename = (char*) emalloc(filename_size);
 
 	if (packed_size > (unsigned long) LONG_MAX)
 		packed_size = LONG_MAX;
-	_rar_wide_to_utf(entry->FileNameW, filename,
-		sizeof(entry->FileNameW) * sizeof(wchar_t));
+	_rar_wide_to_utf(entry->FileNameW, filename, filename_size);
+	filename_len = strnlen(filename, filename_size);
 	/* we're not in class scope, so we cannot change the class private
 	 * properties from here with add_property_x, or
 	 * direct call to rarentry_object_handlers.write_property
 	 * zend_update_property_x updates the scope accordingly */
-	zend_update_property_string(rar_class_entry_ptr, object, "name",
-		sizeof("name") - 1, filename TSRMLS_CC);
+	zend_update_property_stringl(rar_class_entry_ptr, object, "name",
+		sizeof("name") - 1, filename, filename_len TSRMLS_CC);
 	zend_update_property_long(rar_class_entry_ptr, object, "unpacked_size",
 		sizeof("unpacked_size") - 1, unp_size TSRMLS_CC);
 	zend_update_property_long(rar_class_entry_ptr, object, "packed_size",

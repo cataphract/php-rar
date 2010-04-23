@@ -52,7 +52,7 @@ extern "C" {
 #include "php_rar.h"
 
 /* {{{ Function prototypes for functions with internal linkage */
-static void _rar_fix_wide(wchar_t *str);
+static void _rar_fix_wide(wchar_t *str, size_t max_size);
 static int _rar_unrar_volume_user_callback(char* dst_buffer,
 										   zend_fcall_info *fci,
 										   zend_fcall_info_cache *cache
@@ -239,7 +239,7 @@ int _rar_find_file(struct RAROpenArchiveDataEx *open_data, /* IN */
 	
 	while ((result = RARReadHeaderEx(*arc_handle, used_header_data)) == 0) {
 		if (sizeof(wchar_t) > 2)
-			_rar_fix_wide(used_header_data->FileNameW);
+			_rar_fix_wide(used_header_data->FileNameW, NM);
 
 		if (wcsncmp(used_header_data->FileNameW, file_name, NM) == 0) {
 			*found = TRUE;
@@ -335,11 +335,13 @@ PHP_FUNCTION(rar_bogus_ctor) /* {{{ */
 /* }}} */
 
 /* {{{ Functions with internal linkage */
-static void _rar_fix_wide(wchar_t *str) /* {{{ */
+static void _rar_fix_wide(wchar_t *str, size_t max_size) /* {{{ */
 {
 	wchar_t *write,
-		    *read;
-	for (write = str, read = str; *read != L'\0'; read++) {
+		    *read,
+			*max_fin;
+	max_fin = str + max_size;
+	for (write = str, read = str; *read != L'\0' && read != max_fin; read++) {
 		if ((unsigned) *read <= 0x10ffff)
 			*(write++) = *read;
 	}
@@ -397,7 +399,8 @@ static int _rar_unrar_volume_user_callback(char* dst_buffer,
 		}
 
 		resolved_len = strnlen(resolved_path, MAXPATHLEN);
-		//dst_buffer size is NM
+		/* dst_buffer size is NM; first condition won't happen short of a bug
+		 * in expand_filepath */
 		if (resolved_len == MAXPATHLEN || resolved_len > NM - 1) {
 			php_error_docref(NULL TSRMLS_CC, E_WARNING,
 				"Resolved path is too big for the unRAR library");
@@ -483,6 +486,10 @@ PHP_MINIT_FUNCTION(rar)
 	REGISTER_LONG_CONSTANT("RAR_HOST_UNIX",		HOST_UNIX,	CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("RAR_HOST_MACOS",	HOST_MACOS,	CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("RAR_HOST_BEOS",		HOST_BEOS,	CONST_CS | CONST_PERSISTENT);
+	//PHP < 5.3 doesn't have the PHP_MAXPATHLEN constant
+#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION < 3
+	REGISTER_LONG_CONSTANT("RAR_MAXPATHLEN",	MAXPATHLEN,	CONST_CS | CONST_PERSISTENT);
+#endif
 	return SUCCESS;
 }
 /* }}} */
