@@ -82,7 +82,8 @@ void _rar_entry_to_zval(struct RARHeaderDataEx *entry, zval *object,
 	_rar_wide_to_utf(entry->FileNameW, filename,
 		sizeof(entry->FileNameW) * sizeof(wchar_t));
 	/* we're not in class scope, so we cannot change the class private
-	 * properties from here with add_property_x
+	 * properties from here with add_property_x, or
+	 * direct call to rarentry_object_handlers.write_property
 	 * zend_update_property_x updates the scope accordingly */
 	zend_update_property_string(rar_class_entry_ptr, object, "name",
 		sizeof("name") - 1, filename TSRMLS_CC);
@@ -228,6 +229,9 @@ PHP_METHOD(rarentry, extract)
 	HANDLE					extract_handle = NULL;
 	int						result;
 	int						found;
+	/* gotta have a new copy (shallow is enough) because we may want to use a
+	 * password that's different from the one stored in the rar_file_t object*/
+	rar_cb_user_data		cb_udata = {NULL};
 	
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|s", &dir, &dir_len,
 			&filepath, &filepath_len, &password, &password_len) == FAILURE ) {
@@ -262,11 +266,13 @@ PHP_METHOD(rarentry, extract)
 	/* Find file inside archive */
 	RAR_GET_PROPERTY(tmp_name, "name");
 
-	if (password == NULL)
-		password = rar->password; //use rar_open password by default
+	//use rar_open password (stored in rar->cb_userdata) by default
+	memcpy(&cb_udata, &rar->cb_userdata, sizeof cb_udata);
+	if (password != NULL)
+		cb_udata.password = password;
 
 	result = _rar_find_file(rar->extract_open_data, Z_STRVAL_PP(tmp_name),
-		password, &extract_handle, &found, &entry);
+		&cb_udata, &extract_handle, &found, &entry);
 
 	if (_rar_handle_error(result TSRMLS_CC) == FAILURE) {
 		RETVAL_FALSE;
@@ -432,12 +438,15 @@ PHP_METHOD(rarentry, getMethod)
    Return stream for current entry */
 PHP_METHOD(rarentry, getStream)
 {
-	zval **tmp, **name;
-	rar_file_t *rar = NULL;
-	zval *entry_obj = getThis();
-	php_stream *stream = NULL;
-	char *password = NULL;
-	int password_len; //ignored
+	zval				**tmp,
+						**name;
+	rar_file_t			*rar = NULL;
+	zval				*entry_obj = getThis();
+	php_stream			*stream = NULL;
+	char				*password = NULL;
+	int					password_len; //ignored
+	rar_cb_user_data	cb_udata = {NULL};
+
 	
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|s",
 			&password, &password_len) == FAILURE ) {
@@ -450,11 +459,14 @@ PHP_METHOD(rarentry, getStream)
 		RETURN_FALSE;
 	}
 
-	if (password == NULL)
-		password = rar->password; //use rar_open password by default
+	//use rar_open password (stored in rar->cb_userdata) by default
+	memcpy(&cb_udata, &rar->cb_userdata, sizeof cb_udata);
+	if (password != NULL)
+		cb_udata.password = password;
 
+	/* doesn't matter that cb_udata is stack allocated, it will be copied */
 	stream = php_stream_rar_open(rar->extract_open_data->ArcName,
-		Z_STRVAL_PP(name), password, "r" STREAMS_CC TSRMLS_CC);
+		Z_STRVAL_PP(name), &cb_udata, "r" STREAMS_CC TSRMLS_CC);
 	
 	if (stream != NULL) {
 		php_stream_to_zval(stream, return_value);

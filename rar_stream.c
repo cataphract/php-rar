@@ -62,6 +62,7 @@ typedef struct php_rar_stream_data_t {
 	size_t						buffer_pos;
 	uint64						cursor;
 	int							no_more_data;
+	rar_cb_user_data			cb_userdata;
 	php_stream					*stream;
 } php_rar_stream_data, *php_rar_stream_data_P;
 
@@ -160,6 +161,7 @@ static int php_rar_ops_close(php_stream *stream, int close_handle TSRMLS_DC)
 			efree(self->open_data.ArcName);
 			self->open_data.ArcName = NULL;
 		}
+		_rar_destroy_userdata(&self->cb_userdata);
 		if (self->buffer != NULL) {
 			efree(self->buffer);
 			self->buffer = NULL;
@@ -196,9 +198,10 @@ php_stream_ops php_stream_rario_ops = {
 };
 
 /* {{{ php_stream_rar_open */
+/* callback user data does NOT need to be managed outside */
 php_stream *php_stream_rar_open(char *arc_name,
 								char *utf_file_name,
-								char *password,
+								rar_cb_user_data *cb_udata_ptr, /* will be copied */
 								char *mode STREAMS_DC TSRMLS_DC)
 {
 	php_stream				*stream	= NULL;
@@ -213,8 +216,15 @@ php_stream *php_stream_rar_open(char *arc_name,
 	self = ecalloc(1, sizeof *self);
 	self->open_data.ArcName		= estrdup(arc_name);
 	self->open_data.OpenMode	= RAR_OM_EXTRACT;
+	/* deep copy the callback userdata */
+	if (cb_udata_ptr->password != NULL)
+		self->cb_userdata.password = estrdup(cb_udata_ptr->password);
+	if (cb_udata_ptr->callable != NULL) {
+		self->cb_userdata.callable = cb_udata_ptr->callable;
+		zval_add_ref(&self->cb_userdata.callable);
+	}
 	
-	result = _rar_find_file(&self->open_data, utf_file_name, password,
+	result = _rar_find_file(&self->open_data, utf_file_name, &self->cb_userdata,
 		&self->rar_handle, &found, &self->header_data);
 
 	if (_rar_handle_error(result TSRMLS_CC) == FAILURE) {
@@ -247,6 +257,7 @@ cleanup:
 		if (self != NULL) {
 			if (self->open_data.ArcName != NULL)
 				efree(self->open_data.ArcName);
+			_rar_destroy_userdata(&self->cb_userdata);
 			if (self->buffer != NULL)
 				efree(self->buffer);
 			if (self->rar_handle != NULL)

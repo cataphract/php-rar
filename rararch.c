@@ -301,9 +301,8 @@ static void rararch_ce_free_object_storage(ze_rararch_object *object TSRMLS_DC) 
 	rar_file_t *rar = object->rar_file;
 	int i;
 
-	if (rar->password != NULL) {
-		efree(rar->password);
-	}
+	_rar_destroy_userdata(&rar->cb_userdata);
+
 	if ((rar->entries != NULL) && (rar->entry_count > 0)) {
 		for (i = 0; i < rar->entry_count; i++) {
 			efree(rar->entries[i]);
@@ -338,7 +337,7 @@ static size_t strnlen(const char *s, size_t maxlen) /* {{{ */
 
 /* module functions */
 
-/* {{{ proto RarArchive rar_open(string filename [, string password])
+/* {{{ proto RarArchive rar_open(string filename [, string password [, callback volume cb]])
    Open RAR archive and return RarArchive object */
 PHP_FUNCTION(rar_open)
 {
@@ -347,10 +346,14 @@ PHP_FUNCTION(rar_open)
 	char resolved_path[MAXPATHLEN];
 	int filename_len;
 	int password_len = 0;
+	int was_error = 0;
 	rar_file_t *rar = NULL;
+	zval *callable = NULL;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|s", &filename,
-		&filename_len, &password, &password_len) == FAILURE) {
+	/* Files are only opened here and in _rar_find_file */
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|sz", &filename,
+		&filename_len, &password, &password_len, &callable) == FAILURE) {
 		return;
 	}
 
@@ -374,29 +377,49 @@ PHP_FUNCTION(rar_open)
 		strnlen(resolved_path, MAXPATHLEN));
 	rar->extract_open_data->OpenMode = RAR_OM_EXTRACT;
 	rar->extract_open_data->CmtBuf = NULL; //not interested in it again
-	rar->password = NULL;
+	rar->cb_userdata.password = NULL;
+	rar->cb_userdata.callable = NULL;
 	rar->entries = NULL;
 	rar->entry_count = 0;
 
 	rar->arch_handle = RAROpenArchiveEx(rar->list_open_data);
 	if (rar->arch_handle != NULL && rar->list_open_data->OpenResult == 0) {
 		if (password_len > 0) {
-			rar->password = estrndup(password, password_len);
+			rar->cb_userdata.password = estrndup(password, password_len);
 		}
-		//rar->id = ZEND_REGISTER_RESOURCE(return_value, rar, le_rar_file);
-		object_init_ex(return_value, rararch_ce_ptr);
-		{
-			ze_rararch_object *zobj =
-				zend_object_store_get_object(return_value TSRMLS_CC);
-			zobj->rar_file = rar;
+		if (ZEND_NUM_ARGS() >= 3) { //given volume resolver callback
+#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION == 2
+			if (zend_is_callable(callable, IS_CALLABLE_STRICT, NULL)) {
+#else
+			if (zend_is_callable(callable, IS_CALLABLE_STRICT, NULL TSRMLS_CC)) {
+#endif
+				rar->cb_userdata.callable = callable;
+				zval_add_ref(&rar->cb_userdata.callable);
+				SEPARATE_ZVAL(&rar->cb_userdata.callable);
+
+			}
+			else {
+				_rar_handle_ext_error("%s" TSRMLS_CC, "Expected the third "
+					"argument, if provided, to be a valid callback");
+				was_error = 1;
+			}
 		}
-		rar->id = Z_OBJ_HANDLE_P(return_value);
+		
+		if (!was_error) { //create RarArchive object if there was no error
+			object_init_ex(return_value, rararch_ce_ptr);
+			{
+				ze_rararch_object *zobj =
+					zend_object_store_get_object(return_value TSRMLS_CC);
+				zobj->rar_file = rar;
+			}
+			rar->id = Z_OBJ_HANDLE_P(return_value);
+		}
 	} else {
 		const char *err_str = _rar_error_to_string(rar->list_open_data->OpenResult);
 		if (err_str == NULL)
 			_rar_handle_ext_error("%s" TSRMLS_CC, "Archive opened failed "
-			"(returned NULL handle), but did not return an error. "
-			"Should not happen.");
+				"(returned NULL handle), but did not return an error "
+				"Should not happen.");
 		else {
 			char *preamble;
 			spprintf(&preamble, 0, "Failed to open %s: ", filename);
@@ -404,6 +427,10 @@ PHP_FUNCTION(rar_open)
 				rar->list_open_data->OpenResult TSRMLS_CC);
 			efree(preamble);
 		}
+		was_error = 1;
+	}
+
+	if (was_error) { //free resources and return false in case of error
 		efree(rar->list_open_data->ArcName);
 		efree(rar->list_open_data->CmtBuf);
 		efree(rar->list_open_data);
@@ -412,7 +439,8 @@ PHP_FUNCTION(rar_open)
 		efree(rar);
 		RETURN_FALSE;
 	}
-	RARSetCallback(rar->arch_handle, _rar_unrar_callback, (LPARAM) rar->password);
+	
+	RARSetCallback(rar->arch_handle, _rar_unrar_callback, (LPARAM) &rar->cb_userdata);
 }
 /* }}} */
 
@@ -616,6 +644,7 @@ PHP_METHOD(rararch, __toString)
 ZEND_BEGIN_ARG_INFO_EX(arginfo_rararchive_open, 0, 0, 1)
 	ZEND_ARG_INFO(0, filename)
 	ZEND_ARG_INFO(0, password)
+	ZEND_ARG_INFO(0, volume_callback)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_rararchive_getentry, 0, 0, 1)

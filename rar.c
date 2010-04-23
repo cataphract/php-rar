@@ -53,6 +53,10 @@ extern "C" {
 
 /* {{{ Function prototypes for functions with internal linkage */
 static void _rar_fix_wide(wchar_t *str);
+static int _rar_unrar_volume_user_callback(char* dst_buffer,
+										   zend_fcall_info *fci,
+										   zend_fcall_info_cache *cache
+										   TSRMLS_DC);
 /* }}} */
 
 /* {{{ Functions with external linkage */
@@ -133,10 +137,73 @@ void _rar_utf_to_wide(const char *src, wchar_t *dest, size_t dest_size) /* {{{ *
 }
 /* }}} */
 
-/* WARNING: It's the caller who must close the archive. */
+int _rar_make_userdata_fcall(zval *callable,
+							 zend_fcall_info *fci,
+							 zend_fcall_info_cache *cache TSRMLS_DC) /* {{{ */
+{
+	char *error = NULL;
+	assert(callable != NULL);
+	assert(fci != NULL);
+	assert(cache != NULL);
+
+	*cache = empty_fcall_info_cache;
+
+#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION == 2
+	if (zend_fcall_info_init(callable, fci, cache TSRMLS_CC) != SUCCESS) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,
+			"The RAR file was not opened in rar_open/RarArchive::open with a "
+			"valid callback.", error);
+		return FAILURE;
+	}
+	else {
+		return SUCCESS;
+	}
+#else
+	if (zend_fcall_info_init(callable, IS_CALLABLE_STRICT, fci, cache, NULL,
+			&error TSRMLS_CC) == SUCCESS) {
+		if (error) {
+			php_error_docref(NULL TSRMLS_CC, E_STRICT,
+				"The RAR file was not opened with a strictly valid callback (%s)",
+				error);
+			efree(error);
+		}
+		return SUCCESS;
+	}
+	else {
+		if (error) {
+			php_error_docref(NULL TSRMLS_CC, E_STRICT,
+				"The RAR file was not opened with a valid callback (%s)",
+				error);
+			efree(error);
+		}
+		return FAILURE;
+	}
+#endif
+
+}
+/* }}} */
+
+void _rar_destroy_userdata(rar_cb_user_data *udata) /* {{{ */
+{
+	assert(udata != NULL);
+	
+	if (udata->password != NULL) {
+		efree(udata->password);
+	}
+	
+	if (udata->callable != NULL)
+		zval_ptr_dtor(&udata->callable);
+
+	udata->password = NULL;
+	udata->callable = NULL;
+}
+/* }}} */
+
+/* WARNING: It's the caller who must close the archive and manage the lifecycle
+of cb_udata (must be valid while the archive is opened). */
 int _rar_find_file(struct RAROpenArchiveDataEx *open_data, /* IN */
 				   const char *const utf_file_name, /* IN */
-				   char *password, /* IN, can be null */
+				   rar_cb_user_data *cb_udata, /* IN, must be managed outside */
 				   void **arc_handle, /* OUT: where to store rar archive handle  */
 				   int *found, /* OUT */
 				   struct RARHeaderDataEx *header_data /* OUT, can be null */
@@ -164,7 +231,7 @@ int _rar_find_file(struct RAROpenArchiveDataEx *open_data, /* IN */
 		retval = open_data->OpenResult;
 		goto cleanup;
 	}
-	RARSetCallback(*arc_handle, _rar_unrar_callback, (LPARAM) password);
+	RARSetCallback(*arc_handle, _rar_unrar_callback, (LPARAM) cb_udata);
 
 	utf_file_name_len = strlen(utf_file_name);
 	file_name = ecalloc(utf_file_name_len + 1, sizeof *file_name); 
@@ -206,10 +273,11 @@ cleanup:
 int CALLBACK _rar_unrar_callback(UINT msg, LPARAM UserData, LPARAM P1, LPARAM P2) /* {{{ */
 {
 	TSRMLS_FETCH();
+	rar_cb_user_data *userdata = (rar_cb_user_data*)  UserData;
 	
 	if (msg == UCM_NEEDPASSWORD) {
 		//user data is the password or null if none
-		char *password = (char*) UserData;
+		char *password = userdata->password;
 
 		if (password == NULL) {
 			/*php_error_docref(NULL TSRMLS_CC, E_WARNING,
@@ -222,16 +290,38 @@ int CALLBACK _rar_unrar_callback(UINT msg, LPARAM UserData, LPARAM P1, LPARAM P2
 	}
 	else if (msg == UCM_CHANGEVOLUME) {
 		if (((int) P2) == RAR_VOL_ASK) {
-			php_error_docref(NULL TSRMLS_CC, E_WARNING,
-				"Volume %s was not found.", (char*) P1);
-			/* this means a volume is missing. return -1 to abort */
-			return -1;
+			int ret;
+			if (userdata->callable == NULL) {
+				/* if there's no callback, abort */
+				ret = -1;
+			}
+			else {
+				zend_fcall_info fci;
+				zend_fcall_info_cache cache;
+				/* make_userdata_fcall and volume_user_callback are chatty */
+				if (_rar_make_userdata_fcall(userdata->callable, &fci, &cache
+						TSRMLS_CC) == SUCCESS) {
+					ret = _rar_unrar_volume_user_callback(
+						(char*) P1, &fci, &cache TSRMLS_CC);
+				}
+				else {
+					ret = -1;
+				}
+
+			}
+
+			if (ret == -1)
+				php_error_docref(NULL TSRMLS_CC, E_WARNING,
+					"Volume %s was not found", (char*) P1);
+
+			return ret;
 		}
 	}
 
 	return 0;
 }
 /* }}} */
+
 PHP_FUNCTION(rar_bogus_ctor) /* {{{ */
 {
 	/* This exception should not be thrown. The point is to add this as
@@ -256,6 +346,82 @@ static void _rar_fix_wide(wchar_t *str) /* {{{ */
 	*write = L'\0';
 }
 /* }}} */
+
+/* called from the RAR callback; calls a user callback in case a volume was
+ * not found
+ * This function sends messages instead of calling _rar_handle_ext_error
+ * because, in case we're using exception, we want to let an exception with
+ * error code ERAR_EOPEN to be thrown.
+ */
+static int _rar_unrar_volume_user_callback(char* dst_buffer,
+										   zend_fcall_info *fci,
+										   zend_fcall_info_cache *cache
+										   TSRMLS_DC) /* {{{ */
+{
+	zval *failed_vol,
+		 *retval_ptr = NULL,
+		 **params;
+	int  ret = -1;
+
+	MAKE_STD_ZVAL(failed_vol);
+	ZVAL_STRING(failed_vol, dst_buffer, 1);
+	params = &failed_vol;
+	fci->retval_ptr_ptr = &retval_ptr;
+	fci->params = &params;
+	fci->param_count = 1;
+
+	if (zend_call_function(fci, cache TSRMLS_CC) != SUCCESS ||
+			fci->retval_ptr_ptr == NULL ||
+			*fci->retval_ptr_ptr == NULL) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,
+			"Failure to call volume find callback");
+		goto cleanup;
+	}
+	
+	assert(*fci->retval_ptr_ptr == retval_ptr);
+	if (Z_TYPE_P(retval_ptr) == IS_NULL) {
+		//let return -1
+	}
+	else if (Z_TYPE_P(retval_ptr) == IS_STRING) {
+		char *filename = Z_STRVAL_P(retval_ptr);
+		char resolved_path[MAXPATHLEN];
+		size_t resolved_len;
+
+		if (OPENBASEDIR_CHECKPATH(filename)) {
+			goto cleanup;
+		}
+		if (!expand_filepath(filename, resolved_path TSRMLS_CC)) {
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,
+				"Cound not expand filename %s", filename);
+			goto cleanup;
+		}
+
+		resolved_len = strnlen(resolved_path, MAXPATHLEN);
+		//dst_buffer size is NM
+		if (resolved_len == MAXPATHLEN || resolved_len > NM - 1) {
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,
+				"Resolved path is too big for the unRAR library");
+			goto cleanup;
+		}
+
+		strncpy(dst_buffer, resolved_path, NM);
+		dst_buffer[NM - 1] = '\0';
+		ret = 1; //try this new filename
+	}
+	else {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,
+			"Wrong type returned by volume find callback, "
+			"expected string or NULL");
+		//let return -1
+	}
+
+cleanup:
+	zval_ptr_dtor(&failed_vol);
+	if (retval_ptr != NULL)
+		zval_ptr_dtor(&retval_ptr);
+	return ret;
+}
+/* }}} */
 /* }}} */
 
 #ifdef COMPILE_DL_RAR
@@ -268,14 +434,23 @@ END_EXTERN_C()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_rar_open, 0, 0, 1)
 	ZEND_ARG_INFO(0, filename)
 	ZEND_ARG_INFO(0, password)
+	ZEND_ARG_INFO(0, volume_callback)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_rar_void_archmeth, 0, 0, 1)
+#if 0 /* don't turn on type hinting yet */
+	ZEND_ARG_OBJ_INFO(0, rarfile, RarArchive, 0)
+#else
 	ZEND_ARG_INFO(0, rarfile)
+#endif
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_rar_entry_get, 0, 0, 2)
+#if 0 /* don't turn on type hinting yet */
+	ZEND_ARG_OBJ_INFO(0, rarfile, RarArchive, 0)
+#else
 	ZEND_ARG_INFO(0, rarfile)
+#endif
 	ZEND_ARG_INFO(0, filename)
 ZEND_END_ARG_INFO()
 /* }}} */
@@ -319,8 +494,8 @@ PHP_MINFO_FUNCTION(rar)
 	char version[256];
 
 	php_info_print_table_start();
-	php_info_print_table_header(2, "Rar support", "enabled");
-	php_info_print_table_row(2, "Rar EXT version", PHP_RAR_VERSION);
+	php_info_print_table_header(2, "RAR support", "enabled");
+	php_info_print_table_row(2, "RAR EXT version", PHP_RAR_VERSION);
 	php_info_print_table_row(2, "Revision", PHP_RAR_REVISION);
 
 #if	RARVER_BETA != 0
@@ -340,9 +515,7 @@ PHP_MINFO_FUNCTION(rar)
 /* {{{ rar_module_entry
  */
 zend_module_entry rar_module_entry = {
-#if ZEND_MODULE_API_NO >= 20010901
 	STANDARD_MODULE_HEADER,
-#endif
 	"rar",
 	rar_functions,
 	PHP_MINIT(rar),
@@ -350,9 +523,7 @@ zend_module_entry rar_module_entry = {
 	NULL,
 	NULL,
 	PHP_MINFO(rar),
-#if ZEND_MODULE_API_NO >= 20010901
 	PHP_RAR_VERSION,
-#endif
 	STANDARD_MODULE_PROPERTIES
 };
 /* }}} */

@@ -70,6 +70,7 @@ bool MergeArchive(Archive &Arc,ComprDataIO *DataIO,bool ShowFileName,char Comman
       }
     }
 #ifdef RARDLL
+	//rar extension depends on NextName having size NM
     if (Cmd->Callback==NULL && Cmd->ChangeVolProc==NULL ||
         Cmd->Callback!=NULL && Cmd->Callback(UCM_CHANGEVOLUME,Cmd->UserData,(LPARAM)NextName,RAR_VOL_ASK)==-1)
     {
