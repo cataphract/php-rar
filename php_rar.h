@@ -65,6 +65,11 @@ enum HOST_SYSTEM {
 //maximum comment size if 64KB
 #define RAR_MAX_COMMENT_SIZE 65536
 
+typedef struct _rar_cb_user_data {
+	char					*password;	//can be NULL
+	zval					*callable;  //can be NULL
+} rar_cb_user_data;
+
 typedef struct rar {
 	zend_object_handle			id;
 	int							entry_count; //>= number of files
@@ -73,7 +78,8 @@ typedef struct rar {
 	struct RAROpenArchiveDataEx	*extract_open_data;
 	//archive handle opened with RAR_OM_LIST_INCSPLIT open mode
 	void						*arch_handle;
-	char						*password;
+	//user data to pass the RAR callback
+	rar_cb_user_data			cb_userdata;
 } rar_file_t;
 
 //PHP 5.2 compatibility
@@ -101,9 +107,13 @@ PHP_FUNCTION(rar_bogus_ctor);
 
 void _rar_wide_to_utf(const wchar_t *src, char *dest, size_t dest_size);
 void _rar_utf_to_wide(const char *src, wchar_t *dest, size_t dest_size);
+int _rar_make_userdata_fcall(zval *callable,
+							 zend_fcall_info *fci,
+							 zend_fcall_info_cache *cache TSRMLS_DC);
+void _rar_destroy_userdata(rar_cb_user_data *udata);
 int _rar_find_file(struct RAROpenArchiveDataEx *open_data, /* IN */
 				   const char *const utf_file_name, /* IN */
-				   char *password, /* IN, can be null */
+				   rar_cb_user_data *cb_udata, /* IN, must be managed outside */
 				   void **arc_handle, /* OUT: where to store rar archive handle  */
 				   int *found, /* OUT */
 				   struct RARHeaderDataEx *header_data /* OUT, can be null */
@@ -140,7 +150,7 @@ void _rar_entry_to_zval(struct RARHeaderDataEx *entry, zval *object,
 /* rar_stream.c */
 php_stream *php_stream_rar_open(char *arc_name,
 								char *utf_file_name,
-								char *password,
+								rar_cb_user_data *cb_udata_ptr, /* will be copied */
 								char *mode STREAMS_DC TSRMLS_DC);
 
 #endif	/* PHP_RAR_H */
