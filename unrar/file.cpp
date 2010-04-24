@@ -103,11 +103,11 @@ bool File::Open(const char *Name,const wchar *NameW,bool OpenShared,bool Update)
   if (Success)
   {
     hFile=hNewFile;
-    if (NameW!=NULL)
+	if (NameW!=NULL && FileNameW!=NameW)
       strcpyw(FileNameW,NameW);
     else
       *FileNameW=0;
-    if (Name!=NULL)
+    if (Name!=NULL && FileName!=Name)
       strcpy(FileName,Name);
     else
       WideToChar(NameW,FileName);
