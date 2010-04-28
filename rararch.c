@@ -72,6 +72,51 @@ int _rar_get_file_resource(zval *zval_file, rar_file_t **rar_file TSRMLS_DC) /* 
 }
 /* }}} */
 
+/* creates a hashtable whose keys are names of the files inside the RAR
+ * archive and the values are indexes (with respect to rar_file->entries)
+ * of the first entry of the file with that name */
+int _rar_index_entries(rar_file_t *rar_file TSRMLS_DC) /* {{{ */
+{
+	int i;
+	int first_file_check;
+
+	assert(rar_file->entries_idx == NULL);
+
+	if (rar_file->entries == NULL)
+		_rar_list_files(rar_file TSRMLS_CC);
+
+    ALLOC_HASHTABLE(rar_file->entries_idx);
+    if (zend_hash_init(rar_file->entries_idx, rar_file->entry_count, NULL,
+			NULL, 0) == FAILURE) {
+        FREE_HASHTABLE(rar_file->entries_idx);
+		rar_file->entries_idx = NULL;
+        return FAILURE;
+    }
+	
+	for (i = 0, first_file_check = TRUE; i < rar_file->entry_count; i++) {
+		struct RARHeaderDataEx *entry;
+		const wchar_t *cur_name;
+
+		entry = rar_file->entries[i];
+		cur_name = entry->FileNameW;
+
+		/* skip files continued from the last volume */
+		if (first_file_check) {
+			if (entry->Flags & 0x01)
+				continue;
+			else
+				first_file_check = FALSE;
+		}
+
+		zend_hash_add(rar_file->entries_idx, (const char *) cur_name,
+			(wcsnlen(cur_name, sizeof entry->FileNameW) + 1) * sizeof *cur_name,
+			&i, sizeof(i), NULL);
+	}
+
+	return SUCCESS;	
+}
+/* }}} */
+
 /* Receives archive zval, returns object struct.
  * If silent is FALSE, it checks whether the archive is alredy closed, and if it
  * is, an exception/error is raised and 0 is returned
@@ -125,10 +170,15 @@ static int _rar_list_files(rar_file_t *rar TSRMLS_DC) /* {{{ */
 			rar->entry_count++;
 		}
 	}
+	//uncomment to have always have index
+	/* if (rar->entries != NULL)
+		_rar_index_entries(rar TSRMLS_CC); */
 	return result;
 }
 /* }}} */
 
+/* Read the rar->entries lazy cache and create either one or more zvals from
+ * those entries */
 static int _rar_raw_entries_to_files(rar_file_t *rar,
 									 const wchar_t * const file, //can be NULL
 									 int *index, //start index, can be NULL
@@ -140,9 +190,18 @@ static int _rar_raw_entries_to_files(rar_file_t *rar,
 	unsigned long packed_size = 0UL;
 	struct RARHeaderDataEx *last_entry = NULL;
 	int any_commit = FALSE;
-	int first_file_check = (index == NULL) || (*index == 0);
-	int target_is_obj = (file != NULL || index != NULL);
+	int first_file_check;
+	int target_is_obj;
 	int i;
+
+	if (index == NULL && file != NULL && rar->entries_idx != NULL) {
+		if (zend_hash_find(rar->entries_idx, (const char *) file,
+				(wcslen(file) + 1) * sizeof *file, &index) == FAILURE)
+			return FALSE;
+	}
+
+	first_file_check = (index == NULL) || (*index == 0);
+	target_is_obj = (file != NULL || index != NULL);
 
 	assert(rar->entry_count == 0 || rar->entries != NULL);
 	for (i = (index == NULL ? 0 : *index); i <= rar->entry_count; i++) {
@@ -310,6 +369,10 @@ static void rararch_ce_free_object_storage(ze_rararch_object *object TSRMLS_DC) 
 		efree(rar->entries);
 		rar->entry_count = 0;
 	}
+	if (rar->entries_idx != NULL) {
+		zend_hash_destroy(rar->entries_idx);
+		FREE_HASHTABLE(rar->entries_idx);
+	}
 	efree(rar->list_open_data->ArcName);
 	efree(rar->list_open_data->CmtBuf);
 	efree(rar->list_open_data);
@@ -379,6 +442,7 @@ PHP_FUNCTION(rar_open)
 	rar->cb_userdata.password = NULL;
 	rar->cb_userdata.callable = NULL;
 	rar->entries = NULL;
+	rar->entries_idx = NULL;
 	rar->entry_count = 0;
 
 	rar->arch_handle = RAROpenArchiveEx(rar->list_open_data);

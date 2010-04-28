@@ -19,7 +19,7 @@ foreach ($rar_file1 as $e) {
 	$stream = $e->getStream();
 	echo $e->getName().": ";
 	$a = "";
-	while (!feof($stream)) {
+	while (is_resource($stream) && !feof($stream)) {
 		$a .= fread($stream, 8192);
 	}
 	echo strlen($a)." bytes, CRC ";

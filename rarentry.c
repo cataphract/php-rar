@@ -246,7 +246,8 @@ PHP_METHOD(rarentry, extract)
 	/* Decide where to extract */
 	with_second_arg = (filepath_len != 0);
 
-	//the arguments are mutually exclusive. If the second is specified, must ignore the first
+	/* the arguments are mutually exclusive.
+	 * If the second is specified, we ignore the first */
 	if (!with_second_arg) {
 		if (dir_len == 0) //both params empty
 			dir = ".";
@@ -266,10 +267,13 @@ PHP_METHOD(rarentry, extract)
 	/* Find file inside archive */
 	RAR_GET_PROPERTY(tmp_name, "name");
 
-	//use rar_open password (stored in rar->cb_userdata) by default
+	/* don't set the new password now because maybe the headers are
+	 * encrypted with a password different from this file's (though WinRAR
+	 * does not support that: if you encrypt the headers, you must encrypt
+	 * the files with the same password). By not replacing the password
+	 * now, we're using the password given to rar_open, if any (which must
+	 * have enabled decrypting the headers or else we wouldn't be here */
 	memcpy(&cb_udata, &rar->cb_userdata, sizeof cb_udata);
-	if (password != NULL)
-		cb_udata.password = password;
 
 	result = _rar_find_file(rar->extract_open_data, Z_STRVAL_PP(tmp_name),
 		&cb_udata, &extract_handle, &found, &entry);
@@ -286,6 +290,11 @@ PHP_METHOD(rarentry, extract)
 		RETVAL_FALSE;
 		goto cleanup;
 	}
+
+	/* now use the password given to this method. If none was given, we're
+	 * still stuck with the password given to rar_open, if any */
+	if (password != NULL)
+		cb_udata.password = password;
 
 	/* Do extraction */
 	if (!with_second_arg)

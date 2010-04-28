@@ -74,6 +74,8 @@ typedef struct rar {
 	zend_object_handle			id;
 	int							entry_count; //>= number of files
 	struct RARHeaderDataEx		**entries;
+	//key: entry name, value: index in entries
+	HashTable					*entries_idx; /* TODO: merge into entries */
 	struct RAROpenArchiveDataEx	*list_open_data;
 	struct RAROpenArchiveDataEx	*extract_open_data;
 	//archive handle opened with RAR_OM_LIST_INCSPLIT open mode
@@ -82,8 +84,52 @@ typedef struct rar {
 	rar_cb_user_data			cb_userdata;
 } rar_file_t;
 
+/* Per-request cache or make last the duration of the PHP lifespan?
+ * - per-request advantages: we can re-use rar_open and store close RarArchive
+ *   objects. We store either pointers to the objects directly and manipulate
+ *	 the refcount in the store or we store zvals. Either way, we must decrement
+ *	 the refcounts on request shutdown. Also, the memory usage is best kept
+ *	 in check because the memory is freed after each request.
+ * - per PHP lifespan advantages: more cache hits. We can also re-use rar_open,
+ *	 but then we have to copy rar->entries and rar->entries_idx into
+ *	 persistently allocated buffers since the RarArchive objects cannot be made
+ *	 persistent themselves.
+ *
+ * I'll go with per-request and store zval pointers together with modification
+ * time.
+ * I'll also go with a FIFO eviction policy because it's simpler to implement
+ * (just delete the first element of the HashTable).
+ */
+#ifdef ZTS
+# define RAR_TSRMLS_TC	, void ***
+#else
+# define RAR_TSRMLS_TC
+#endif
+
+typedef struct _rar_contents_cache {
+	int			max_size;
+	HashTable	*data;		//persistent HashTable, will hold rar_cache_entry
+	/* args: cache key, cache key size, cached object) */
+	void (*put)(const char *, uint, zval * RAR_TSRMLS_TC);
+	zval *(*get)(const char *, uint RAR_TSRMLS_TC);
+} rar_contents_cache;
+
+/* Module globals, currently used for dir wrappers cache */
+ZEND_BEGIN_MODULE_GLOBALS(rar)
+	rar_contents_cache contents_cache;
+ZEND_END_MODULE_GLOBALS(rar)
+
+ZEND_EXTERN_MODULE_GLOBALS(rar);
+
+#ifdef ZTS
+# define RAR_G(v) TSRMG(rar_globals_id, zend_rar_globals *, v)
+#else
+# define RAR_G(v) (rar_globals.v)
+#endif
+
 //PHP 5.2 compatibility
 #if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION < 3
+# define STREAM_ASSUME_REALPATH 0
 # define ALLOC_PERMANENT_ZVAL(z) \
         (z) = (zval*) malloc(sizeof(zval));
 # define OPENBASEDIR_CHECKPATH(filename) \
@@ -130,6 +176,7 @@ const char * _rar_error_to_string(int errcode);
 void minit_rarerror(TSRMLS_D);
 
 /* rararch.c */
+int _rar_index_entries(rar_file_t *rar_file TSRMLS_DC);
 int _rar_get_file_resource(zval *zval_file, rar_file_t **rar_file TSRMLS_DC);
 int _rar_get_file_resource_ex(zval *zval_file, rar_file_t **rar_file, int silent TSRMLS_DC);
 void minit_rararch(TSRMLS_D);
@@ -152,6 +199,13 @@ php_stream *php_stream_rar_open(char *arc_name,
 								char *utf_file_name,
 								rar_cb_user_data *cb_udata_ptr, /* will be copied */
 								char *mode STREAMS_DC TSRMLS_DC);
+php_stream *php_stream_rar_opener(php_stream_wrapper *wrapper,
+								  char *filename,
+								  char *mode,
+								  int options,
+								  char **opened_path,
+								  php_stream_context *context STREAMS_DC TSRMLS_DC);
+extern php_stream_wrapper php_stream_rar_wrapper;
 
 #endif	/* PHP_RAR_H */
 

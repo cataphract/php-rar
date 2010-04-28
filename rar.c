@@ -201,6 +201,17 @@ void _rar_destroy_userdata(rar_cb_user_data *udata) /* {{{ */
 
 /* WARNING: It's the caller who must close the archive and manage the lifecycle
 of cb_udata (must be valid while the archive is opened). */
+/*
+ * This function opens a RAR file and looks for the file with the
+ * name utf_file_name.
+ * If the operation is sucessful, arc_handle is populated with the RAR file
+ * handle, found is set to TRUE if the file is found and FALSE if it is not
+ * found; additionaly, the optional header_data is populated with the first
+ * header that corresponds to the request file. If the file is not found and
+ * header_data is specified, its values are undefined.
+ * Note that even when the file is not found, the caller must still close
+ * the archive.
+ */
 int _rar_find_file(struct RAROpenArchiveDataEx *open_data, /* IN */
 				   const char *const utf_file_name, /* IN */
 				   rar_cb_user_data *cb_udata, /* IN, must be managed outside */
@@ -269,7 +280,11 @@ cleanup:
 }
 /* }}} */
 
-/* Only processes password callbacks */
+/* An unRAR callback.
+ * Processes requests for passwords and missing volumes 
+ * If there is (userland) volume find callback specified, try to use that
+ * callback to retrieve the name of the missing volume. Otherwise, or if
+ * the volume find callback returns null, cancel the operation. */
 int CALLBACK _rar_unrar_callback(UINT msg, LPARAM UserData, LPARAM P1, LPARAM P2) /* {{{ */
 {
 	TSRMLS_FETCH();
@@ -327,7 +342,7 @@ PHP_FUNCTION(rar_bogus_ctor) /* {{{ */
 	/* This exception should not be thrown. The point is to add this as
 	 * a class constructor and make it private. This code would be able to
 	 * run only if the constructor were made public */
-	zend_throw_exception(spl_ce_RuntimeException,
+	zend_throw_exception(NULL,
 		"An object of this type cannot be created with the new operator.",
 		0 TSRMLS_CC);
 }
@@ -335,6 +350,11 @@ PHP_FUNCTION(rar_bogus_ctor) /* {{{ */
 /* }}} */
 
 /* {{{ Functions with internal linkage */
+/*
+ * Only relevant when sizeof(wchar_t) > 2 (so not windows).
+ * Removes the characters use value if > 0x10ffff; these are not
+ * valid UTF characters.
+ */
 static void _rar_fix_wide(wchar_t *str, size_t max_size) /* {{{ */
 {
 	wchar_t *write,
@@ -352,7 +372,7 @@ static void _rar_fix_wide(wchar_t *str, size_t max_size) /* {{{ */
 /* called from the RAR callback; calls a user callback in case a volume was
  * not found
  * This function sends messages instead of calling _rar_handle_ext_error
- * because, in case we're using exception, we want to let an exception with
+ * because, in case we're using exceptions, we want to let an exception with
  * error code ERAR_EOPEN to be thrown.
  */
 static int _rar_unrar_volume_user_callback(char* dst_buffer,
@@ -371,7 +391,7 @@ static int _rar_unrar_volume_user_callback(char* dst_buffer,
 	fci->retval_ptr_ptr = &retval_ptr;
 	fci->params = &params;
 	fci->param_count = 1;
-
+	
 	if (zend_call_function(fci, cache TSRMLS_CC) != SUCCESS ||
 			fci->retval_ptr_ptr == NULL ||
 			*fci->retval_ptr_ptr == NULL) {
@@ -428,9 +448,7 @@ cleanup:
 /* }}} */
 
 #ifdef COMPILE_DL_RAR
-BEGIN_EXTERN_C()
 ZEND_GET_MODULE(rar)
-END_EXTERN_C()
 #endif
 
 /* {{{ arginfo */
@@ -472,13 +490,82 @@ static zend_function_entry rar_functions[] = {
 };
 /* }}} */
 
-/* {{{ PHP_MINIT_FUNCTION
- */
-PHP_MINIT_FUNCTION(rar)
+/* {{{ Globals' related activities */
+/* actually, this is a tentative definition, since there's no initializer,
+ * but it will in fact become a definition */
+ZEND_DECLARE_MODULE_GLOBALS(rar);
+
+static int _rar_array_apply_remove_first(void *pDest TSRMLS_DC)
+{
+	return (ZEND_HASH_APPLY_STOP | ZEND_HASH_APPLY_REMOVE);
+}
+
+static void _rar_contents_cache_put(const char *key,
+									uint key_len,
+									zval *zv TSRMLS_DC)
+{
+	rar_contents_cache *cc = &RAR_G(contents_cache);
+	int cur_size;
+
+	cur_size = zend_hash_num_elements(cc->data);
+	if (cur_size == cc->max_size) {
+		zend_hash_apply(cc->data, _rar_array_apply_remove_first TSRMLS_CC);
+		assert(zend_hash_num_elements(cc->data) == cur_size - 1);
+	}
+	zend_hash_update(cc->data, key, key_len, &zv, sizeof(zv), NULL);
+}
+
+static zval *_rar_contents_cache_get(const char *key,
+									 uint key_len TSRMLS_DC)
+{
+	rar_contents_cache *cc = &RAR_G(contents_cache);
+	zval **element;
+	zend_hash_find(cc->data, key, key_len, (void **) &element);
+	
+	return *element;
+}
+
+/* ZEND_MODULE_GLOBALS_CTOR_D declares it receiving zend_rar_globals*,
+ * which is incompatible; once cast into ts_allocate_ctor by the macro,
+ * ZEND_INIT_MODULE_GLOBALS, it cannot (per the spec) be used. */
+static void ZEND_MODULE_GLOBALS_CTOR_N(rar)(void *arg TSRMLS_DC) /* {{{ */
+{
+	zend_rar_globals *rar_globals = arg;
+	rar_globals->contents_cache.max_size = 5; /* TODO make configurable */
+	rar_globals->contents_cache.put = _rar_contents_cache_put;
+	rar_globals->contents_cache.get = _rar_contents_cache_get;
+	rar_globals->contents_cache.data =
+		pemalloc(sizeof *rar_globals->contents_cache.data, 1);
+	zend_hash_init(rar_globals->contents_cache.data,
+		rar_globals->contents_cache.max_size, NULL,
+		ZVAL_PTR_DTOR, 1);
+}
+/* }}} */
+
+static void ZEND_MODULE_GLOBALS_DTOR_N(rar)(void *arg TSRMLS_DC) /* {{{ */
+{
+	zend_rar_globals *rar_globals = arg;
+	zend_hash_destroy(rar_globals->contents_cache.data);
+	pefree(rar_globals->contents_cache.data, 1);
+}
+/* }}} */
+/* }}} */
+
+/* {{{ ZEND_MODULE_STARTUP */
+ZEND_MODULE_STARTUP_D(rar)
 {
 	minit_rararch(TSRMLS_C);
 	minit_rarentry(TSRMLS_C);
 	minit_rarerror(TSRMLS_C);
+
+	/* This doesn't work, it tries to call the destructor after the
+	 * module has been unloaded. This information is in the zend_module_entry
+	 * instead; that information is correctly used before the module is
+	 * unloaded */
+	/* ZEND_INIT_MODULE_GLOBALS(rar, ZEND_MODULE_GLOBALS_CTOR_N(rar),
+		ZEND_MODULE_GLOBALS_DTOR_N(rar)); */
+
+	php_register_url_stream_wrapper("rar", &php_stream_rar_wrapper TSRMLS_CC);
 	
 	REGISTER_LONG_CONSTANT("RAR_HOST_MSDOS",	HOST_MSDOS,	CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("RAR_HOST_OS2",		HOST_OS2,	CONST_CS | CONST_PERSISTENT);
@@ -494,9 +581,18 @@ PHP_MINIT_FUNCTION(rar)
 }
 /* }}} */
 
-/* {{{ PHP_MINFO_FUNCTION
- */
-PHP_MINFO_FUNCTION(rar)
+/* {{{ ZEND_MODULE_DEACTIVATE */
+ZEND_MODULE_DEACTIVATE_D(rar)
+{
+	/* clean cache on request shutdown */
+	zend_hash_clean(RAR_G(contents_cache).data);
+
+	return SUCCESS;
+}
+/* }}} */
+
+/* {{{ ZEND_MODULE_INFO */
+ZEND_MODULE_INFO_D(rar)
 {
 	char version[256];
 
@@ -525,13 +621,19 @@ zend_module_entry rar_module_entry = {
 	STANDARD_MODULE_HEADER,
 	"rar",
 	rar_functions,
-	PHP_MINIT(rar),
+	ZEND_MODULE_STARTUP_N(rar),
+	//ZEND_MODULE_SHUTDOWN_N(rar),
 	NULL,
+	//ZEND_MODULE_ACTIVATE_N(rar),
 	NULL,
-	NULL,
-	PHP_MINFO(rar),
+	ZEND_MODULE_DEACTIVATE_N(rar),
+	ZEND_MODULE_INFO_N(rar),
 	PHP_RAR_VERSION,
-	STANDARD_MODULE_PROPERTIES
+	ZEND_MODULE_GLOBALS(rar),
+	ZEND_MODULE_GLOBALS_CTOR_N(rar),
+	ZEND_MODULE_GLOBALS_DTOR_N(rar),
+	NULL, //post_deactivate_func
+	STANDARD_MODULE_PROPERTIES_EX,
 };
 /* }}} */
 
