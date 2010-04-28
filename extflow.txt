@@ -1,0 +1,60 @@
+rar_open/RarArchive::open()
+gives
+RarArchive object
+-
+. stores 2 open data structs (are used to tell the lib e.g. which file to open and the lib in return stores some data in them)
+	- list_open_data has open mode RAR_OM_LIST_INCSPLIT and is used to list the contents of the archive
+	- extract_open_data has open mode RAR_OM_EXTRACT and is used by RarEntry::extract
+. stores one opened archive handle, opened with the list_open_data struct. This handle remains
+open until the archive is closed or the object is destroyed
+. a RarArchive object is considered closed when the opened archive handle created here is set to NULL
+
+
+rar_list()/RarArchive::getEntries()
+gives
+RarEntry objects
+-
+. CALL _rar_list_files, which fills the lazy cache rar->entries by using the opened archive handle to retrieve ALL the RarHeaderDataEx headers
+. CALL _rar_raw_entries_to_files to turn the rar->entries RarHeaderDataEx headers into zvals
+	- in turn, _rar_raw_entries_to_files creates the zval and sets the property that holds the zval reference to the RarArchive object (see below)
+	- calculates the packed size by summing over all the headers that concern each file (a file may have more than one header in case there are volumes)
+	- then CALLs _rar_entry_to_zval with the last header for each file and the packed size so that it can fill the remaining properties
+. each of the RarEntry objects store a zval referencing the RarArchive object. The RarArchive object is not destroyed until all its spawned RarEntry objects are destroyed (it can however be closed)
+
+
+rar_entry_get()/RarArchive::getEntry()
+gives
+RarEntry object
+-
+. CALL _rar_list_files, if it's necessary to fill the lazy cache rar->entries
+. CALL _rar_raw_entries_to_files, which traverses rar->entries until it finds the request filename, the header(s) are then converted into one zval
+. again, the RarEntry object stores a reference to the RarArchive object
+
+
+RarArchive traversal with an iterator
+gives
+RarEntry objects (one at a time)
+-
+. iterator creation CALLs_rar_list_files, if it's necessary to fill the lazy cache rar->entries
+. iterator stores the index (with respect to the rar->entries array) of the last header in rar->entries that is to be read (starts with 0)
+. iterator CALLs _rar_raw_entries_to_files, which here stops after reading each file and advances the index
+
+
+RarEntry::extract()
+extracts the file
+-
+. uses the extract_open_data that's stored in the parent RarArchive object
+. makes a shallow copy of parent RarArchive's rar->cb_userdata, eventually modified with the given file password.
+. passes them to _rar_find_file to open the file with RAR_OM_EXTRACT and skip to the desired entry
+. extracts the file
+. closes the rar handle
+
+
+RarEntry::getStream()
+obtains stream
+-
+. CALL php_stream_rar_open with the archive name (obtained from parent RarArchive object's extract_open_data->ArcName), the filename of the entry and a shallow copy of parent RarArchive's rar->cb_userdata, eventually modified with the given file password.
+. in turn, php_stream_rar_open CALLs _rar_find_file with a brand new rar open data struct with RAR_OM_EXTRACT. _rar_find_file opens the RAR archive and skips to the desired entry
+. the resulting stream has no connection to the original RarArchive object or to the RarEntry object
+. the rar archive is not closed until the stream is destroyed or closed
+
