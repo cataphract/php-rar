@@ -54,14 +54,20 @@ static zend_object_value rarentry_ce_create_object(zend_class_entry *class_type 
 /* {{{ Functions with external linkage */
 /* should be passed the last entry that corresponds to a given file
  * only that one has the correct CRC. Still, it may have a wrong packedSize */
-void _rar_entry_to_zval(struct RARHeaderDataEx *entry, zval *object,
-							   unsigned long packed_size TSRMLS_DC) /* {{{ */
+void _rar_entry_to_zval(zval *parent, //zval to RarArchive object, will have its refcount increased
+						struct RARHeaderDataEx *entry,
+						unsigned long packed_size,
+						zval *object TSRMLS_DC) /* {{{ */
 {
 	char tmp_s [MAX_LENGTH_OF_LONG + 1];
 	char time[50];
 	char *filename;
 	int  filename_size, filename_len;
 	long unp_size; /* zval stores PHP ints as long, so use that here */
+
+	object_init_ex(object, rar_class_entry_ptr);
+	zend_update_property(rar_class_entry_ptr, object, "rarfile",
+		sizeof("rararch") - 1, parent TSRMLS_CC);
 
 #if ULONG_MAX > 0xffffffffUL
 	unp_size = ((long) entry->UnpSize) + (((long) entry->UnpSizeHigh) << 32);
@@ -286,7 +292,7 @@ PHP_METHOD(rarentry, extract)
 	if (!found) {
 		_rar_handle_ext_error("Can't find file %s in archive %s" TSRMLS_CC,
 			Z_STRVAL_PP(tmp_name),
-			rar->list_open_data->ArcName);
+			rar->extract_open_data->ArcName);
 		RETVAL_FALSE;
 		goto cleanup;
 	}

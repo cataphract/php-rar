@@ -62,8 +62,8 @@ array(26) {
   ["ctime"]=>
   int(0)
   ["blksize"]=>
-  int(-1)
+  int(%s)
   ["blocks"]=>
-  int(-1)
+  int(%s)
 }
 Done.

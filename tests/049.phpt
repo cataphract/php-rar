@@ -7,8 +7,8 @@ if (!defined("PHP_MAXPATHLEN"))
 	define("PHP_MAXPATHLEN", RAR_MAXPATHLEN);
 if (!(PHP_MAXPATHLEN > 1024))
 	die("skip test is for systems where MAXPATHLEN > 1024");
-$rp = dirname(__FILE__) . "/" . str_repeat("a", 1024));
-if (strlen(dirname(__FILE__) > PHP_MAXPATHLEN - 1)
+$rp = dirname(__FILE__) . "/" . str_repeat("a", 1024);
+if (strlen(dirname(__FILE__) > PHP_MAXPATHLEN - 1))
 	die("skip current directory is too deep.");
 --FILE--
 <?php
