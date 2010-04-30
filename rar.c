@@ -57,6 +57,9 @@ static int _rar_unrar_volume_user_callback(char* dst_buffer,
 										   zend_fcall_info *fci,
 										   zend_fcall_info_cache *cache
 										   TSRMLS_DC);
+static int _rar_make_userdata_fcall(zval *callable,
+							 zend_fcall_info *fci,
+							 zend_fcall_info_cache *cache TSRMLS_DC);
 /* }}} */
 
 /* {{{ Functions with external linkage */
@@ -134,52 +137,6 @@ void _rar_utf_to_wide(const char *src, wchar_t *dest, size_t dest_size) /* {{{ *
 			*(dest++) = d;
 	}
 	*dest = 0;
-}
-/* }}} */
-
-int _rar_make_userdata_fcall(zval *callable,
-							 zend_fcall_info *fci,
-							 zend_fcall_info_cache *cache TSRMLS_DC) /* {{{ */
-{
-	char *error = NULL;
-	assert(callable != NULL);
-	assert(fci != NULL);
-	assert(cache != NULL);
-
-	*cache = empty_fcall_info_cache;
-
-#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION == 2
-	if (zend_fcall_info_init(callable, fci, cache TSRMLS_CC) != SUCCESS) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,
-			"The RAR file was not opened in rar_open/RarArchive::open with a "
-			"valid callback.", error);
-		return FAILURE;
-	}
-	else {
-		return SUCCESS;
-	}
-#else
-	if (zend_fcall_info_init(callable, IS_CALLABLE_STRICT, fci, cache, NULL,
-			&error TSRMLS_CC) == SUCCESS) {
-		if (error) {
-			php_error_docref(NULL TSRMLS_CC, E_STRICT,
-				"The RAR file was not opened with a strictly valid callback (%s)",
-				error);
-			efree(error);
-		}
-		return SUCCESS;
-	}
-	else {
-		if (error) {
-			php_error_docref(NULL TSRMLS_CC, E_STRICT,
-				"The RAR file was not opened with a valid callback (%s)",
-				error);
-			efree(error);
-		}
-		return FAILURE;
-	}
-#endif
-
 }
 /* }}} */
 
@@ -445,6 +402,53 @@ cleanup:
 	return ret;
 }
 /* }}} */
+
+static int _rar_make_userdata_fcall(zval *callable,
+							 zend_fcall_info *fci,
+							 zend_fcall_info_cache *cache TSRMLS_DC) /* {{{ */
+{
+	char *error = NULL;
+	assert(callable != NULL);
+	assert(fci != NULL);
+	assert(cache != NULL);
+
+	*cache = empty_fcall_info_cache;
+
+#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION == 2
+	if (zend_fcall_info_init(callable, fci, cache TSRMLS_CC) != SUCCESS) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,
+			"The RAR file was not opened in rar_open/RarArchive::open with a "
+			"valid callback.", error);
+		return FAILURE;
+	}
+	else {
+		return SUCCESS;
+	}
+#else
+	if (zend_fcall_info_init(callable, IS_CALLABLE_STRICT, fci, cache, NULL,
+			&error TSRMLS_CC) == SUCCESS) {
+		if (error) {
+			php_error_docref(NULL TSRMLS_CC, E_STRICT,
+				"The RAR file was not opened with a strictly valid callback (%s)",
+				error);
+			efree(error);
+		}
+		return SUCCESS;
+	}
+	else {
+		if (error) {
+			php_error_docref(NULL TSRMLS_CC, E_STRICT,
+				"The RAR file was not opened with a valid callback (%s)",
+				error);
+			efree(error);
+		}
+		return FAILURE;
+	}
+#endif
+
+}
+/* }}} */
+
 /* }}} */
 
 #ifdef COMPILE_DL_RAR
@@ -491,8 +495,6 @@ static zend_function_entry rar_functions[] = {
 /* }}} */
 
 /* {{{ Globals' related activities */
-/* actually, this is a tentative definition, since there's no initializer,
- * but it will in fact become a definition */
 ZEND_DECLARE_MODULE_GLOBALS(rar);
 
 static int _rar_array_apply_remove_first(void *pDest TSRMLS_DC)
@@ -500,6 +502,7 @@ static int _rar_array_apply_remove_first(void *pDest TSRMLS_DC)
 	return (ZEND_HASH_APPLY_STOP | ZEND_HASH_APPLY_REMOVE);
 }
 
+/* caller should increment zval before calling this */
 static void _rar_contents_cache_put(const char *key,
 									uint key_len,
 									zval *zv TSRMLS_DC)
