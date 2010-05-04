@@ -288,7 +288,7 @@ void ComprDataIO::SetCmt13Encryption()
 
 
 
-void ComprDataIO::SetUnpackToMemory(byte *Addr,uint Size)
+void ComprDataIO::SetUnpackToMemory(byte *Addr,size_t Size) //changed from uint by me
 {
   UnpackToMemory=true;
   UnpackToMemoryAddr=Addr;

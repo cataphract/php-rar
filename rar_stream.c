@@ -62,8 +62,40 @@ typedef struct php_rar_stream_data_t {
 	php_stream					*stream;
 } php_rar_stream_data, *php_rar_stream_data_P;
 
+typedef struct php_rar_dir_stream_data_t {
+	zval						*rar_obj;
+	rar_find_output				*state;
+	struct RARHeaderDataEx		*self_header; /* NULL for root */
+	wchar_t						*directory;
+	size_t						dir_size; /* length + 1 */
+	int							cur_offset;
+	int							no_encode; /* do not urlencode entry names */
+	php_stream					*stream;
+} php_rar_dir_stream_data, *php_rar_dir_stream_data_P;
+
 #define STREAM_DATA_FROM_STREAM \
 	php_rar_stream_data_P self = (php_rar_stream_data_P) stream->abstract;
+
+#define STREAM_DIR_DATA_FROM_STREAM \
+	php_rar_dir_stream_data_P self = (php_rar_dir_stream_data_P) stream->abstract;
+
+/* len can be -1 (calculate) */ 
+static char *_rar_wide_to_utf_with_alloc(const wchar_t *wide, int len)
+{
+	size_t size;
+	char *ret;
+
+	if (len != -1)
+		size = ((size_t) len + 1) * sizeof(wchar_t);
+	else
+		size = (wcslen(wide) + 1) * sizeof(wchar_t);
+
+	ret = emalloc(size);
+	_rar_wide_to_utf(wide, ret, size);
+	return ret;
+}
+
+/* {{{ RAR file streams */
 
 /* {{{ php_rar_ops_read */
 static size_t php_rar_ops_read(php_stream *stream, char *buf, size_t count TSRMLS_DC)
@@ -183,18 +215,74 @@ static int php_rar_ops_flush(php_stream *stream TSRMLS_DC)
 }
 /* }}} */
 
-/* {{{ php_rar_ops_flush */
-/* Fill ssb, return non-zero value on failure */
-static int php_rar_ops_stat(php_stream *stream, php_stream_statbuf *ssb TSRMLS_DC)
+/* This function is consistent with Archive::ConvertAttributes() */
+static mode_t _rar_convert_file_attrs(unsigned os_attrs,
+									  unsigned flags,
+									  unsigned host) /* {{{ */
 {
-	STREAM_DATA_FROM_STREAM
+	static int mask = -1;
+	mode_t ret;
 
-	uint64 unp_size = INT32TO64(self->header_data.UnpSizeHigh,
-		self->header_data.UnpSize);
+	if (mask == -1) {
+		mask = umask(0022);
+		umask(mask);
+	}
+
+	switch (host) {
+		case HOST_MSDOS:
+		case HOST_OS2:
+		case HOST_WIN32:
+			/* we don't set file type 0xA000 (sym link because in windows sym
+			 * links are implemented with reparse points, and its contents
+			 * (or at least flags) would have to be analyzed to determine
+			 * if they're directory junctions or symbolic links */
+			/* Mapping of MS/DOS OS/2 and Windows file attributes */
+			if (os_attrs & 0x10) { /* FILE_ATTRIBUTE_DIRECTORY */
+				ret = _S_IFDIR;
+				ret |= 0777;
+				ret &= ~mask;
+			}
+			else {
+				ret = _S_IFREG;
+				if (os_attrs & 1) /* FILE_ATTRIBUTE_READONLY */
+					ret |= 0444;
+				else
+					ret |= 0666;
+
+				ret &= ~mask;
+			}
+
+			break;
+		case HOST_UNIX:
+		case HOST_BEOS:
+			/* leave as is */
+			ret = (mode_t) (os_attrs & 0xffff);
+			break;
+		
+		default:
+			if ((flags & LHD_WINDOWMASK) == LHD_DIRECTORY)
+				ret = _S_IFDIR;
+			else
+				ret = _S_IFREG;
+
+			ret |= 0777;
+			ret &= ~mask;
+      break;
+  }
+
+	return ret;
+}
+/* }}} */
+
+static int _rar_stat_from_header(struct RARHeaderDataEx *header,
+								 php_stream_statbuf *ssb) /* {{{ */
+{
+	uint64 unp_size = INT32TO64(header->UnpSizeHigh, header->UnpSize);
 
 	ssb->sb.st_dev = 0;
 	ssb->sb.st_ino = 0;
-	ssb->sb.st_mode = (self->header_data.FileAttr & 0xffff);
+	ssb->sb.st_mode = _rar_convert_file_attrs(header->FileAttr, header->Flags,
+		header->HostOS);
 	ssb->sb.st_nlink = 1;
 	/* RAR stores owner/group information (header type NEWSUB_HEAD and subtype
 	 * SUBHEAD_TYPE_UOWNER), but it is not exposed in unRAR */
@@ -220,7 +308,7 @@ static int php_rar_ops_stat(php_stream *stream, php_stream_statbuf *ssb TSRMLS_D
 	{
 		struct tm time_s = {0};
 		time_t time;
-		unsigned dos_time = self->header_data.FileTime;
+		unsigned dos_time = header->FileTime;
 
 		time_s.tm_mday = 1; //this one starts on 1, not 0
 		time_s.tm_year = 70; /* default to 1970-01-01 00:00 */
@@ -252,17 +340,128 @@ static int php_rar_ops_stat(php_stream *stream, php_stream_statbuf *ssb TSRMLS_D
 
 	return SUCCESS;
 }
+
+/* {{{ php_rar_ops_stat */
+/* Fill ssb, return non-zero value on failure */
+static int php_rar_ops_stat(php_stream *stream, php_stream_statbuf *ssb TSRMLS_DC)
+{
+	STREAM_DATA_FROM_STREAM
+
+	return _rar_stat_from_header(&self->header_data, ssb);
+}
 /* }}} */
 
 static php_stream_ops php_stream_rario_ops = {
-	php_rar_ops_write, php_rar_ops_read,
-	php_rar_ops_close, php_rar_ops_flush,
+	php_rar_ops_write,
+	php_rar_ops_read,
+	php_rar_ops_close,
+	php_rar_ops_flush,
 	"rar",
 	NULL, /* seek */
 	NULL, /* cast */
 	php_rar_ops_stat, /* stat */
 	NULL  /* set_option */
 };
+
+/* end RAR file streams }}} */
+
+/* {{{ RAR directory streams */
+
+/* {{{ php_rar_dir_ops_read */
+static size_t php_rar_dir_ops_read(php_stream *stream, char *buf, size_t count TSRMLS_DC)
+{
+	php_stream_dirent entry;
+	int offset;
+	STREAM_DIR_DATA_FROM_STREAM
+
+	if (count != sizeof(entry))
+		return 0;
+
+	_rar_entry_search_advance(self->state, self->directory, self->dir_size, 1);
+	if (!self->state->found) {
+		stream->eof = 1;
+		return 0;
+	}
+
+	if (self->dir_size == 1) /* root */
+		offset = 0;
+	else
+		offset = self->dir_size;
+
+	_rar_wide_to_utf(&self->state->header->FileNameW[offset],
+		entry.d_name, sizeof entry.d_name);
+
+	if (!self->no_encode) { /* urlencode entry */
+		int new_len;
+		char *encoded_name;
+		encoded_name = php_url_encode(entry.d_name, strlen(entry.d_name),
+			&new_len);
+		strlcpy(entry.d_name, encoded_name, sizeof entry.d_name);
+		efree(encoded_name);
+	}
+	
+
+	self->cur_offset++;
+
+	memcpy(buf, &entry, sizeof entry);
+	return sizeof entry;
+}
+/* }}} */
+
+/* {{{ php_rar_dir_ops_close */
+static int php_rar_dir_ops_close(php_stream *stream, int close_handle TSRMLS_DC)
+{
+	STREAM_DIR_DATA_FROM_STREAM
+	
+	zval_ptr_dtor(&self->rar_obj);
+	efree(self->directory);
+	efree(self->state);
+
+	/* 0 because that's what php_plain_files_dirstream_close returns... */
+	return 0; 
+}
+/* }}} */
+
+/* {{{ php_rar_dir_ops_rewind */
+static size_t php_rar_dir_ops_rewind(php_stream *stream, off_t offset, int whence, off_t *newoffset TSRMLS_DC)
+{
+	STREAM_DIR_DATA_FROM_STREAM
+
+	_rar_entry_search_rewind(self->state);
+	return 0;
+}
+/* }}} */
+
+/* {{{ php_rar_dir_ops_stat */
+static int php_rar_dir_ops_stat(php_stream *stream, php_stream_statbuf *ssb TSRMLS_DC)
+{
+	STREAM_DIR_DATA_FROM_STREAM
+
+	if (self->self_header == NULL) { //root
+		/* RAR root has no entry, so we make something up.
+		 * We could use the RAR archive itself instead, but I think that would
+		 * not be very consistent */
+		struct RARHeaderDataEx t = {""};
+		t.FileAttr = _S_IFDIR | 0777;
+		return _rar_stat_from_header(&t, ssb);
+	}
+
+	return _rar_stat_from_header(self->self_header, ssb);
+}
+/* }}} */
+
+static php_stream_ops php_stream_rar_dirio_ops = {
+	NULL,
+	php_rar_dir_ops_read,
+	php_rar_dir_ops_close,
+	NULL,
+	"rar directory",
+	php_rar_dir_ops_rewind, /* rewind */
+	NULL, /* cast */
+	php_rar_dir_ops_stat, /* stat */
+	NULL  /* set_option */
+};
+/* end RAR directory streams }}} */
 
 /* {{{ php_stream_rar_open */
 /* callback user data does NOT need to be managed outside
@@ -409,14 +608,13 @@ static void php_rar_process_context(php_stream_context *context,
 									php_stream_wrapper *wrapper,
 									int options,
 									char **open_password,
-									char **file_password,
+									char **file_password, //can be NULL
 									zval **volume_cb TSRMLS_DC)
 {
 	zval **ctx_opt = NULL;
 
 	assert(context != NULL);
 	assert(open_password != NULL);
-	assert(file_password != NULL);
 	assert(volume_cb != NULL);
 
 	/* TODO: don't know if I can log errors and not fail. check that */
@@ -430,8 +628,8 @@ static void php_rar_process_context(php_stream_context *context,
 			*open_password = Z_STRVAL_PP(ctx_opt);
 	}
 
-	if (php_stream_context_get_option(context, "rar", "file_password", &ctx_opt) ==
-			SUCCESS) {
+	if (file_password != NULL && php_stream_context_get_option(context, "rar",
+			"file_password", &ctx_opt) == SUCCESS) {
 		if (Z_TYPE_PP(ctx_opt) != IS_STRING)
 			php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
 				"RAR file password was provided, but not a string.");
@@ -459,14 +657,17 @@ static void php_rar_process_context(php_stream_context *context,
 /* calculate fragment and archive from url
  * *archive and *fragment should be free'd by the parent, even on failure */
 static int _rar_get_archive_and_fragment(php_stream_wrapper *wrapper,
-										 char *filename,
+										 const char *filename,
 										 int options,
+										 int allow_no_frag,
 										 char **archive,
-										 char **fragment TSRMLS_DC)
+										 wchar_t **fragment,
+										 int *no_encode TSRMLS_DC)
 {
 	char *tmp_fragment,
 		 *tmp_archive = NULL;
-	int  tmp_arch_len;
+	int  tmp_arch_len,
+		 tmp_frag_len;
 	int  ret = FAILURE;
 
 	/* php_stream_open_wrapper_ex calls php_stream_locate_url_wrapper,
@@ -476,20 +677,38 @@ static int _rar_get_archive_and_fragment(php_stream_wrapper *wrapper,
 	}
 
 	tmp_fragment = strchr(filename, '#');
-	if (tmp_fragment == NULL || strlen(tmp_fragment) == 1 ||
-			tmp_fragment == filename) {
+	if (!allow_no_frag && (tmp_fragment == NULL || strlen(tmp_fragment) == 1 ||
+			tmp_fragment == filename)) {
 		php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
 			"The url must contain a path and a non-empty fragment; it must be "
-			"must in the form \"rar://<urlencoded path to RAR archive>#"
+			"in the form \"rar://<urlencoded path to RAR archive>[*]#"
 			"<urlencoded entry name>\"");
 		goto cleanup;
 	}
-	tmp_arch_len = tmp_fragment - filename;
+	if (allow_no_frag && (tmp_fragment == filename || filename[0] == '\0')) {
+		php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
+			"The url must contain a path and an optional fragment; it must be "
+			"in the form \"rar://<urlencoded path to RAR archive>[*][#["
+			"<urlencoded entry name>]]\"");
+		goto cleanup;
+	}
+	
+	tmp_arch_len = (tmp_fragment != NULL)?
+		(tmp_fragment - filename) : (strlen(filename));
 	tmp_archive = emalloc(tmp_arch_len + 1);
 	strlcpy(tmp_archive, filename, tmp_arch_len + 1);
-	*fragment = estrdup(tmp_fragment + 1); //+ 1 to skip # character
 	php_raw_url_decode(tmp_archive, tmp_arch_len);
-	php_raw_url_decode(*fragment, strlen(*fragment));
+
+	/* process no urlencode escape entry modifier */
+	if (tmp_arch_len > 1 && tmp_archive[tmp_arch_len - 1] == '*') {
+		if (no_encode != NULL)
+			*no_encode = TRUE;
+		tmp_archive[tmp_arch_len-- - 1] = '\0';
+	}
+	else if (no_encode != NULL) {
+		*no_encode = FALSE;
+	}
+
 
 	if (!(options & STREAM_ASSUME_REALPATH)) {
 		if (options & USE_PATH) {
@@ -516,6 +735,39 @@ static int _rar_get_archive_and_fragment(php_stream_wrapper *wrapper,
 		goto cleanup;
 	}
 
+	if (tmp_fragment == NULL) {
+		*fragment = emalloc(sizeof **fragment);
+		(*fragment)[0] = L'\0';
+	}
+	else {
+		char *frag_dup;
+		assert(tmp_fragment[0] == '#');
+		tmp_fragment++; /* remove # */
+
+		/* remove initial path divider, if given */
+		if (tmp_fragment[0] == '\\' || tmp_fragment[0] == '/')
+			tmp_fragment++;
+
+		tmp_frag_len = strlen(tmp_fragment);
+		frag_dup = estrndup(tmp_fragment, tmp_frag_len);
+		php_raw_url_decode(frag_dup, tmp_frag_len);
+
+		*fragment = emalloc((tmp_frag_len + 1) * sizeof **fragment);
+		_rar_utf_to_wide(frag_dup, *fragment, tmp_frag_len + 1);
+		efree(frag_dup);
+	}
+
+	/* Note that RAR treats \ and / the same way.
+	 * If it finds any of them, it replaces it with PATHDIVIDER.
+	 * Do the same for the user-supplied fragment */
+	{
+		wchar_t *ptr;
+		for (ptr = *fragment; *ptr != L'\0'; ptr++) {
+			if (*ptr == L'\\' || *ptr == L'/')
+				*ptr = PATHDIVIDERW[0];
+		}
+	}
+
 	ret = SUCCESS;
 cleanup:
 	if (tmp_archive != NULL)
@@ -525,18 +777,18 @@ cleanup:
 /* }}} */
 
 /* {{{ php_stream_rar_opener */
-php_stream *php_stream_rar_opener(php_stream_wrapper *wrapper,
-								  char *filename,
-								  char *mode,
-								  int options,
-								  char **opened_path,
-								  php_stream_context *context STREAMS_DC TSRMLS_DC)
+static php_stream *php_stream_rar_opener(php_stream_wrapper *wrapper,
+										 char *filename,
+										 char *mode,
+										 int options,
+										 char **opened_path,
+										 php_stream_context *context
+										 STREAMS_DC TSRMLS_DC)
 {
-	char *fragment = NULL,
-		 /* used to hold the pointer that may be copied to opened_path */
-		 *tmp_open_path = NULL,
+	char *tmp_open_path = NULL, /* used to hold the pointer that may be copied to opened_path */
 		 *open_passwd = NULL,
 		 *file_passwd = NULL;
+	wchar_t *fragment = NULL;
 	char const *rar_error;
 	int	 rar_result,
 		 file_found;
@@ -559,8 +811,8 @@ php_stream *php_stream_rar_opener(php_stream_wrapper *wrapper,
 		return NULL;
 	}
 
-	if (_rar_get_archive_and_fragment(wrapper, filename, options,
-			&tmp_open_path, &fragment TSRMLS_CC) == FAILURE) {
+	if (_rar_get_archive_and_fragment(wrapper, filename, options, 0,
+			&tmp_open_path, &fragment, NULL TSRMLS_CC) == FAILURE) {
 		goto cleanup;
 	}
 
@@ -568,6 +820,7 @@ php_stream *php_stream_rar_opener(php_stream_wrapper *wrapper,
 		php_rar_process_context(context, wrapper, options, &open_passwd,
 			&file_passwd, &volume_cb TSRMLS_CC);
 	}
+	/* end preliminaries }}} */
 
 	self = ecalloc(1, sizeof *self);
 	self->open_data.ArcName	= estrdup(tmp_open_path);
@@ -580,8 +833,9 @@ php_stream *php_stream_rar_opener(php_stream_wrapper *wrapper,
 		SEPARATE_ZVAL(&self->cb_userdata.callable);
 	}
 	
-	rar_result = _rar_find_file(&self->open_data, fragment, &self->cb_userdata,
-		&self->rar_handle, &file_found, &self->header_data);
+	rar_result = _rar_find_file_w(&self->open_data, fragment,
+		&self->cb_userdata, &self->rar_handle, &file_found,
+		&self->header_data);
 
 	if ((rar_error = _rar_error_to_string(rar_result)) != NULL) {
 		php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
@@ -590,8 +844,10 @@ php_stream *php_stream_rar_opener(php_stream_wrapper *wrapper,
 	}
 
 	if (!file_found)  {
+		char *mb_fragment = _rar_wide_to_utf_with_alloc(fragment, -1);
 		php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
-			"Can't file %s in RAR archive %s", fragment, tmp_open_path);
+			"Can't file %s in RAR archive %s", mb_fragment, tmp_open_path);
+		efree(mb_fragment);
 		goto cleanup;
 	}
 	
@@ -617,9 +873,11 @@ php_stream *php_stream_rar_opener(php_stream_wrapper *wrapper,
 		rar_result = RARProcessFileChunkInit(self->rar_handle);
 
 		if ((rar_error = _rar_error_to_string(rar_result)) != NULL) {
+			char *mb_entry = _rar_wide_to_utf_with_alloc(fragment, -1);
 			php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
 				"Error opening file %s inside RAR archive %s: %s",
-				fragment, tmp_open_path, rar_error);
+				mb_entry, tmp_open_path, rar_error);
+			efree(mb_entry);
 			goto cleanup;
 		}
 
@@ -656,12 +914,306 @@ cleanup:
 }
 /* }}} */
 
+static void _rar_arch_cache_get_key(const char *full_path,
+									const char* open_passwd,
+									zval *volume_cb,
+									char **key,
+									uint *key_len) /* {{{ */
+{
+	assert(key != NULL);
+	assert(key_len != NULL);
+	*key_len = strlen(full_path);
+	/* TODO: stat the file to get last mod time and (maybe) use the context */
+	*key = estrndup(full_path, *key_len);
+}
+/* }}} */
+
+/* rar_obj to be managed externally if return is success */
+static int _rar_get_cachable_rararch(php_stream_wrapper *wrapper,
+									 int options,
+									 const char* arch_path,
+									 const char* open_passwd,
+									 zval *volume_cb,
+									 zval **rar_obj,
+									 rar_file_t **rar TSRMLS_DC) /* {{{ */
+{
+	char		*cache_key = NULL;
+	uint		cache_key_len;
+	int			err_code,
+				ret = FAILURE;
+
+	_rar_arch_cache_get_key(arch_path, open_passwd, volume_cb, &cache_key,
+		&cache_key_len);
+	*rar_obj = RAR_G(contents_cache).get(cache_key, cache_key_len TSRMLS_CC);
+
+	if (*rar_obj == NULL) { /* cache miss */
+		MAKE_STD_ZVAL(*rar_obj);
+
+		if (_rar_create_rararch_obj(arch_path, open_passwd, volume_cb,
+				*rar_obj, &err_code TSRMLS_CC) == FAILURE) {
+			const char *err_str = _rar_error_to_string(err_code);
+			if (err_str == NULL)
+				php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
+					"%s", "Archive opened failed (returned NULL handle), but "
+					"did not return an error. Should not happen.");
+			else {
+				php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
+					"Failed to open %s: %s", arch_path, err_str);
+			}
+
+			goto cleanup;
+		}
+		else { /* Success opening the RAR archive */
+			int res;
+			const char *err_str;
+
+			if (_rar_get_file_resource_ex(*rar_obj, rar, 1 TSRMLS_CC)
+					== FAILURE) {
+				php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
+					"Bug: could not retrieve RarArchive object from zval");
+				goto cleanup;
+			}
+
+			res = _rar_index_entries(*rar TSRMLS_CC);
+
+			if ((err_str = _rar_error_to_string(res)) != NULL) {
+				php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
+					"Error reading entries of archive %s: %s", arch_path,
+					err_str);
+				goto cleanup;
+			}
+			RAR_G(contents_cache).put(cache_key, cache_key_len, *rar_obj
+				TSRMLS_CC);
+			_rar_close_file_resource(*rar);
+		}
+	}
+	else { /* cache hit */
+		/* refcount of rar_obj already incremented by cache get */
+		if (_rar_get_file_resource_ex(*rar_obj, rar, 1 TSRMLS_CC)
+				== FAILURE) {
+			php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
+				"Bug: could not retrieve RarArchive object from zval");
+			goto cleanup;
+		}
+	}
+
+	ret = SUCCESS;
+cleanup:
+	if (cache_key != NULL)
+		efree(cache_key);
+
+	if (ret != SUCCESS && *rar_obj != NULL) {
+		zval_ptr_dtor(rar_obj);
+		*rar_obj = NULL;
+	}
+
+	return ret;
+}
+/* }}} */
+
+/* {{{ php_stream_rar_stater */
+static int php_stream_rar_stater(php_stream_wrapper *wrapper,
+								 char *url,
+								 int flags,
+								 php_stream_statbuf *ssb,
+								 php_stream_context *context TSRMLS_DC)
+{
+	/* flags includes PHP_STREAM_URL_STAT_LINK and PHP_STREAM_URL_STAT_QUIET
+	 * We only respect the second */
+	char *open_path = NULL,
+		 *open_passwd = NULL;
+	wchar_t *fragment = NULL;
+	int  options = (flags & PHP_STREAM_URL_STAT_QUIET) ? 0 : REPORT_ERRORS;
+	zval *volume_cb = NULL;
+	size_t fragment_len;
+	rar_file_t *rar;
+	zval *rararch = NULL;
+	rar_find_output *state = NULL;
+	int ret = FAILURE;
+
+	/* {{{ preliminaries */
+	if (_rar_get_archive_and_fragment(wrapper, url, options, 1,
+			&open_path, &fragment, NULL TSRMLS_CC) == FAILURE) {
+		goto cleanup;
+	}
+
+	if (context != NULL) {
+		php_rar_process_context(context, wrapper, options, &open_passwd,
+			NULL, &volume_cb TSRMLS_CC);
+	}
+	/* end preliminaries }}} */
+	
+	if (_rar_get_cachable_rararch(wrapper, options, open_path, open_passwd,
+			volume_cb, &rararch, &rar TSRMLS_CC) == FAILURE)
+		goto cleanup;
+
+	if (fragment[0] == L'\0') {
+		/* make sth up */
+		struct RARHeaderDataEx t = {""};
+		t.FileAttr = _S_IFDIR | 0777;
+		ret = _rar_stat_from_header(&t, ssb);
+		goto cleanup;
+	}
+
+	fragment_len = wcslen(fragment);
+
+	_rar_entry_search_start(rar, &state);
+	_rar_entry_search_advance(state, fragment, fragment_len + 1, 0);
+	if (!state->found) {
+		char *mb_entry = _rar_wide_to_utf_with_alloc(fragment,
+			(int) fragment_len);
+		php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
+			"Found no entry %s in archive %s", mb_entry, open_path);
+		efree(mb_entry);
+		goto cleanup;
+	}
+	else
+		ret	= _rar_stat_from_header(state->header, ssb);
+
+	ret = SUCCESS;
+cleanup:
+	if (open_path != NULL)
+		efree(open_path);
+
+	if (fragment != NULL)
+		efree(fragment);
+
+	if (rararch != NULL)
+		zval_ptr_dtor(&rararch);
+	if (state != NULL)
+		_rar_entry_search_end(state);
+	
+	return ret;
+}
+/* }}} */
+
+/* {{{ php_stream_rar_dir_opener */
+static php_stream *php_stream_rar_dir_opener(php_stream_wrapper *wrapper,
+											 char *filename,
+											 char *mode,
+											 int options,
+											 char **opened_path,
+											 php_stream_context *context
+											 STREAMS_DC TSRMLS_DC)
+{
+	wchar_t *fragment;
+	char *tmp_open_path = NULL, /* used to hold the pointer that may be copied to opened_path */
+		 *open_passwd = NULL;
+	int no_encode;
+	zval *volume_cb = NULL;
+	size_t fragment_len;
+	rar_file_t *rar;
+	php_rar_dir_stream_data_P self = NULL;
+	php_stream *stream = NULL;
+
+	/* {{{ preliminaries */
+	if (options & STREAM_OPEN_PERSISTENT) {
+		/* TODO: add support for opening RAR files in a persisten fashion */
+		php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
+			"No support for opening RAR files persistently yet");
+		return NULL;
+	}
+
+	//mode must be exactly "r"
+	if (strncmp(mode, "r", sizeof("r")) != 0) {
+		php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
+			"Only the \"r\" open mode is permitted, given %s", mode);
+		return NULL;
+	}
+
+	if (_rar_get_archive_and_fragment(wrapper, filename, options, 1,
+			&tmp_open_path, &fragment, &no_encode TSRMLS_CC) == FAILURE) {
+		goto cleanup;
+	}
+
+	if (context != NULL) {
+		php_rar_process_context(context, wrapper, options, &open_passwd,
+			NULL, &volume_cb TSRMLS_CC);
+	}
+	/* end preliminaries }}} */
+
+	self = ecalloc(1, sizeof *self);
+
+	if (_rar_get_cachable_rararch(wrapper, options, tmp_open_path, open_passwd,
+			volume_cb, &self->rar_obj, &rar TSRMLS_CC) == FAILURE)
+		goto cleanup;
+
+	fragment_len = wcslen(fragment);
+	self->directory = ecalloc(fragment_len + 1, sizeof *self->directory);
+	wmemcpy(self->directory, fragment, fragment_len + 1);
+	
+	/* Remove the ending in the path separator */
+	if (fragment_len > 0 &&
+			self->directory[fragment_len - 1] == PATHDIVIDERW[0]) {
+		self->directory[fragment_len - 1] = L'\0';
+		self->dir_size = fragment_len;
+	}
+	else
+		self->dir_size = fragment_len + 1;
+	
+	_rar_entry_search_start(rar, &self->state);
+	if (self->dir_size != 1) { /* skip if asked for root */
+		/* try to find directory. only works if the directort itself was added
+		 * to the archive, which I'll assume occurs in all good archives */
+		_rar_entry_search_advance(
+			self->state, self->directory, self->dir_size, 0);
+		if (!self->state->found || ((self->state->header->Flags &
+				LHD_WINDOWMASK) != LHD_DIRECTORY)) {
+			const char *message;
+			char *mb_entry = _rar_wide_to_utf_with_alloc(self->directory, 
+				(size_t) self->dir_size - 1);
+
+			if (!self->state->found)
+				message = "Found no entry in archive %s for directory %s";
+			else
+				message = "Archive %s has an entry named %s, but it is not a "
+					"directory";
+
+			php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
+				message, tmp_open_path, mb_entry);
+			efree(mb_entry);
+			goto cleanup;
+		}
+		self->self_header = self->state->header;
+		_rar_entry_search_rewind(self->state);
+	}
+
+	self->no_encode = no_encode;
+
+	stream = php_stream_alloc(&php_stream_rar_dirio_ops, self, NULL, mode);
+
+cleanup:
+
+	if (tmp_open_path != NULL) {
+		if (opened_path != NULL)
+			*opened_path = tmp_open_path;
+		else
+			efree(tmp_open_path);
+	}
+	if (fragment != NULL)
+		efree(fragment);
+
+	if (stream == NULL) { //failed
+		if (self != NULL) {
+			if (self->rar_obj != NULL)
+				zval_ptr_dtor(&self->rar_obj);
+			if (self->directory != NULL)
+				efree(self->directory);
+			if (self->state != NULL)
+				_rar_entry_search_end(self->state);
+		}
+	}
+
+	return stream; /* may be null */
+}
+/* }}} */
+
 static php_stream_wrapper_ops rar_stream_wops = {
 	php_stream_rar_opener,
 	NULL,	/* close */
 	NULL,	/* fstat */
-	NULL,	/* stat */
-	NULL,	/* opendir */
+	php_stream_rar_stater,
+	php_stream_rar_dir_opener,	/* opendir */
 	"rar wrapper",
 	NULL,	/* unlink */
 	NULL,	/* rename */

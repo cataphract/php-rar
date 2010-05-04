@@ -22,6 +22,6 @@ object(RarArchive)#%d (%d) {
 object(RarArchive)#%d (%d) {
 }
 
-Warning: rar_open(): Failed to open %s/no_such_file.rar: ERAR_EOPEN (file open error) in %s on line %d
+Warning: rar_open(): Failed to open %sno_such_file.rar: ERAR_EOPEN (file open error) in %s on line %d
 bool(false)
 Done

@@ -245,7 +245,7 @@ PHP_METHOD(rarentry, extract)
 	}
 
 	RAR_GET_PROPERTY(tmp, "rarfile");
-	if (!_rar_get_file_resource(*tmp, &rar TSRMLS_CC)) {
+	if (_rar_get_file_resource(*tmp, &rar TSRMLS_CC) == FAILURE) {
 		RETURN_FALSE;
 	}
 
@@ -470,7 +470,7 @@ PHP_METHOD(rarentry, getStream)
 
 	RAR_GET_PROPERTY(name, "name");
 	RAR_GET_PROPERTY(tmp, "rarfile");
-	if (!_rar_get_file_resource(*tmp, &rar TSRMLS_CC)) {
+	if (_rar_get_file_resource(*tmp, &rar TSRMLS_CC) == FAILURE) {
 		RETURN_FALSE;
 	}
 
@@ -502,7 +502,7 @@ PHP_METHOD(rarentry, isDirectory)
 	
 	RAR_GET_PROPERTY(tmp, "flags");
 	flags = Z_LVAL_PP(tmp);
-	is_dir = ((flags & 0xE0) == 0xE0);
+	is_dir = ((flags & LHD_WINDOWMASK) == LHD_DIRECTORY);
 	
 	RETURN_BOOL(is_dir);
 }

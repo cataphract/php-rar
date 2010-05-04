@@ -27,6 +27,23 @@
 
 /* $Id$ */
 
+/* TODO: correct handling of archives with entries with the same name */
+/* TODO: metadata block reading */
+/* TODO: use high precision modification time, if available */
+/* TODO: expose creation time and last access time, if available */
+/* TODO: correct support for symlinks inside RAR files. This includes:
+ * - Respecting PHP_STREAM_URL_STAT_LINK in the url_stater
+ * - Following the symlinks when asked to open one inside the RAR
+ * Sym link support on windows will be more complicated */
+/* TODO: add support for opening RAR files in a persisten fashion */
+/* TODO: consider making struct rar opaque, outside rararch.c only
+ * RarEntry::extract/getStream access the fields */
+/* TODO: merge rar_file_t.entries_idx and rar_file_t.entries */
+/* TODO: consider using a php memory/tmpfile stream to serve as buffer for
+ * rar file streams */
+/* TODO: improve RAR archive cache key for url_stater/dir_opener */
+/* TODO: make configurable the capacity of the usr_stater/dir_opener cache */
+
 #ifndef PHP_RAR_H
 #define PHP_RAR_H
 
@@ -61,6 +78,8 @@ enum HOST_SYSTEM {
   HOST_MSDOS=0,HOST_OS2=1,HOST_WIN32=2,HOST_UNIX=3,HOST_MACOS=4,
   HOST_BEOS=5,HOST_MAX
 };
+#define  LHD_WINDOWMASK     0x00e0U
+#define  LHD_DIRECTORY      0x00e0U
 
 //maximum comment size if 64KB
 #define RAR_MAX_COMMENT_SIZE 65536
@@ -70,7 +89,6 @@ typedef struct _rar_cb_user_data {
 	zval					*callable;  //can be NULL
 } rar_cb_user_data;
 
-/* TODO make opaque, only RarEntry::extract/getStream access the fields */
 typedef struct rar {
 	zend_object_handle			id;
 	int							entry_count; //>= number of files
@@ -162,6 +180,13 @@ int _rar_find_file(struct RAROpenArchiveDataEx *open_data, /* IN */
 				   int *found, /* OUT */
 				   struct RARHeaderDataEx *header_data /* OUT, can be null */
 				   );
+int _rar_find_file_w(struct RAROpenArchiveDataEx *open_data, /* IN */
+					 const wchar_t *const file_name, /* IN */
+					 rar_cb_user_data *cb_udata, /* IN, must be managed outside */
+					 void **arc_handle, /* OUT: where to store rar archive handle  */
+					 int *found, /* OUT */
+					 struct RARHeaderDataEx *header_data /* OUT, can be null */
+					 );
 int CALLBACK _rar_unrar_callback(UINT msg, LPARAM UserData, LPARAM P1, LPARAM P2);
 
 /* rar_error.c */
@@ -174,21 +199,30 @@ const char * _rar_error_to_string(int errcode);
 void minit_rarerror(TSRMLS_D);
 
 /* rararch.c */
+int _rar_create_rararch_obj(const char* resolved_path,
+							const char* open_password,
+							zval *volume_callback, //must be callable or NULL
+							zval *object,
+							int *err_code TSRMLS_DC);
+void _rar_close_file_resource(rar_file_t *rar);
+int _rar_index_entries(rar_file_t *rar_file TSRMLS_DC);
+
+/* entry search API {{{ */
 typedef struct _rar_find_output {
 	int							found;
 	struct RARHeaderDataEx *	header;
 	unsigned long				packed_size;
 	int							eof;
 } rar_find_output;
-
-int _rar_index_entries(rar_file_t *rar_file TSRMLS_DC);
-/* to find files in RarArchive objects */
 void _rar_entry_search_start(rar_file_t *rar, rar_find_output **state);
 void _rar_entry_search_end(rar_find_output *state);
 void _rar_entry_search_rewind(rar_find_output *state);
 void _rar_entry_search_advance(rar_find_output *state,
 							   const wchar_t * const file, //NULL = give next
+							   size_t file_size,
 							   int directory_match);
+/* end entry search API }}} */
+
 /* Fetches the rar_file_t part of the RarArchive object in order to use the
  * operations above and (discouraged) to have direct access to the fields
  * RarEntry::extract/getStream access extract_open_dat and cb_userdata */

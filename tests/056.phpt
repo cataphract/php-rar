@@ -1,5 +1,5 @@
 --TEST--
-RAR stream stat
+RAR file stream stat
 --SKIPIF--
 <?php
 if(!extension_loaded("rar")) die("skip");
@@ -18,7 +18,7 @@ array(26) {
   [1]=>
   int(0)
   [2]=>
-  int(32)
+  int(33206)
   [3]=>
   int(1)
   [4]=>
@@ -44,7 +44,7 @@ array(26) {
   ["ino"]=>
   int(0)
   ["mode"]=>
-  int(32)
+  int(33206)
   ["nlink"]=>
   int(1)
   ["uid"]=>

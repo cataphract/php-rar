@@ -156,6 +156,27 @@ void _rar_destroy_userdata(rar_cb_user_data *udata) /* {{{ */
 }
 /* }}} */
 
+int _rar_find_file(struct RAROpenArchiveDataEx *open_data, /* IN */
+				   const char *const utf_file_name, /* IN */
+				   rar_cb_user_data *cb_udata, /* IN, must be managed outside */
+				   void **arc_handle, /* OUT: where to store rar archive handle  */
+				   int *found, /* OUT */
+				   struct RARHeaderDataEx *header_data /* OUT, can be null */
+				   ) /* {{{ */
+{
+	wchar_t *file_name = NULL;
+	size_t utf_file_name_len = strlen(utf_file_name);
+	int ret;
+
+	file_name = ecalloc(utf_file_name_len + 1, sizeof *file_name); 
+	_rar_utf_to_wide(utf_file_name, file_name, utf_file_name_len + 1);
+	ret = _rar_find_file_w(open_data, file_name, cb_udata, arc_handle, found,
+		header_data);
+	efree(file_name);
+	return ret;
+}
+/* }}} */
+
 /* WARNING: It's the caller who must close the archive and manage the lifecycle
 of cb_udata (must be valid while the archive is opened). */
 /*
@@ -169,23 +190,21 @@ of cb_udata (must be valid while the archive is opened). */
  * Note that even when the file is not found, the caller must still close
  * the archive.
  */
-int _rar_find_file(struct RAROpenArchiveDataEx *open_data, /* IN */
-				   const char *const utf_file_name, /* IN */
-				   rar_cb_user_data *cb_udata, /* IN, must be managed outside */
-				   void **arc_handle, /* OUT: where to store rar archive handle  */
-				   int *found, /* OUT */
-				   struct RARHeaderDataEx *header_data /* OUT, can be null */
-				   ) /* {{{ */
+int _rar_find_file_w(struct RAROpenArchiveDataEx *open_data, /* IN */
+					 const wchar_t *const file_name, /* IN */
+					 rar_cb_user_data *cb_udata, /* IN, must be managed outside */
+					 void **arc_handle, /* OUT: where to store rar archive handle  */
+					 int *found, /* OUT */
+					 struct RARHeaderDataEx *header_data /* OUT, can be null */
+					 ) /* {{{ */
 {
 	int						result,
 							process_result;
-	wchar_t					*file_name = NULL;
-	int						utf_file_name_len;
 	struct RARHeaderDataEx	*used_header_data;
 	int						retval = 0; /* success in rar parlance */
 
 	assert(open_data != NULL);
-	assert(utf_file_name != NULL);
+	assert(file_name != NULL);
 	assert(arc_handle != NULL);
 	assert(found != NULL);
 	*found = FALSE;
@@ -200,10 +219,6 @@ int _rar_find_file(struct RAROpenArchiveDataEx *open_data, /* IN */
 		goto cleanup;
 	}
 	RARSetCallback(*arc_handle, _rar_unrar_callback, (LPARAM) cb_udata);
-
-	utf_file_name_len = strlen(utf_file_name);
-	file_name = ecalloc(utf_file_name_len + 1, sizeof *file_name); 
-	_rar_utf_to_wide(utf_file_name, file_name, utf_file_name_len + 1);
 	
 	while ((result = RARReadHeaderEx(*arc_handle, used_header_data)) == 0) {
 		if (sizeof(wchar_t) > 2)
@@ -230,8 +245,6 @@ int _rar_find_file(struct RAROpenArchiveDataEx *open_data, /* IN */
 cleanup:
 	if (header_data == NULL)
 		efree(used_header_data);
-	if (file_name != NULL)
-		efree(file_name);
 
 	return retval;
 }
@@ -515,6 +528,7 @@ static void _rar_contents_cache_put(const char *key,
 		zend_hash_apply(cc->data, _rar_array_apply_remove_first TSRMLS_CC);
 		assert(zend_hash_num_elements(cc->data) == cur_size - 1);
 	}
+	zval_add_ref(&zv);
 	zend_hash_update(cc->data, key, key_len, &zv, sizeof(zv), NULL);
 }
 
@@ -522,10 +536,18 @@ static zval *_rar_contents_cache_get(const char *key,
 									 uint key_len TSRMLS_DC)
 {
 	rar_contents_cache *cc = &RAR_G(contents_cache);
-	zval **element;
+	zval **element = NULL;
 	zend_hash_find(cc->data, key, key_len, (void **) &element);
-	
-	return *element;
+
+	if (element != NULL) {
+		/*php_printf("cache hit!\n");*/
+		zval_add_ref(element);
+		return *element;
+	}
+	else {
+		/*php_printf("cache miss!\n");*/
+		return NULL;
+	}
 }
 
 /* ZEND_MODULE_GLOBALS_CTOR_D declares it receiving zend_rar_globals*,
@@ -598,6 +620,7 @@ ZEND_MODULE_DEACTIVATE_D(rar)
 ZEND_MODULE_INFO_D(rar)
 {
 	char version[256];
+	char api_version[256];
 
 	php_info_print_table_start();
 	php_info_print_table_header(2, "RAR support", "enabled");
@@ -613,7 +636,11 @@ ZEND_MODULE_INFO_D(rar)
 		RARVER_PATCH, RARVER_YEAR, RARVER_MONTH, RARVER_DAY);
 #endif
 
+	sprintf(api_version,"%d extension %d", RAR_DLL_VERSION,
+		RAR_DLL_EXT_VERSION);
+
 	php_info_print_table_row(2, "UnRAR version", version);
+	php_info_print_table_row(2, "UnRAR API version", api_version);
 	php_info_print_table_end();
 }
 /* }}} */
