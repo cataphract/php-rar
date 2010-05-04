@@ -31,6 +31,7 @@
 extern "C" {
 #endif
 
+#include <wchar.h>
 #include <php.h>
 #include <zend_interfaces.h>
 #include "php_rar.h"
@@ -55,6 +56,8 @@ static zend_object_handlers rararch_object_handlers;
 
 /* {{{ Function prototypes for functions with internal linkage */
 static int _rar_list_files(rar_file_t * TSRMLS_DC);
+static int _rar_directory_match(const wchar_t *dir, const size_t dir_len,
+								const wchar_t *entry, const size_t entry_len);
 static void _rar_raw_entries_to_array(rar_file_t *rar, zval *target TSRMLS_DC);
 static zend_object_value rararch_ce_create_object(zend_class_entry *class_type TSRMLS_DC);
 static void rararch_ce_destroy_object(ze_rararch_object *object,
@@ -79,8 +82,11 @@ int _rar_index_entries(rar_file_t *rar_file TSRMLS_DC) /* {{{ */
 
 	assert(rar_file->entries_idx == NULL);
 
-	if (rar_file->entries == NULL)
-		_rar_list_files(rar_file TSRMLS_CC);
+	if (rar_file->entries == NULL) {
+		int res = _rar_list_files(rar_file TSRMLS_CC);
+		if (_rar_error_to_string(res) != NULL)
+			return res;
+	}
 
     ALLOC_HASHTABLE(rar_file->entries_idx);
     if (zend_hash_init(rar_file->entries_idx, rar_file->entry_count, NULL,
@@ -93,6 +99,7 @@ int _rar_index_entries(rar_file_t *rar_file TSRMLS_DC) /* {{{ */
 	for (i = 0, first_file_check = TRUE; i < rar_file->entry_count; i++) {
 		struct RARHeaderDataEx *entry;
 		const wchar_t *cur_name;
+		uint len;
 
 		entry = rar_file->entries[i];
 		cur_name = entry->FileNameW;
@@ -108,8 +115,18 @@ int _rar_index_entries(rar_file_t *rar_file TSRMLS_DC) /* {{{ */
 				first_file_check = FALSE;
 		}
 
-		zend_hash_add(rar_file->entries_idx, (const char *) cur_name,
-			(wcsnlen(cur_name, sizeof entry->FileNameW) + 1) * sizeof *cur_name,
+		{
+			size_t cur_name_len = wcsnlen(cur_name, sizeof entry->FileNameW);
+			if (cur_name_len == sizeof(entry->FileNameW)) {
+				_rar_handle_ext_error("UnRAR library gave an unterminated "
+					"wide filename. Should not have happened! Bug!" TSRMLS_CC);
+				FREE_HASHTABLE(rar_file->entries_idx);
+				rar_file->entries_idx = NULL;
+				return FAILURE;
+			}
+			len = (uint) ((cur_name_len + 1) * sizeof *cur_name);
+		}
+		zend_hash_add(rar_file->entries_idx, (const char *) cur_name, len,
 			&i, sizeof(i), NULL);
 	}
 
@@ -117,9 +134,83 @@ int _rar_index_entries(rar_file_t *rar_file TSRMLS_DC) /* {{{ */
 }
 /* }}} */
 
+/* Creates a RarArchive object, all three in args will be dupped */
+int _rar_create_rararch_obj(const char* resolved_path,
+							const char* open_password,
+							zval *volume_callback, //must be callable or NULL
+							zval *object,
+							int *err_code TSRMLS_DC) /* {{{ */
+{
+	rar_file_t *rar = NULL;
+
+	rar = emalloc(sizeof *rar);
+	rar->list_open_data = ecalloc(1, sizeof *rar->list_open_data);
+	rar->list_open_data->ArcName = estrdup(resolved_path);
+	rar->list_open_data->OpenMode = RAR_OM_LIST_INCSPLIT;
+	rar->list_open_data->CmtBuf = ecalloc(RAR_MAX_COMMENT_SIZE, 1);
+	rar->list_open_data->CmtBufSize = RAR_MAX_COMMENT_SIZE;
+	rar->extract_open_data = ecalloc(1, sizeof *rar->extract_open_data);
+	rar->extract_open_data->ArcName = estrdup(resolved_path);
+	rar->extract_open_data->OpenMode = RAR_OM_EXTRACT;
+	rar->extract_open_data->CmtBuf = NULL; //not interested in it again
+	rar->cb_userdata.password = NULL;
+	rar->cb_userdata.callable = NULL;
+	rar->entries = NULL;
+	rar->entries_idx = NULL;
+	rar->entry_count = 0;
+
+	rar->arch_handle = RAROpenArchiveEx(rar->list_open_data);
+	if (rar->arch_handle != NULL && rar->list_open_data->OpenResult == 0) {
+		ze_rararch_object *zobj;
+
+		if (open_password != NULL) {
+			rar->cb_userdata.password = estrdup(open_password);
+		}
+		if (volume_callback != NULL) {
+			rar->cb_userdata.callable = volume_callback;
+			zval_add_ref(&rar->cb_userdata.callable);
+			SEPARATE_ZVAL(&rar->cb_userdata.callable);
+		}
+		
+		object_init_ex(object, rararch_ce_ptr);
+		zobj = zend_object_store_get_object(object TSRMLS_CC);
+		zobj->rar_file = rar;
+		rar->id = Z_OBJ_HANDLE_P(object);
+
+		RARSetCallback(rar->arch_handle, _rar_unrar_callback,
+			(LPARAM) &rar->cb_userdata);
+		
+		return SUCCESS;
+	} else {
+		*err_code = rar->list_open_data->OpenResult;
+		
+		efree(rar->list_open_data->ArcName);
+		efree(rar->list_open_data->CmtBuf);
+		efree(rar->list_open_data);
+		efree(rar->extract_open_data->ArcName);
+		efree(rar->extract_open_data);
+		efree(rar);
+		return FAILURE;
+	}
+}
+/* }}} */
+
+void _rar_close_file_resource(rar_file_t *rar) /* {{{ */
+{
+	assert(rar->arch_handle != NULL);
+	
+	/* When changed from resource to custom object, instead of fiddling
+	 * with the refcount to force object destruction, an indication that
+	 * the file is already closed is given by setting rar->arch_handle
+	 * to NULL. This is checked by _rar_get_file_resource. */
+	RARCloseArchive(rar->arch_handle);
+	rar->arch_handle = NULL;
+}
+/* }}} */
+
 /* Receives archive zval, returns object struct.
  * If silent is FALSE, it checks whether the archive is alredy closed, and if it
- * is, an exception/error is raised and 0 is returned
+ * is, an exception/error is raised and FAILURE is returned
  */
 int _rar_get_file_resource_ex(zval *zval_file, rar_file_t **rar_file, int silent TSRMLS_DC) /* {{{ */
 {
@@ -128,16 +219,16 @@ int _rar_get_file_resource_ex(zval *zval_file, rar_file_t **rar_file, int silent
 	if (zobj == NULL) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,
 			"Could not find object in the store. This is a bug, please report it.");
-		return 0;
+		return FAILURE;
 	}
 
 	*rar_file = zobj->rar_file;
 	if ((*rar_file)->arch_handle == NULL && !silent) { //rar_close was called
 		_rar_handle_ext_error("The archive is already closed." TSRMLS_CC);
-		return 0;
+		return FAILURE;
 	}
 
-	return 1;
+	return SUCCESS;
 }
 /* }}} */
 
@@ -185,6 +276,7 @@ void _rar_entry_search_rewind(rar_find_output *state)
 /* {{{ _rar_entry_search_advance */
 void _rar_entry_search_advance(rar_find_output *state,
 							  const wchar_t * const file, //NULL = give next
+							  size_t file_size, //length + 1
 							  int directory_match)
 {
 	rar_find_state	*rstate = (rar_find_state *) state;
@@ -193,14 +285,17 @@ void _rar_entry_search_advance(rar_find_output *state,
 					commited = FALSE;
 
 	assert(state != NULL);
-	(void) directory_match; //ignore for now
 
 	//reset output
 	memset(&rstate->out, 0, sizeof rstate->out);
 
-	if (file != NULL && rstate->rar->entries_idx != NULL) {
+	if (file_size == 0 && (directory_match ||
+			(file != NULL && rstate->rar->entries_idx != NULL)))
+		file_size = wcslen(file) + 1;
+
+	if (!directory_match && file != NULL && rstate->rar->entries_idx != NULL) {
 		if (zend_hash_find(rstate->rar->entries_idx, (const char *) file,
-				(wcslen(file) + 1) * sizeof *file, &hash_i) == SUCCESS) {
+				(uint) (file_size * sizeof *file), &hash_i) == SUCCESS) {
 			rstate->index = *hash_i;
 			/* jump; these are no longer valid */
 			rstate->last_name = NULL;
@@ -248,8 +343,11 @@ void _rar_entry_search_advance(rar_find_output *state,
 		ended_file = has_last_entry && (!read_entry ||
 			(strncmp(rstate->strict_last_name, strict_current_name,	1024)
 			!= 0));
-		commit_file = ended_file && (file == NULL ||
-			(file != NULL && wcsncmp(rstate->last_name, file, 1024) == 0));
+		commit_file = ended_file &&
+			(file == NULL ||
+			(!directory_match && wcsncmp(rstate->last_name, file, 1024) == 0) ||
+			(directory_match &&	_rar_directory_match(file, file_size - 1,
+				rstate->last_name, wcsnlen(rstate->last_name, 1024))));
 
 		if (commit_file) {
 			rstate->out.found = 1;
@@ -321,10 +419,42 @@ static int _rar_list_files(rar_file_t *rar TSRMLS_DC) /* {{{ */
 			rar->entry_count++;
 		}
 	}
-	//uncomment to have always have index
-	/* if (rar->entries != NULL)
-		_rar_index_entries(rar TSRMLS_CC); */
+	
 	return result;
+}
+/* }}} */
+
+/* does not assume null termination */
+static int _rar_directory_match(const wchar_t *dir, const size_t dir_len,
+								const wchar_t *entry, const size_t entry_len) /* {{{ */
+{
+	const wchar_t *chr,
+				  *entry_rem;
+	size_t		  entry_rem_len;
+	
+	/* dir does not end with the path separator */
+
+	if (dir_len > 0) {
+		if (entry_len <= dir_len) /* don't match the dir itself */
+			return FALSE;
+		/* assert(entry_len > dir_len > 0) */
+		if (wmemcmp(dir, entry, dir_len) != 0)
+			return FALSE;
+		/* directory name does not follow path sep or path sep ends the name */
+		if (entry[dir_len] != PATHDIVIDERW[0] || entry_len == dir_len + 1)
+			return FALSE;
+		/* assert(entry_len > dir_len + 1) */
+		entry_rem = &entry[dir_len + 1];
+		entry_rem_len = entry_len - (dir_len + 1);
+	}
+	else {
+		entry_rem = entry;
+		entry_rem_len = entry_len;
+	}
+
+	chr = wmemchr(entry_rem, PATHDIVIDERW[0], entry_rem_len);
+	/* must have no / after the directory */
+	return (chr == NULL);
 }
 /* }}} */
 
@@ -345,7 +475,7 @@ static void _rar_raw_entries_to_array(rar_file_t *rar, zval *target TSRMLS_DC) /
 
 	_rar_entry_search_start(rar, &state);
 	do {
-		_rar_entry_search_advance(state, NULL, 0);
+		_rar_entry_search_advance(state, NULL, 0, 0);
 		if (state->found) {
 			zval *entry_obj;
 
@@ -454,13 +584,13 @@ PHP_FUNCTION(rar_open)
 	char resolved_path[MAXPATHLEN];
 	int filename_len;
 	int password_len = 0;
-	int was_error = 0;
 	rar_file_t *rar = NULL;
 	zval *callable = NULL;
+	int err_code;
 
 	/* Files are only opened here and in _rar_find_file */
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|sz", &filename,
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|sz!", &filename,
 		&filename_len, &password, &password_len, &callable) == FAILURE) {
 		return;
 	}
@@ -473,81 +603,35 @@ PHP_FUNCTION(rar_open)
 		RETURN_FALSE;
 	}
 	assert(strnlen(resolved_path, MAXPATHLEN) < MAXPATHLEN);
-	
-	rar = emalloc(sizeof *rar);
-	rar->list_open_data = ecalloc(1, sizeof *rar->list_open_data);
-	rar->list_open_data->ArcName = estrdup(resolved_path);
-	rar->list_open_data->OpenMode = RAR_OM_LIST_INCSPLIT;
-	rar->list_open_data->CmtBuf = ecalloc(RAR_MAX_COMMENT_SIZE, 1);
-	rar->list_open_data->CmtBufSize = RAR_MAX_COMMENT_SIZE;
-	rar->extract_open_data = ecalloc(1, sizeof *rar->extract_open_data);
-	rar->extract_open_data->ArcName = estrdup(resolved_path);
-	rar->extract_open_data->OpenMode = RAR_OM_EXTRACT;
-	rar->extract_open_data->CmtBuf = NULL; //not interested in it again
-	rar->cb_userdata.password = NULL;
-	rar->cb_userdata.callable = NULL;
-	rar->entries = NULL;
-	rar->entries_idx = NULL;
-	rar->entry_count = 0;
 
-	rar->arch_handle = RAROpenArchiveEx(rar->list_open_data);
-	if (rar->arch_handle != NULL && rar->list_open_data->OpenResult == 0) {
-		if (password_len > 0) {
-			rar->cb_userdata.password = estrndup(password, password_len);
-		}
-		if (ZEND_NUM_ARGS() >= 3) { //given volume resolver callback
+	if (callable != NULL) { //given volume resolver callback
 #if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION == 2
-			if (zend_is_callable(callable, IS_CALLABLE_STRICT, NULL)) {
+		if (!zend_is_callable(callable, IS_CALLABLE_STRICT, NULL)) {
 #else
-			if (zend_is_callable(callable, IS_CALLABLE_STRICT, NULL TSRMLS_CC)) {
+		if (!zend_is_callable(callable, IS_CALLABLE_STRICT, NULL TSRMLS_CC)) {
 #endif
-				rar->cb_userdata.callable = callable;
-				zval_add_ref(&rar->cb_userdata.callable);
-				SEPARATE_ZVAL(&rar->cb_userdata.callable);
-			}
-			else {
-				_rar_handle_ext_error("%s" TSRMLS_CC, "Expected the third "
-					"argument, if provided, to be a valid callback");
-				was_error = 1;
-			}
+			_rar_handle_ext_error("%s" TSRMLS_CC, "Expected the third "
+				"argument, if provided, to be a valid callback");
+			RETURN_FALSE;
 		}
-		
-		if (!was_error) { //create RarArchive object if there was no error
-			object_init_ex(return_value, rararch_ce_ptr);
-			{
-				ze_rararch_object *zobj =
-					zend_object_store_get_object(return_value TSRMLS_CC);
-				zobj->rar_file = rar;
-			}
-			rar->id = Z_OBJ_HANDLE_P(return_value);
-		}
-	} else {
-		const char *err_str = _rar_error_to_string(rar->list_open_data->OpenResult);
+	}
+	
+	if (_rar_create_rararch_obj(resolved_path, password, callable,
+			return_value, &err_code TSRMLS_CC) == FAILURE) {
+		const char *err_str = _rar_error_to_string(err_code);
 		if (err_str == NULL)
 			_rar_handle_ext_error("%s" TSRMLS_CC, "Archive opened failed "
-				"(returned NULL handle), but did not return an error "
+				"(returned NULL handle), but did not return an error. "
 				"Should not happen.");
 		else {
 			char *preamble;
-			spprintf(&preamble, 0, "Failed to open %s: ", filename);
-			_rar_handle_error_ex(preamble,
-				rar->list_open_data->OpenResult TSRMLS_CC);
+			spprintf(&preamble, 0, "Failed to open %s: ", resolved_path);
+			_rar_handle_error_ex(preamble, err_code TSRMLS_CC);
 			efree(preamble);
 		}
-		was_error = 1;
-	}
 
-	if (was_error) { //free resources and return false in case of error
-		efree(rar->list_open_data->ArcName);
-		efree(rar->list_open_data->CmtBuf);
-		efree(rar->list_open_data);
-		efree(rar->extract_open_data->ArcName);
-		efree(rar->extract_open_data);
-		efree(rar);
 		RETURN_FALSE;
 	}
-	
-	RARSetCallback(rar->arch_handle, _rar_unrar_callback, (LPARAM) &rar->cb_userdata);
 }
 /* }}} */
 
@@ -564,7 +648,7 @@ PHP_FUNCTION(rar_list)
 		return;
 	}
 
-	if (!_rar_get_file_resource(file, &rar TSRMLS_CC)) {
+	if (_rar_get_file_resource(file, &rar TSRMLS_CC) == FAILURE) {
 		RETURN_FALSE;
 	}
 
@@ -606,7 +690,7 @@ PHP_FUNCTION(rar_entry_get)
 		}
 	}
 
-	if (!_rar_get_file_resource(file, &rar TSRMLS_CC)) {
+	if (_rar_get_file_resource(file, &rar TSRMLS_CC) == FAILURE) {
 		RETURN_FALSE;
 	}
 
@@ -621,7 +705,7 @@ PHP_FUNCTION(rar_entry_get)
 	_rar_utf_to_wide(filename, filename_c, filename_len + 1);
 
 	_rar_entry_search_start(rar, &sstate);
-	_rar_entry_search_advance(sstate, filename_c, 0);
+	_rar_entry_search_advance(sstate, filename_c, 0, 0);
 	if (sstate->found) {
 		_rar_entry_to_zval(file, sstate->header, sstate->packed_size,
 			return_value TSRMLS_CC);
@@ -650,7 +734,7 @@ PHP_FUNCTION(rar_solid_is)
 		return;
 	}
 
-	if (!_rar_get_file_resource(file, &rar TSRMLS_CC)) {
+	if (_rar_get_file_resource(file, &rar TSRMLS_CC) == FAILURE) {
 		RETURN_FALSE;
 	}
 
@@ -671,7 +755,7 @@ PHP_FUNCTION(rar_comment_get)
 		return;
 	}
 
-	if (!_rar_get_file_resource(file, &rar TSRMLS_CC)) {
+	if (_rar_get_file_resource(file, &rar TSRMLS_CC) == FAILURE) {
 		RETURN_FALSE;
 	}
 	
@@ -703,17 +787,11 @@ PHP_FUNCTION(rar_close)
 		return;
 	}
 
-	if (!_rar_get_file_resource(file, &rar TSRMLS_CC)) {
+	if (_rar_get_file_resource(file, &rar TSRMLS_CC) == FAILURE) {
 		RETURN_FALSE;
 	}
 
-	//zend_hash_index_del(&EG(regular_list), Z_RESVAL_P(file));
-	/* When changed from resource to custom object, instead of fiddling
-	 * with the refcount to force object destruction, an indication that
-	 * the file is already closed is given by setting rar->arch_handle
-	 * to NULL. This is checked by _rar_get_file_resource. */
-	RARCloseArchive(rar->arch_handle);
-	rar->arch_handle = NULL;
+	_rar_close_file_resource(rar);
 
 	RETURN_TRUE;
 }
@@ -728,27 +806,27 @@ PHP_METHOD(rararch, __toString)
 	const char			format[] = "RAR Archive \"%s\"%s",
 						closed[] = " (closed)";
 	char				*restring;
-	int					restring_len,
-						is_closed;
+	size_t				restring_size;
+	int					is_closed;
 
-	if (!_rar_get_file_resource_ex(arch_obj, &rar, TRUE TSRMLS_CC)) {
+	if (_rar_get_file_resource_ex(arch_obj, &rar, TRUE TSRMLS_CC) == FAILURE) {
 		RETURN_FALSE;
 	}
 
 	is_closed = (rar->arch_handle == NULL);
 
 	//2 is size of %s, 1 is terminating 0
-	restring_len = (sizeof(format) - 1) - 2 * 2 + 1;
-	restring_len += strlen(rar->list_open_data->ArcName);
+	restring_size = (sizeof(format) - 1) - 2 * 2 + 1;
+	restring_size += strlen(rar->list_open_data->ArcName);
 	if (is_closed)
-		restring_len += sizeof(closed) - 1;
+		restring_size += sizeof(closed) - 1;
 
-	restring = emalloc(restring_len);
-	snprintf(restring, restring_len, format, rar->list_open_data->ArcName,
+	restring = emalloc(restring_size);
+	snprintf(restring, restring_size, format, rar->list_open_data->ArcName,
 		is_closed?closed:"");
-	restring[restring_len - 1] = '\0'; //just to be safe
+	restring[restring_size - 1] = '\0'; //just to be safe
 	
-	RETURN_STRING(restring, 0);
+	RETURN_STRINGL(restring, (int) restring_size - 1, 0);
 }
 /* }}} */
 
@@ -815,7 +893,7 @@ static zend_object_iterator *rararch_it_get_iterator(zend_class_entry *ce,
 	it = emalloc(sizeof *it);
 
 	res = _rar_get_file_resource_ex(object, &rar, 1 TSRMLS_CC);
-	if (!res)
+	if (res == FAILURE)
 		zend_error(E_ERROR, "Cannot fetch RarArchive object");
 	if (rar->arch_handle == NULL)
 		zend_error(E_ERROR, "The archive is already closed, "
@@ -871,10 +949,10 @@ static void rararch_it_fetch(rararch_iterator *it TSRMLS_DC)
 	MAKE_STD_ZVAL(it->value);
 
 	res = _rar_get_file_resource_ex(it->parent.data, &rar_file, 1 TSRMLS_CC);
-	if (!res)
+	if (res == FAILURE)
 		zend_error(E_ERROR, "Cannot fetch RarArchive object");
 
-	_rar_entry_search_advance(it->state, NULL, 0);
+	_rar_entry_search_advance(it->state, NULL, 0, 0);
 	MAKE_STD_ZVAL(it->value);
 	if (it->state->found)
 		_rar_entry_to_zval(it->parent.data, it->state->header,

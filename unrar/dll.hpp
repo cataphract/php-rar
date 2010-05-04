@@ -28,6 +28,7 @@
 #define RAR_VOL_NOTIFY        1
 
 #define RAR_DLL_VERSION       4
+#define RAR_DLL_EXT_VERSION   1 //added by me
 
 //Must be the same as MAXWINSIZE
 //not in original
