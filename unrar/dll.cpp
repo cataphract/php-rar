@@ -404,6 +404,13 @@ void PASCAL RARSetCallback(HANDLE hArcData,UNRARCALLBACK Callback,LPARAM UserDat
   Data->Cmd.UserData=UserData;
 }
 
+void PASCAL RARSetProcessExtendedData(HANDLE hArcData, int value)
+{
+  DataSet *Data = (DataSet *) hArcData;
+  Data->Cmd.ProcessOwners = value != 0 ? true : false;
+  Data->Cmd.ProcessEA = value != 0 ? true : false;
+}
+
 
 void PASCAL RARSetProcessDataProc(HANDLE hArcData,PROCESSDATAPROC ProcessDataProc)
 {
