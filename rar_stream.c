@@ -274,6 +274,36 @@ static mode_t _rar_convert_file_attrs(unsigned os_attrs,
 }
 /* }}} */
 
+/* If from is not set, sets to to default and returns SUCCESS.
+ * If from is set, converts it to a time_t. In case of failure returns FAILURE.
+ * In case of success, copies the result to to and returns SUCCESS. */
+static int _rar_time_convert(RARTime *from, time_t *to) /* {{{ */
+{
+	time_t default_ = (time_t) 0;
+	time_t retval;
+	struct tm time_s = {0};
+
+	if (from->Year == 0U) {
+		*to = default_;
+		return SUCCESS;
+	}
+
+	time_s.tm_sec  = from->Second;
+	time_s.tm_min  = from->Minute;
+	time_s.tm_hour = from->Hour;
+	time_s.tm_mday = from->Day;
+	time_s.tm_mon  = from->Month - 1; /* starts at 0 in time_t */
+	time_s.tm_year = from->Year - 1900;
+
+	if ((retval = mktime(&time_s)) == -1)
+		return FAILURE;
+	else {
+		*to = retval;
+		return SUCCESS;
+	}
+}
+/* }}} */
+
 static int _rar_stat_from_header(struct RARHeaderDataEx *header,
 								 php_stream_statbuf *ssb) /* {{{ */
 {
@@ -293,7 +323,7 @@ static int _rar_stat_from_header(struct RARHeaderDataEx *header,
 #endif
 	/* never mind signedness, we'll never get sizes big enough for that to
 	 * matter */
-	if (sizeof(ssb->sb.st_size) == sizeof(unp_size))
+	if (sizeof(ssb->sb.st_size) == sizeof(unp_size)) /* 64-bit st_size */
 		ssb->sb.st_size = (int64) unp_size;
 	else {
 		assert(sizeof(ssb->sb.st_size) == sizeof(long));
@@ -303,20 +333,14 @@ static int _rar_stat_from_header(struct RARHeaderDataEx *header,
 			ssb->sb.st_size = (long) unp_size;
 	}
 
-	/* Creation/access time are also available in (recent) versions of RAR,
-	 * but unexposed */
-	{
+
+	_rar_time_convert(&header->atime, &ssb->sb.st_atime);
+	_rar_time_convert(&header->ctime, &ssb->sb.st_ctime);
+
+	if (header->mtime.Year == 0) {
 		struct tm time_s = {0};
 		time_t time;
 		unsigned dos_time = header->FileTime;
-
-		time_s.tm_mday = 1; //this one starts on 1, not 0
-		time_s.tm_year = 70; /* default to 1970-01-01 00:00 */
-		if ((time = mktime(&time_s)) == -1)
-			return FAILURE;
-
-		ssb->sb.st_atime = time;
-		ssb->sb.st_ctime = time;
 
 		time_s.tm_sec  = (dos_time & 0x1f)*2;
 		time_s.tm_min  = (dos_time>>5) & 0x3f;
@@ -328,6 +352,8 @@ static int _rar_stat_from_header(struct RARHeaderDataEx *header,
 			return FAILURE;
 		ssb->sb.st_mtime = time;
 	}
+	else
+		_rar_time_convert(&header->mtime, &ssb->sb.st_mtime);
 
 #ifdef HAVE_ST_BLKSIZE
 	ssb->sb.st_blksize = 0;
