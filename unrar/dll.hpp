@@ -45,7 +45,6 @@
 
 /* struct not in original
  * (it's RarLocalTime from timefn.hpp with uint replaced by unsigned int) */
-#ifndef _RAR_TIMEFN_
 typedef struct RARTime
 {
   unsigned int Year;
@@ -58,7 +57,6 @@ typedef struct RARTime
   unsigned int wDay;
   unsigned int yDay;
 } RARTime;
-#endif
 
 struct RARHeaderData
 {
