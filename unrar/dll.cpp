@@ -212,6 +212,11 @@ int PASCAL RARReadHeaderEx(HANDLE hArcData,struct RARHeaderDataEx *D)
     D->FileAttr=Data->Arc.NewLhd.FileAttr;
     D->CmtSize=0;
     D->CmtState=0;
+	/* these four next lines were added by me */
+	Data->Arc.NewLhd.mtime.GetLocal((RarLocalTime *) &D->mtime);
+	Data->Arc.NewLhd.ctime.GetLocal((RarLocalTime *) &D->ctime);
+	Data->Arc.NewLhd.atime.GetLocal((RarLocalTime *) &D->atime);
+	Data->Arc.NewLhd.arctime.GetLocal((RarLocalTime *) &D->arctime);
   }
   catch (int ErrCode)
   {

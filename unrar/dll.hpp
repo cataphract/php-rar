@@ -28,7 +28,7 @@
 #define RAR_VOL_NOTIFY        1
 
 #define RAR_DLL_VERSION       4
-#define RAR_DLL_EXT_VERSION   1 //added by me
+#define RAR_DLL_EXT_VERSION   2 //added by me
 
 //Must be the same as MAXWINSIZE
 //not in original
@@ -41,6 +41,23 @@
 #define HANDLE void *
 #define LPARAM long
 #define UINT unsigned int
+#endif
+
+/* struct not in original
+ * (it's RarLocalTime from timefn.hpp with uint replaced by unsigned int) */
+#ifndef _RAR_TIMEFN_
+typedef struct RARTime
+{
+  unsigned int Year;
+  unsigned int Month;
+  unsigned int Day;
+  unsigned int Hour;
+  unsigned int Minute;
+  unsigned int Second;
+  unsigned int Reminder;
+  unsigned int wDay;
+  unsigned int yDay;
+} RARTime;
 #endif
 
 struct RARHeaderData
@@ -84,7 +101,15 @@ struct RARHeaderDataEx
   unsigned int CmtBufSize;
   unsigned int CmtSize;
   unsigned int CmtState;
-  unsigned int Reserved[1024];
+  /* these four were added by me and are optional (not all archives have them)
+   * check if year is 0 to decide if they are set */
+  RARTime      mtime;
+  RARTime      ctime;
+  RARTime      atime;
+  RARTime      arctime;
+  /* removed by me: we don't need to retain binary compatibility in case new
+   * fields are added, so we avoid wasting space here */
+  /* unsigned int Reserved[1024]; */
 };
 
 
@@ -110,7 +135,8 @@ struct RAROpenArchiveDataEx
   unsigned int CmtSize;
   unsigned int CmtState;
   unsigned int Flags;
-  unsigned int Reserved[32];
+  /* removed by me */
+  /* unsigned int Reserved[32]; */
 };
 
 enum UNRARCALLBACK_MESSAGES {

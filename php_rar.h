@@ -29,8 +29,6 @@
 
 /* TODO: correct handling of archives with entries with the same name */
 /* TODO: metadata block reading */
-/* TODO: use high precision modification time, if available */
-/* TODO: expose creation time and last access time, if available */
 /* TODO: correct support for symlinks inside RAR files. This includes:
  * - Respecting PHP_STREAM_URL_STAT_LINK in the url_stater
  * - Following the symlinks when asked to open one inside the RAR
