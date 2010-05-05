@@ -28,7 +28,7 @@
 #define RAR_VOL_NOTIFY        1
 
 #define RAR_DLL_VERSION       4
-#define RAR_DLL_EXT_VERSION   2 //added by me
+#define RAR_DLL_EXT_VERSION   3 //added by me
 
 //Must be the same as MAXWINSIZE
 //not in original
@@ -159,6 +159,7 @@ int    PASCAL RARProcessFile(HANDLE hArcData,int Operation,char *DestPath,char *
 int    PASCAL RARProcessFileW(HANDLE hArcData,int Operation,wchar_t *DestPath,wchar_t *DestName);
 int    PASCAL RARProcessFileChunkInit(HANDLE hArcData);
 int    PASCAL RARProcessFileChunk(HANDLE hArcData, void *Buffer, size_t BufferSize, size_t *ReadSize, int *finished);
+void   PASCAL RARSetProcessExtendedData(HANDLE hArcData,int value);
 void   PASCAL RARSetCallback(HANDLE hArcData,UNRARCALLBACK Callback,LPARAM UserData);
 void   PASCAL RARSetChangeVolProc(HANDLE hArcData,CHANGEVOLPROC ChangeVolProc);
 void   PASCAL RARSetProcessDataProc(HANDLE hArcData,PROCESSDATAPROC ProcessDataProc);

@@ -226,6 +226,7 @@ PHP_METHOD(rarentry, extract)
 	char					*considered_path;
 	char					considered_path_res[MAXPATHLEN];
 	int						with_second_arg;
+	zend_bool				process_ed = 0;
 
 	zval					**tmp,
 							**tmp_name;
@@ -239,9 +240,9 @@ PHP_METHOD(rarentry, extract)
 	 * password that's different from the one stored in the rar_file_t object*/
 	rar_cb_user_data		cb_udata = {NULL};
 	
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|ss!", &dir,
-			&dir_len, &filepath, &filepath_len, &password, &password_len)
-			== FAILURE ) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|ss!b", &dir,
+			&dir_len, &filepath, &filepath_len, &password, &password_len,
+			&process_ed) == FAILURE ) {
 		return;
 	}
 
@@ -297,6 +298,8 @@ PHP_METHOD(rarentry, extract)
 		RETVAL_FALSE;
 		goto cleanup;
 	}
+
+	RARSetProcessExtendedData(extract_handle, (int) process_ed);
 
 	/* now use the password given to this method. If none was given, we're
 	 * still stuck with the password given to rar_open, if any */
