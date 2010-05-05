@@ -239,8 +239,9 @@ PHP_METHOD(rarentry, extract)
 	 * password that's different from the one stored in the rar_file_t object*/
 	rar_cb_user_data		cb_udata = {NULL};
 	
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|s", &dir, &dir_len,
-			&filepath, &filepath_len, &password, &password_len) == FAILURE ) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|ss!", &dir,
+			&dir_len, &filepath, &filepath_len, &password, &password_len)
+			== FAILURE ) {
 		return;
 	}
 
