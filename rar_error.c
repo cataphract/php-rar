@@ -171,7 +171,8 @@ PHP_METHOD(rarexception, setUsingExceptions)
 
 	if (result == FAILURE) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,
-			"Could set error handling mode. This is a bug, please report it.");
+			"Could not set error handling mode. "
+			"This is a bug, please report it.");
 		return;
 	}
 }

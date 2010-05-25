@@ -499,14 +499,15 @@ static zend_object_value rararch_ce_create_object(zend_class_entry *class_type T
 {
 	zend_object_value	zov;
 	ze_rararch_object	*zobj;
-	zval				*tmp;
 
 	zobj = emalloc(sizeof *zobj);
+	/* rararch_ce_free_object_storage will attempt to access it otherwise */
+	zobj->rar_file = NULL;
 	zend_object_std_init((zend_object*) zobj, class_type TSRMLS_CC);
 
 	zend_hash_copy(((zend_object*)zobj)->properties,
 		&(class_type->default_properties),
-		(copy_ctor_func_t) zval_add_ref, &tmp, sizeof(zval*));
+		(copy_ctor_func_t) zval_add_ref, NULL, sizeof(zval*));
 	zov.handle = zend_objects_store_put(zobj,
 		(zend_objects_store_dtor_t) rararch_ce_destroy_object,
 		(zend_objects_free_object_storage_t) rararch_ce_free_object_storage,
@@ -520,6 +521,10 @@ static void rararch_ce_destroy_object(ze_rararch_object *object,
 									  zend_object_handle handle TSRMLS_DC) /* {{{ */
 {
 	rar_file_t *rar = object->rar_file;
+
+	/* can safely assume rar != NULL here. This function is not called
+	 * if object construction fails */
+	assert(rar != NULL);
 
 	//not really relevant, calls destr. zend func. ce->destructor if it exists
 	zend_objects_destroy_object((zend_object*) object, handle TSRMLS_CC);
@@ -535,25 +540,28 @@ static void rararch_ce_free_object_storage(ze_rararch_object *object TSRMLS_DC) 
 	rar_file_t *rar = object->rar_file;
 	int i;
 
-	_rar_destroy_userdata(&rar->cb_userdata);
+	/* may be NULL if the user did new RarArchive() */
+	if (rar != NULL) {
+		_rar_destroy_userdata(&rar->cb_userdata);
 
-	if ((rar->entries != NULL) && (rar->entry_count > 0)) {
-		for (i = 0; i < rar->entry_count; i++) {
-			efree(rar->entries[i]);
+		if ((rar->entries != NULL) && (rar->entry_count > 0)) {
+			for (i = 0; i < rar->entry_count; i++) {
+				efree(rar->entries[i]);
+			}
+			efree(rar->entries);
+			rar->entry_count = 0;
 		}
-		efree(rar->entries);
-		rar->entry_count = 0;
+		if (rar->entries_idx != NULL) {
+			zend_hash_destroy(rar->entries_idx);
+			FREE_HASHTABLE(rar->entries_idx);
+		}
+		efree(rar->list_open_data->ArcName);
+		efree(rar->list_open_data->CmtBuf);
+		efree(rar->list_open_data);
+		efree(rar->extract_open_data->ArcName);
+		efree(rar->extract_open_data);
+		efree(rar);
 	}
-	if (rar->entries_idx != NULL) {
-		zend_hash_destroy(rar->entries_idx);
-		FREE_HASHTABLE(rar->entries_idx);
-	}
-	efree(rar->list_open_data->ArcName);
-	efree(rar->list_open_data->CmtBuf);
-	efree(rar->list_open_data);
-	efree(rar->extract_open_data->ArcName);
-	efree(rar->extract_open_data);
-	efree(rar);
 	
 	/* could call zend_objects_free_object_storage here (not before!), but
 	 * instead I'll mimic its behaviour */
@@ -946,7 +954,6 @@ static void rararch_it_fetch(rararch_iterator *it TSRMLS_DC)
 	int			res;
 
 	assert(it->value == NULL);
-	MAKE_STD_ZVAL(it->value);
 
 	res = _rar_get_file_resource_ex(it->parent.data, &rar_file, 1 TSRMLS_CC);
 	if (res == FAILURE)
@@ -1012,7 +1019,6 @@ static zend_object_iterator_funcs rararch_it_funcs = {
 	rararch_it_rewind,
 	rararch_it_invalidate_current
 };
-
 /* }}} */
 
 void minit_rararch(TSRMLS_D)
