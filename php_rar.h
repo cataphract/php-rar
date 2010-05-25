@@ -62,9 +62,6 @@ extern zend_module_entry rar_module_entry;
 #include "TSRM.h"
 #endif
 
-/* For _S_IFDIR etc. */
-#include <sys/stat.h>
-
 /* causes linking errors (multiple definitions) in functions
    that were requested inlining but were not inlined by the compiler */
 /* #include "unrar/rar.hpp */
