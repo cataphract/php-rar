@@ -592,7 +592,6 @@ PHP_FUNCTION(rar_open)
 	char resolved_path[MAXPATHLEN];
 	int filename_len;
 	int password_len = 0;
-	rar_file_t *rar = NULL;
 	zval *callable = NULL;
 	int err_code;
 
