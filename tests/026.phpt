@@ -25,6 +25,10 @@ echo "--> should give correct data (password of 2nd file is specified):\n";
 echo stream_get_contents($entries[1]->getStream('samplepassword2'));
 echo "\n\n";
 
+echo "--> success (password is the same as the one given on rar_open, which shouldn't have been forgotten):\n";
+echo stream_get_contents($entries[0]->getStream());
+echo "\n\n";
+
 echo "Done\n";
 --EXPECTF--
 --> should fail (no password):
@@ -40,6 +44,9 @@ Encrypted file 1 contents.
 t%09%A6%2B%0D%1B%F6%815%5E%E7%EC%C0%0BF%5EH%3A%C0%0D%815%5E%E7%EC%C0
 
 --> should give correct data (password of 2nd file is specified):
+Encrypted file 1 contents.
+
+--> success (password is the same as the one given on rar_open, which shouldn't have been forgotten):
 Encrypted file 1 contents.
 
 Done

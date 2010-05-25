@@ -39,7 +39,8 @@
 /* TODO: merge rar_file_t.entries_idx and rar_file_t.entries */
 /* TODO: consider using a php memory/tmpfile stream to serve as buffer for
  * rar file streams */
-/* TODO: improve RAR archive cache key for url_stater/dir_opener */
+/* TODO: improve RAR archive cache key for url_stater/dir_opener, so that it
+ * can detect file modification */
 /* TODO: make configurable the capacity of the usr_stater/dir_opener cache */
 
 #ifndef PHP_RAR_H
@@ -60,6 +61,9 @@ extern zend_module_entry rar_module_entry;
 #ifdef ZTS
 #include "TSRM.h"
 #endif
+
+/* For _S_IFDIR etc. */
+#include <sys/stat.h>
 
 /* causes linking errors (multiple definitions) in functions
    that were requested inlining but were not inlined by the compiler */

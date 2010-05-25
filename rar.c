@@ -74,18 +74,18 @@ void _rar_wide_to_utf(const wchar_t *src, char *dest, size_t dest_size) /* {{{ *
 	while (*src != 0 && --dsize >= 0) {
 		uint c =*(src++);
 		if (c < 0x80)
-			*(dest++) = c;
+			*(dest++) = (char) c;
 		else if (c < 0x800 && --dsize >= 0)	{
-			*(dest++) = (0xc0 | (c >> 6));
+			*(dest++) = (char) (0xc0 | (c >> 6));
 			*(dest++) = (0x80 | (c & 0x3f));
 		}
 		else if (c < 0x10000 && (dsize -= 2) >= 0) {
-			*(dest++) = (0xe0 | (c >> 12));
+			*(dest++) = (char) (0xe0 | (c >> 12));
 			*(dest++) = (0x80 | ((c >> 6) & 0x3f));
-			*(dest++) = (0x80 | (c & 0x3f));
+			*(dest++) =  (0x80 | (c & 0x3f));
 		}
 		else if (c < 0x200000 && (dsize -= 3) >= 0) {
-			*(dest++) = (0xf0 | (c >> 18));
+			*(dest++) = (char) (0xf0 | (c >> 18));
 			*(dest++) = (0x80 | ((c >> 12) & 0x3f));
 			*(dest++) = (0x80 | ((c >> 6) & 0x3f));
 			*(dest++) = (0x80 | (c & 0x3f));
@@ -130,11 +130,11 @@ void _rar_utf_to_wide(const char *src, wchar_t *dest, size_t dest_size) /* {{{ *
 		if (d > 0xffff) {
 			if (--dsize < 0 || d > 0x10ffff)
 				break;
-			*(dest++) = ((d - 0x10000) >> 10) + 0xd800;
+			*(dest++) = (wchar_t) (((d - 0x10000) >> 10) + 0xd800);
 			*(dest++) = (d & 0x3ff) + 0xdc00;
 		}
 		else
-			*(dest++) = d;
+			*(dest++) = (wchar_t) d;
 	}
 	*dest = 0;
 }
@@ -221,8 +221,9 @@ int _rar_find_file_w(struct RAROpenArchiveDataEx *open_data, /* IN */
 	RARSetCallback(*arc_handle, _rar_unrar_callback, (LPARAM) cb_udata);
 	
 	while ((result = RARReadHeaderEx(*arc_handle, used_header_data)) == 0) {
-		if (sizeof(wchar_t) > 2)
+#if WCHAR_MAX > 0xffff
 			_rar_fix_wide(used_header_data->FileNameW, NM);
+#endif
 
 		if (wcsncmp(used_header_data->FileNameW, file_name, NM) == 0) {
 			*found = TRUE;
