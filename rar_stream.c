@@ -238,12 +238,12 @@ static mode_t _rar_convert_file_attrs(unsigned os_attrs,
 			 * if they're directory junctions or symbolic links */
 			/* Mapping of MS/DOS OS/2 and Windows file attributes */
 			if (os_attrs & 0x10) { /* FILE_ATTRIBUTE_DIRECTORY */
-				ret = _S_IFDIR;
+				ret = S_IFDIR;
 				ret |= 0777;
 				ret &= ~mask;
 			}
 			else {
-				ret = _S_IFREG;
+				ret = S_IFREG;
 				if (os_attrs & 1) /* FILE_ATTRIBUTE_READONLY */
 					ret |= 0444;
 				else
@@ -261,9 +261,9 @@ static mode_t _rar_convert_file_attrs(unsigned os_attrs,
 		
 		default:
 			if ((flags & LHD_WINDOWMASK) == LHD_DIRECTORY)
-				ret = _S_IFDIR;
+				ret = S_IFDIR;
 			else
-				ret = _S_IFREG;
+				ret = S_IFREG;
 
 			ret |= 0777;
 			ret &= ~mask;
@@ -470,7 +470,7 @@ static int php_rar_dir_ops_stat(php_stream *stream, php_stream_statbuf *ssb TSRM
 		 * We could use the RAR archive itself instead, but I think that would
 		 * not be very consistent */
 		struct RARHeaderDataEx t = {""};
-		t.FileAttr = _S_IFDIR | 0777;
+		t.FileAttr = S_IFDIR | 0777;
 		return _rar_stat_from_header(&t, ssb);
 	}
 
@@ -1078,7 +1078,7 @@ static int php_stream_rar_stater(php_stream_wrapper *wrapper,
 	if (fragment[0] == L'\0') {
 		/* make sth up */
 		struct RARHeaderDataEx t = {""};
-		t.FileAttr = _S_IFDIR | 0777;
+		t.FileAttr = S_IFDIR | 0777;
 		ret = _rar_stat_from_header(&t, ssb);
 		goto cleanup;
 	}
