@@ -327,17 +327,17 @@ static int _rar_stat_from_header(struct RARHeaderDataEx *header,
 		ssb->sb.st_size = (int64) unp_size;
 	else {
 		assert(sizeof(ssb->sb.st_size) == sizeof(long));
-		if (unp_size > ((uint64) MAXLONG))
-			ssb->sb.st_size = MAXLONG;
+		if (unp_size > ((uint64) LONG_MAX))
+			ssb->sb.st_size = LONG_MAX;
 		else
-			ssb->sb.st_size = (long) unp_size;
+			ssb->sb.st_size = (long) (unsigned long) (int64) unp_size;
 	}
 
 
 	_rar_time_convert(&header->atime, &ssb->sb.st_atime);
 	_rar_time_convert(&header->ctime, &ssb->sb.st_ctime);
 
-	if (header->mtime.Year == 0) {
+	if (header->mtime.Year == 0) { /* high precision mod time undefined */
 		struct tm time_s = {0};
 		time_t time;
 		unsigned dos_time = header->FileTime;
@@ -442,6 +442,8 @@ static int php_rar_dir_ops_close(php_stream *stream, int close_handle TSRMLS_DC)
 	zval_ptr_dtor(&self->rar_obj);
 	efree(self->directory);
 	efree(self->state);
+	efree(self);
+	stream->abstract = NULL;
 
 	/* 0 because that's what php_plain_files_dirstream_close returns... */
 	return 0; 
@@ -449,7 +451,7 @@ static int php_rar_dir_ops_close(php_stream *stream, int close_handle TSRMLS_DC)
 /* }}} */
 
 /* {{{ php_rar_dir_ops_rewind */
-static size_t php_rar_dir_ops_rewind(php_stream *stream, off_t offset, int whence, off_t *newoffset TSRMLS_DC)
+static int php_rar_dir_ops_rewind(php_stream *stream, off_t offset, int whence, off_t *newoffset TSRMLS_DC)
 {
 	STREAM_DIR_DATA_FROM_STREAM
 
@@ -778,7 +780,7 @@ static int _rar_get_archive_and_fragment(php_stream_wrapper *wrapper,
 		frag_dup = estrndup(tmp_fragment, tmp_frag_len);
 		php_raw_url_decode(frag_dup, tmp_frag_len);
 
-		*fragment = emalloc((tmp_frag_len + 1) * sizeof **fragment);
+		*fragment = safe_emalloc(tmp_frag_len + 1, sizeof **fragment, 0);
 		_rar_utf_to_wide(frag_dup, *fragment, tmp_frag_len + 1);
 		efree(frag_dup);
 	}
@@ -1227,6 +1229,7 @@ cleanup:
 				efree(self->directory);
 			if (self->state != NULL)
 				_rar_entry_search_end(self->state);
+			efree(self);
 		}
 	}
 
