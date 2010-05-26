@@ -160,6 +160,13 @@ ZEND_EXTERN_MODULE_GLOBALS(rar);
 		{ NULL, 0, NULL, 0, 0, 0, pass_rest_by_reference, return_reference, required_num_args },
 #endif
 
+#if !defined(HAVE_STRNLEN)
+size_t _rar_strnlen(const char *s, size_t maxlen); 
+# define rar_strnlen _rar_strnlen
+#else
+# define rar_strnlen strnlen
+#endif
+
 /* rar.c */
 PHP_MINIT_FUNCTION(rar);
 PHP_MSHUTDOWN_FUNCTION(rar);

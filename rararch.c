@@ -31,6 +31,9 @@
 extern "C" {
 #endif
 
+#define _GNU_SOURCE
+#include <string.h>
+
 #include <wchar.h>
 #include <php.h>
 #include <zend_interfaces.h>
@@ -66,6 +69,16 @@ static void rararch_ce_free_object_storage(ze_rararch_object *object TSRMLS_DC);
 /* }}} */
 
 /* {{{ Function definitions with external linkage */
+
+#if !HAVE_STRNLEN
+size_t strnlen(const char *s, size_t maxlen) /* {{{ */
+{
+	char *r = memchr(s, '\0', maxlen);
+	return r ? r-s : maxlen;
+}
+/* }}} */
+#endif
+
 int _rar_get_file_resource(zval *zval_file, rar_file_t **rar_file TSRMLS_DC) /* {{{ */
 {
 	return _rar_get_file_resource_ex(zval_file, rar_file, FALSE TSRMLS_CC);
@@ -295,7 +308,7 @@ void _rar_entry_search_advance(rar_find_output *state,
 
 	if (!directory_match && file != NULL && rstate->rar->entries_idx != NULL) {
 		if (zend_hash_find(rstate->rar->entries_idx, (const char *) file,
-				(uint) (file_size * sizeof *file), &hash_i) == SUCCESS) {
+				(uint) (file_size * sizeof *file), (void **)&hash_i) == SUCCESS) {
 			rstate->index = *hash_i;
 			/* jump; these are no longer valid */
 			rstate->last_name = NULL;
@@ -505,9 +518,13 @@ static zend_object_value rararch_ce_create_object(zend_class_entry *class_type T
 	zobj->rar_file = NULL;
 	zend_object_std_init((zend_object*) zobj, class_type TSRMLS_CC);
 
+#if PHP_VERSION_ID < 50399
 	zend_hash_copy(((zend_object*)zobj)->properties,
 		&(class_type->default_properties),
 		(copy_ctor_func_t) zval_add_ref, NULL, sizeof(zval*));
+#else
+	object_properties_init((zend_object*)zobj, class_type);
+#endif
 	zov.handle = zend_objects_store_put(zobj,
 		(zend_objects_store_dtor_t) rararch_ce_destroy_object,
 		(zend_objects_free_object_storage_t) rararch_ce_free_object_storage,
@@ -570,15 +587,6 @@ static void rararch_ce_free_object_storage(ze_rararch_object *object TSRMLS_DC) 
 }
 /* }}} */
 
-/* Missing function in VC6 */
-#if !HAVE_STRNLEN
-static size_t strnlen(const char *s, size_t maxlen) /* {{{ */
-{
-	char *r = memchr(s, '\0', maxlen);
-	return r ? r-s : maxlen;
-}
-/* }}} */
-#endif
 /* }}} */
 
 /* module functions */
@@ -873,7 +881,7 @@ static zend_function_entry php_rararch_class_functions[] = {
 static zend_object_iterator *rararch_it_get_iterator(zend_class_entry *ce,
 													 zval *object,
 													 int by_ref TSRMLS_DC);
-static void rararch_it_delete_cache(zend_object_iterator *iter TSRMLS_DC);
+/* static void rararch_it_delete_cache(zend_object_iterator *iter TSRMLS_DC); */
 static void rararch_it_dtor(zend_object_iterator *iter TSRMLS_DC);
 static void rararch_it_fetch(rararch_iterator *it TSRMLS_DC);
 static int rararch_it_valid(zend_object_iterator *iter TSRMLS_DC);
