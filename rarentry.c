@@ -31,6 +31,9 @@
 extern "C" {
 #endif
 
+#define _GNU_SOURCE
+#include <string.h>
+
 #include "php.h"
 #include "php_rar.h"
 
@@ -86,7 +89,7 @@ void _rar_entry_to_zval(zval *parent, //zval to RarArchive object, will have its
 	if (packed_size > (unsigned long) LONG_MAX)
 		packed_size = LONG_MAX;
 	_rar_wide_to_utf(entry->FileNameW, filename, filename_size);
-	filename_len = strnlen(filename, filename_size);
+	filename_len = rar_strnlen(filename, filename_size);
 	/* we're not in class scope, so we cannot change the class private
 	 * properties from here with add_property_x, or
 	 * direct call to rarentry_object_handlers.write_property
@@ -199,8 +202,12 @@ static zend_object_value rarentry_ce_create_object(zend_class_entry *class_type 
 	zobj = emalloc(sizeof *zobj);
 	zend_object_std_init(zobj, class_type TSRMLS_CC);
 
+#if PHP_VERSION_ID < 50399
 	zend_hash_copy(zobj->properties, &(class_type->default_properties),
 		(copy_ctor_func_t) zval_add_ref, NULL, sizeof(zval*));
+#else
+	object_properties_init(zobj, class_type);
+#endif
 	zov.handle = zend_objects_store_put(zobj,
 		(zend_objects_store_dtor_t) zend_objects_destroy_object,
 		(zend_objects_free_object_storage_t) zend_objects_free_object_storage,

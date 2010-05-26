@@ -35,6 +35,9 @@
 extern "C" {
 #endif
 
+#define _GNU_SOURCE
+#include <string.h>
+
 #ifdef PHP_WIN32
 # include <math.h>
 #endif
@@ -326,6 +329,16 @@ PHP_FUNCTION(rar_bogus_ctor) /* {{{ */
  * Removes the characters use value if > 0x10ffff; these are not
  * valid UTF characters.
  */
+
+#if !defined(HAVE_STRNLEN)
+size_t _rar_strnlen(const char *s, size_t maxlen) /* {{{ */
+{
+	char *r = memchr(s, '\0', maxlen);
+	return r ? r-s : maxlen;
+}
+/* }}} */
+#endif
+
 static void _rar_fix_wide(wchar_t *str, size_t max_size) /* {{{ */
 {
 	wchar_t *write,
@@ -389,7 +402,7 @@ static int _rar_unrar_volume_user_callback(char* dst_buffer,
 			goto cleanup;
 		}
 
-		resolved_len = strnlen(resolved_path, MAXPATHLEN);
+		resolved_len = rar_strnlen(resolved_path, MAXPATHLEN);
 		/* dst_buffer size is NM; first condition won't happen short of a bug
 		 * in expand_filepath */
 		if (resolved_len == MAXPATHLEN || resolved_len > NM - 1) {

@@ -758,10 +758,12 @@ static int _rar_get_archive_and_fragment(php_stream_wrapper *wrapper,
 		goto cleanup;
 	}
 
+#if PHP_API_VERSION < 20100412
 	if ((options & ENFORCE_SAFE_MODE) && PG(safe_mode) &&
 			(!php_checkuid(*archive, "r", CHECKUID_CHECK_MODE_PARAM))) {
 		goto cleanup;
 	}
+#endif
 
 	if (tmp_fragment == NULL) {
 		*fragment = emalloc(sizeof **fragment);
@@ -969,13 +971,15 @@ static int _rar_get_cachable_rararch(php_stream_wrapper *wrapper,
 	uint		cache_key_len;
 	int			err_code,
 				ret = FAILURE;
+	zval		*new_rar_obj = NULL;
 
 	_rar_arch_cache_get_key(arch_path, open_passwd, volume_cb, &cache_key,
 		&cache_key_len);
 	*rar_obj = RAR_G(contents_cache).get(cache_key, cache_key_len TSRMLS_CC);
 
 	if (*rar_obj == NULL) { /* cache miss */
-		MAKE_STD_ZVAL(*rar_obj);
+		ALLOC_INIT_ZVAL(new_rar_obj);
+		*rar_obj = new_rar_obj;
 
 		if (_rar_create_rararch_obj(arch_path, open_passwd, volume_cb,
 				*rar_obj, &err_code TSRMLS_CC) == FAILURE) {
@@ -1031,7 +1035,9 @@ cleanup:
 		efree(cache_key);
 
 	if (ret != SUCCESS && *rar_obj != NULL) {
-		zval_ptr_dtor(rar_obj);
+		if (new_rar_obj) {
+			zval_ptr_dtor(&new_rar_obj);
+		}
 		*rar_obj = NULL;
 	}
 
