@@ -1047,9 +1047,9 @@ cleanup:
 }
 /* }}} */
 
-/* {{{ php_stream_tidy_wrapper_error_log */
+/* {{{ php_stream_rar_wrapper_error_log */
 /* copied from main/streams/streams.c because it's an internal function */
-void php_stream_tidy_wrapper_error_log(php_stream_wrapper *wrapper TSRMLS_DC)
+void php_stream_rar_wrapper_error_log(php_stream_wrapper *wrapper TSRMLS_DC)
 {
 	if (wrapper) {
 		/* tidy up the error stack */
@@ -1147,7 +1147,7 @@ cleanup:
 	 * if necessary
 	 */
 	if (flags & PHP_STREAM_URL_STAT_QUIET)
-		php_stream_tidy_wrapper_error_log(wrapper TSRMLS_CC);
+		php_stream_rar_wrapper_error_log(wrapper TSRMLS_CC);
 	
 	return ret;
 }
