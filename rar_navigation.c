@@ -68,7 +68,7 @@ struct _rar_entries {
 
 
 /* {{{ Function prototypes for functions with internal linkage */
-static int _rar_nav_list_files(rar_file_t *rar TSRMLS_DC);
+/* static int _rar_nav_list_files(rar_file_t *rar TSRMLS_DC); */
 static void _rar_nav_get_depth_and_length(wchar_t *filenamew, const size_t file_size,
 										  int *depth_out, size_t *wlen_out TSRMLS_DC);
 static int _rar_nav_get_depth(const wchar_t *filenamew, const size_t file_size);
@@ -351,7 +351,7 @@ int _rar_list_files(rar_file_t *rar TSRMLS_DC) /* {{{ */
 			packed_size += entry.PackSize;
 			if (entry.PackSizeHigh != 0) {
 #if ULONG_MAX > 0xffffffffUL
-				packed_size += ((unsigned long) entry->PackSizeHigh) << 32;
+				packed_size += ((unsigned long) entry.PackSizeHigh) << 32;
 #else
 				packed_size = ULONG_MAX; //cap
 #endif
