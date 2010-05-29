@@ -24,6 +24,8 @@ object(RarEntry)#%d (%d) {
   ["rarfile%sprivate%s=>
   object(RarArchive)#%d (%d) {
   }
+  ["position%sprivate%s=>
+  int(1)
   ["name%sprivate%s=>
   string(30) "test file with whitespaces.txt"
   ["unpacked_size%sprivate%s=>
@@ -49,6 +51,8 @@ object(RarEntry)#%d (%d) {
   ["rarfile%sprivate%s=>
   object(RarArchive)#%d (%d) {
   }
+  ["position%sprivate%s=>
+  int(1)
   ["name%sprivate%s=>
   string(5) "2.txt"
   ["unpacked_size%sprivate%s=>

@@ -57,6 +57,8 @@ object(RarEntry)#%d (%d) {
   ["rarfile%sprivate%s=>
   object(RarArchive)#3 (0) {
   }
+  ["position%sprivate%s=>
+  int(1)
   ["name%sprivate%s=>
   string(5) "2.txt"
   ["unpacked_size%sprivate%s=>

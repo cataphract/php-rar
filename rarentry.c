@@ -60,6 +60,7 @@ static zend_object_value rarentry_ce_create_object(zend_class_entry *class_type 
 void _rar_entry_to_zval(zval *parent, //zval to RarArchive object, will have its refcount increased
 						struct RARHeaderDataEx *entry,
 						unsigned long packed_size,
+						size_t position,
 						zval *object TSRMLS_DC) /* {{{ */
 {
 	char tmp_s [MAX_LENGTH_OF_LONG + 1];
@@ -89,11 +90,14 @@ void _rar_entry_to_zval(zval *parent, //zval to RarArchive object, will have its
 	if (packed_size > (unsigned long) LONG_MAX)
 		packed_size = LONG_MAX;
 	_rar_wide_to_utf(entry->FileNameW, filename, filename_size);
-	filename_len = rar_strnlen(filename, filename_size);
+	/* OK; safe usage below: */
+	filename_len = _rar_strnlen(filename, filename_size);
 	/* we're not in class scope, so we cannot change the class private
 	 * properties from here with add_property_x, or
 	 * direct call to rarentry_object_handlers.write_property
 	 * zend_update_property_x updates the scope accordingly */
+	zend_update_property_long(rar_class_entry_ptr, object, "position",
+		sizeof("position") - 1, (long) position TSRMLS_CC);
 	zend_update_property_stringl(rar_class_entry_ptr, object, "name",
 		sizeof("name") - 1, filename, filename_len TSRMLS_CC);
 	zend_update_property_long(rar_class_entry_ptr, object, "unpacked_size",
@@ -131,7 +135,8 @@ void _rar_entry_to_zval(zval *parent, //zval to RarArchive object, will have its
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "this method cannot be called statically"); \
 		RETURN_FALSE; \
 	} \
-	if ((var = _rar_entry_get_property(entry_obj, prop_name, sizeof(prop_name) TSRMLS_CC)) == NULL) { \
+	if ((var = _rar_entry_get_property(entry_obj, prop_name, \
+			sizeof(prop_name) - 1 TSRMLS_CC)) == NULL) { \
 		RETURN_FALSE; \
 	}
 
@@ -158,24 +163,32 @@ static int _rar_decl_priv_prop_null(zend_class_entry *ce, const char *name,
 static zval **_rar_entry_get_property(zval *entry_obj, char *name, int namelen TSRMLS_DC) /* {{{ */
 {
 	zval **tmp;
-	char *mangled_name;
-	int mangled_name_len;
+	zval member;
+	zend_class_entry *orig_scope = EG(scope);
 
-	//perhaps cleaner alternative: use Z_OBJ_HANDLER_P(entry_obj, read_property)
-	//another way to avoid mem allocation would be to get the mangled name from
-	//ce->properties_info.name (properties_info hash table indexes by unmangled name)
-	//see also zend_read_property
-	
-	zend_mangle_property_name(&mangled_name, &mangled_name_len, "RarEntry",
-		sizeof("RarEntry") - 1, name, namelen, 0);
-	if (zend_hash_find(Z_OBJPROP_P(entry_obj), mangled_name, mangled_name_len,
-			(void**) &tmp) == FAILURE) {
+	EG(scope) = rar_class_entry_ptr;
+
+	INIT_ZVAL(member);
+	Z_TYPE(member) = IS_STRING;
+	Z_STRVAL(member) = name;
+	Z_STRLEN(member) = namelen;
+
+	/* probably should be replaced by zend_read_property */
+
+#if PHP_VERSION_ID < 50399
+	tmp = Z_OBJ_HANDLER_P(entry_obj, get_property_ptr_ptr)(entry_obj, &member
+		TSRMLS_CC);
+#else
+	tmp = Z_OBJ_HANDLER_P(entry_obj, get_property_ptr_ptr)(entry_obj, &member,
+		NULL TSRMLS_CC);
+#endif
+	if (tmp == NULL) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,
 			"Bug: unable to find property '%s'. Please report.", name);
-		efree(mangled_name);
-		return NULL;
 	}
-	efree(mangled_name);
+
+	EG(scope) = orig_scope;
+
 	return tmp;
 }
 /* }}} */
@@ -219,7 +232,8 @@ static zend_object_value rarentry_ce_create_object(zend_class_entry *class_type 
 /* }}} */
 
 /* {{{ Methods */
-/* {{{ proto bool RarEntry::extract(string dir [, string filepath [, string password ]])
+/* {{{ proto bool RarEntry::extract(string dir [, string filepath = ''
+       [, string password = NULL [, bool extended_data  = FALSE]])
    Extract file from the archive */
 PHP_METHOD(rarentry, extract)
 { //lots of variables, but no need to be intimidated
@@ -235,7 +249,7 @@ PHP_METHOD(rarentry, extract)
 	zend_bool				process_ed = 0;
 
 	zval					**tmp,
-							**tmp_name;
+							**tmp_position;
 	rar_file_t				*rar = NULL;
 	zval					*entry_obj = getThis();
 	struct RARHeaderDataEx	entry;
@@ -279,18 +293,19 @@ PHP_METHOD(rarentry, extract)
 	}
 	
 	/* Find file inside archive */
-	RAR_GET_PROPERTY(tmp_name, "name");
+	RAR_GET_PROPERTY(tmp_position, "position");
 
 	/* don't set the new password now because maybe the headers are
 	 * encrypted with a password different from this file's (though WinRAR
 	 * does not support that: if you encrypt the headers, you must encrypt
 	 * the files with the same password). By not replacing the password
 	 * now, we're using the password given to rar_open, if any (which must
-	 * have enabled decrypting the headers or else we wouldn't be here */
+	 * have enabled decrypting the headers or else we wouldn't be here) */
 	memcpy(&cb_udata, &rar->cb_userdata, sizeof cb_udata);
 
-	result = _rar_find_file(rar->extract_open_data, Z_STRVAL_PP(tmp_name),
-		&cb_udata, &extract_handle, &found, &entry);
+	result = _rar_find_file_p(rar->extract_open_data,
+		(size_t) Z_LVAL_PP(tmp_position), &cb_udata, &extract_handle, &found,
+		&entry);
 
 	if (_rar_handle_error(result TSRMLS_CC) == FAILURE) {
 		RETVAL_FALSE;
@@ -298,8 +313,8 @@ PHP_METHOD(rarentry, extract)
 	}
 
 	if (!found) {
-		_rar_handle_ext_error("Can't find file %s in archive %s" TSRMLS_CC,
-			Z_STRVAL_PP(tmp_name),
+		_rar_handle_ext_error("Can't find file with index %d in archive %s"
+			TSRMLS_CC, Z_LVAL_PP(tmp_position),
 			rar->extract_open_data->ArcName);
 		RETVAL_FALSE;
 		goto cleanup;
@@ -333,6 +348,19 @@ cleanup:
 }
 /* }}} */
 
+/* {{{ proto int RarEntry::getPosiiton()
+   Return position for the entry */
+PHP_METHOD(rarentry, getPosition)
+{
+	zval **tmp;
+	zval *entry_obj = getThis();
+	
+	RAR_GET_PROPERTY(tmp, "position");
+	
+	RETURN_LONG(Z_LVAL_PP(tmp));
+}
+/* }}} */
+
 /* {{{ proto string RarEntry::getName()
    Return entry name */
 PHP_METHOD(rarentry, getName)
@@ -341,8 +369,7 @@ PHP_METHOD(rarentry, getName)
 	zval *entry_obj = getThis();
 	
 	RAR_GET_PROPERTY(tmp, "name");
-
-	convert_to_string_ex(tmp);
+	
 	RETURN_STRINGL(Z_STRVAL_PP(tmp), Z_STRLEN_PP(tmp), 1);
 }
 /* }}} */
@@ -355,8 +382,7 @@ PHP_METHOD(rarentry, getUnpackedSize)
 	zval *entry_obj = getThis();
 	
 	RAR_GET_PROPERTY(tmp, "unpacked_size");
-
-	convert_to_long_ex(tmp);
+	
 	RETURN_LONG(Z_LVAL_PP(tmp));
 }
 /* }}} */
@@ -369,8 +395,7 @@ PHP_METHOD(rarentry, getPackedSize)
 	zval *entry_obj = getThis();
 	
 	RAR_GET_PROPERTY(tmp, "packed_size");
-
-	convert_to_long_ex(tmp);
+	
 	RETURN_LONG(Z_LVAL_PP(tmp));
 }
 /* }}} */
@@ -383,8 +408,7 @@ PHP_METHOD(rarentry, getHostOs)
 	zval *entry_obj = getThis();
 	
 	RAR_GET_PROPERTY(tmp, "host_os");
-
-	convert_to_long_ex(tmp);
+	
 	RETURN_LONG(Z_LVAL_PP(tmp));
 }
 /* }}} */
@@ -397,8 +421,7 @@ PHP_METHOD(rarentry, getFileTime)
 	zval *entry_obj = getThis();
 	
 	RAR_GET_PROPERTY(tmp, "file_time");
-
-	convert_to_string_ex(tmp);
+	
 	RETURN_STRINGL(Z_STRVAL_PP(tmp), Z_STRLEN_PP(tmp), 1);
 }
 /* }}} */
@@ -411,8 +434,7 @@ PHP_METHOD(rarentry, getCrc)
 	zval *entry_obj = getThis();
 	
 	RAR_GET_PROPERTY(tmp, "crc");
-
-	convert_to_string_ex(tmp);
+	
 	RETURN_STRINGL(Z_STRVAL_PP(tmp), Z_STRLEN_PP(tmp), 1);
 }
 /* }}} */
@@ -425,8 +447,7 @@ PHP_METHOD(rarentry, getAttr)
 	zval *entry_obj = getThis();
 	
 	RAR_GET_PROPERTY(tmp, "attr");
-
-	convert_to_long_ex(tmp);
+	
 	RETURN_LONG(Z_LVAL_PP(tmp));
 }
 /* }}} */
@@ -439,8 +460,7 @@ PHP_METHOD(rarentry, getVersion)
 	zval *entry_obj = getThis();
 	
 	RAR_GET_PROPERTY(tmp, "version");
-
-	convert_to_long_ex(tmp);
+	
 	RETURN_LONG(Z_LVAL_PP(tmp));
 }
 /* }}} */
@@ -453,18 +473,17 @@ PHP_METHOD(rarentry, getMethod)
 	zval *entry_obj = getThis();
 	
 	RAR_GET_PROPERTY(tmp, "method");
-
-	convert_to_long_ex(tmp);
+	
 	RETURN_LONG(Z_LVAL_PP(tmp));
 }
 /* }}} */
 
-/* {{{ proto resource RarEntry::getStream([string password])
+/* {{{ proto resource RarEntry::getStream([string password = NULL])
    Return stream for current entry */
 PHP_METHOD(rarentry, getStream)
 {
 	zval				**tmp,
-						**name;
+						**position;
 	rar_file_t			*rar = NULL;
 	zval				*entry_obj = getThis();
 	php_stream			*stream = NULL;
@@ -473,12 +492,12 @@ PHP_METHOD(rarentry, getStream)
 	rar_cb_user_data	cb_udata = {NULL};
 
 	
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|s",
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|s!",
 			&password, &password_len) == FAILURE ) {
 		return;
 	}
 
-	RAR_GET_PROPERTY(name, "name");
+	RAR_GET_PROPERTY(position, "position");
 	RAR_GET_PROPERTY(tmp, "rarfile");
 	if (_rar_get_file_resource(*tmp, &rar TSRMLS_CC) == FAILURE) {
 		RETURN_FALSE;
@@ -491,7 +510,7 @@ PHP_METHOD(rarentry, getStream)
 
 	/* doesn't matter that cb_udata is stack allocated, it will be copied */
 	stream = php_stream_rar_open(rar->extract_open_data->ArcName,
-		Z_STRVAL_PP(name), &cb_udata, "r" STREAMS_CC TSRMLS_CC);
+		Z_LVAL_PP(position), &cb_udata, "r" STREAMS_CC TSRMLS_CC);
 	
 	if (stream != NULL) {
 		php_stream_to_zval(stream, return_value);
@@ -591,6 +610,7 @@ ZEND_END_ARG_INFO()
 
 static zend_function_entry php_rar_class_functions[] = {
 	PHP_ME(rarentry,		extract,			arginfo_rarentry_extract,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getPosition,		arginfo_rar_void,	ZEND_ACC_PUBLIC)
 	PHP_ME(rarentry,		getName,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
 	PHP_ME(rarentry,		getUnpackedSize,	arginfo_rar_void,	ZEND_ACC_PUBLIC)
 	PHP_ME(rarentry,		getPackedSize,		arginfo_rar_void,	ZEND_ACC_PUBLIC)
@@ -623,6 +643,7 @@ void minit_rarentry(TSRMLS_D)
 	rar_class_entry_ptr->create_object = &rarentry_ce_create_object;
 
 	REG_RAR_PROPERTY("rarfile", "Associated RAR archive");
+	REG_RAR_PROPERTY("position", "Position inside the RAR archive");
 	REG_RAR_PROPERTY("name", "File or directory name with path");
 	REG_RAR_PROPERTY("unpacked_size", "Size of file when unpacked");
 	REG_RAR_PROPERTY("packed_size", "Size of the packed file inside the archive");

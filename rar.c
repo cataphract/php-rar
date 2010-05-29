@@ -66,6 +66,15 @@ static int _rar_make_userdata_fcall(zval *callable,
 /* }}} */
 
 /* {{{ Functions with external linkage */
+#if !HAVE_STRNLEN
+size_t _rar_strnlen(const char *s, size_t maxlen) /* {{{ */
+{
+	char *r = memchr(s, '\0', maxlen);
+	return r ? r-s : maxlen;
+}
+/* }}} */
+#endif
+
 /* From unicode.cpp
  * I can't use that one directy because it takes a const wchar, not wchar_t.
  * And I shouldn't because it's not a public API.
@@ -254,6 +263,63 @@ cleanup:
 }
 /* }}} */
 
+int _rar_find_file_p(struct RAROpenArchiveDataEx *open_data, /* IN */
+					 size_t position, /* IN */
+					 rar_cb_user_data *cb_udata, /* IN, must be managed outside */
+					 void **arc_handle, /* OUT: where to store rar archive handle  */
+					 int *found, /* OUT */
+					 struct RARHeaderDataEx *header_data /* OUT, can be null */
+					 ) /* {{{ */
+{
+	int						result,
+							process_result;
+	struct RARHeaderDataEx	*used_header_data;
+	int						retval = 0; /* success in rar parlance */
+	size_t					curpos = 0;
+
+	assert(open_data != NULL);
+	assert(arc_handle != NULL);
+	assert(found != NULL);
+	*found = FALSE;
+	*arc_handle = NULL;
+	used_header_data = header_data != NULL ?
+		header_data :
+		ecalloc(1, sizeof *used_header_data);
+
+	*arc_handle	= RAROpenArchiveEx(open_data);
+	if (*arc_handle == NULL) {
+		retval = open_data->OpenResult;
+		goto cleanup;
+	}
+	RARSetCallback(*arc_handle, _rar_unrar_callback, (LPARAM) cb_udata);
+	
+	while ((result = RARReadHeaderEx(*arc_handle, used_header_data)) == 0) {
+		/* skip entries that were split before with incrementing current pos */
+		if ((used_header_data->Flags & 0x01U) || (curpos++ != position)) {
+			process_result = RARProcessFile(*arc_handle, RAR_SKIP, NULL, NULL);
+		} else {
+			*found = TRUE;
+			goto cleanup;
+		}
+		if (process_result != 0) {
+			retval = process_result;
+			goto cleanup;
+		}
+	}
+
+	if (result != 0 && result != 1) {
+		//0 indicates success, 1 indicates normal end of file
+		retval = result;
+		goto cleanup;
+	}
+
+cleanup:
+	if (header_data == NULL)
+		efree(used_header_data);
+
+	return retval;
+}
+
 /* An unRAR callback.
  * Processes requests for passwords and missing volumes 
  * If there is (userland) volume find callback specified, try to use that
@@ -268,13 +334,15 @@ int CALLBACK _rar_unrar_callback(UINT msg, LPARAM UserData, LPARAM P1, LPARAM P2
 		//user data is the password or null if none
 		char *password = userdata->password;
 
-		if (password == NULL) {
+		if (password == NULL || password[0] == '\0') {
 			/*php_error_docref(NULL TSRMLS_CC, E_WARNING,
 				"Password needed, but it has not been specified");*/
 			return -1;
 		}
 		else {
-			strncpy((char*) P1, password, (size_t) P2);
+			strncpy((char *) P1, password, (size_t) P2);
+			assert((size_t) P2 > 0);
+			((char *) P1)[(size_t) P2 - 1] = '\0';
 		}
 	}
 	else if (msg == UCM_CHANGEVOLUME) {
@@ -402,7 +470,7 @@ static int _rar_unrar_volume_user_callback(char* dst_buffer,
 			goto cleanup;
 		}
 
-		resolved_len = rar_strnlen(resolved_path, MAXPATHLEN);
+		resolved_len = _rar_strnlen(resolved_path, MAXPATHLEN);
 		/* dst_buffer size is NM; first condition won't happen short of a bug
 		 * in expand_filepath */
 		if (resolved_len == MAXPATHLEN || resolved_len > NM - 1) {
@@ -529,7 +597,7 @@ static int _rar_array_apply_remove_first(void *pDest TSRMLS_DC)
 	return (ZEND_HASH_APPLY_STOP | ZEND_HASH_APPLY_REMOVE);
 }
 
-/* caller should increment zval before calling this */
+/* caller should increment zval refcount before calling this */
 static void _rar_contents_cache_put(const char *key,
 									uint key_len,
 									zval *zv TSRMLS_DC)

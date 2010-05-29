@@ -35,17 +35,17 @@ while (!empty($stack)) {
 
 echo "Done.\n";
 --EXPECTF--
+- allow_everyone_ni (dir)
 - file1.txt 
 - file2_אּ.txt 
 - with_streams.txt 
 - אּ (dir)
-    - file3.txt 
-    - file4_אּ.txt 
     - %2Fempty%2E (dir)
         - file7.txt 
     - empty (dir)
+    - file3.txt 
+    - file4_אּ.txt 
     - אּ_2 (dir)
         - file5.txt 
         - file6_אּ.txt 
-- allow_everyone_ni (dir)
 Done.

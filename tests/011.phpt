@@ -15,6 +15,10 @@ function int32_to_hex($value) {
 }
 foreach ($entries as $e) {
 	$stream = $e->getStream();
+	if ($stream === false) {
+		die("Failed to get stream.\n");
+		break;
+	}
 	echo $e->getName().": ";
 	$a = "";
 	while (!feof($stream)) {
