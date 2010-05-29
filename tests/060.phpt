@@ -38,24 +38,24 @@ while (false !== ($entry = $d->read())) {
 echo "\nDone.\n";
 --EXPECTF--
 Root entries unencoded:
+allow_everyone_ni
 file1.txt
 file2_אּ.txt
 with_streams.txt
 אּ
-allow_everyone_ni
 
 Root entries encoded:
+allow_everyone_ni
 file1.txt
 file2_%EF%AC%B0.txt
 with_streams.txt
 %EF%AC%B0
-allow_everyone_ni
 
 Sub-root directory entries unencoded:
-file3.txt
-file4_אּ.txt
 %2Fempty%2E
 empty
+file3.txt
+file4_אּ.txt
 אּ_2
 
 Done.

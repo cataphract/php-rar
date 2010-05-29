@@ -497,7 +497,7 @@ static php_stream_ops php_stream_rar_dirio_ops = {
  * RarEntry objects cannot be instantiation or tampered with; the check
  * was already done in RarArchive::open */
 php_stream *php_stream_rar_open(char *arc_name,
-								char *utf_file_name,
+								size_t position,
 								rar_cb_user_data *cb_udata_ptr, /* will be copied */
 								char *mode STREAMS_DC TSRMLS_DC)
 {
@@ -513,7 +513,7 @@ php_stream *php_stream_rar_open(char *arc_name,
 
 	self = ecalloc(1, sizeof *self);
 	self->open_data.ArcName		= estrdup(arc_name);
-	self->open_data.OpenMode	= RAR_OM_EXTRACT;
+	self->open_data.OpenMode		= RAR_OM_EXTRACT;
 	/* deep copy the callback userdata */
 	if (cb_udata_ptr->password != NULL)
 		self->cb_userdata.password = estrdup(cb_udata_ptr->password);
@@ -522,16 +522,16 @@ php_stream *php_stream_rar_open(char *arc_name,
 		zval_add_ref(&self->cb_userdata.callable);
 	}
 	
-	result = _rar_find_file(&self->open_data, utf_file_name, &self->cb_userdata,
+	result = _rar_find_file_p(&self->open_data, position, &self->cb_userdata,
 		&self->rar_handle, &found, &self->header_data);
 
 	if (_rar_handle_error(result TSRMLS_CC) == FAILURE) {
 		goto cleanup;
 	}
 
-	if (!found)
-		_rar_handle_ext_error("Can't find file %s in archive %s" TSRMLS_CC,
-			utf_file_name, arc_name);
+	if (!found) /* position is size_t; should be %Zu but it doesn't work */
+		_rar_handle_ext_error("Can't find file with index %u in archive %s"
+			TSRMLS_CC, position, arc_name);
 	else {
 		//no need to allocate a buffer bigger than the file uncomp size
 		size_t buffer_size = (size_t)
@@ -643,7 +643,9 @@ static void php_rar_process_context(php_stream_context *context,
 
 	assert(context != NULL);
 	assert(open_password != NULL);
+	*open_password = NULL;
 	assert(volume_cb != NULL);
+	*volume_cb = NULL;
 
 	/* TODO: don't know if I can log errors and not fail. check that */
 
@@ -958,7 +960,8 @@ static void _rar_arch_cache_get_key(const char *full_path,
 }
 /* }}} */
 
-/* rar_obj to be managed externally if return is success */
+/* If return is success, the caller should eventually call zval_ptr_dtor on
+ * rar_obj */
 static int _rar_get_cachable_rararch(php_stream_wrapper *wrapper,
 									 int options,
 									 const char* arch_path,
@@ -971,15 +974,16 @@ static int _rar_get_cachable_rararch(php_stream_wrapper *wrapper,
 	uint		cache_key_len;
 	int			err_code,
 				ret = FAILURE;
-	zval		*new_rar_obj = NULL;
 
+	assert(rar_obj != NULL);
+	*rar_obj = NULL;
+	
 	_rar_arch_cache_get_key(arch_path, open_passwd, volume_cb, &cache_key,
 		&cache_key_len);
 	*rar_obj = RAR_G(contents_cache).get(cache_key, cache_key_len TSRMLS_CC);
 
 	if (*rar_obj == NULL) { /* cache miss */
-		ALLOC_INIT_ZVAL(new_rar_obj);
-		*rar_obj = new_rar_obj;
+		ALLOC_INIT_ZVAL(*rar_obj);
 
 		if (_rar_create_rararch_obj(arch_path, open_passwd, volume_cb,
 				*rar_obj, &err_code TSRMLS_CC) == FAILURE) {
@@ -1006,7 +1010,7 @@ static int _rar_get_cachable_rararch(php_stream_wrapper *wrapper,
 				goto cleanup;
 			}
 
-			res = _rar_index_entries(*rar TSRMLS_CC);
+			res = _rar_list_files(*rar TSRMLS_CC);
 
 			if ((err_str = _rar_error_to_string(res)) != NULL) {
 				php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
@@ -1035,13 +1039,31 @@ cleanup:
 		efree(cache_key);
 
 	if (ret != SUCCESS && *rar_obj != NULL) {
-		if (new_rar_obj) {
-			zval_ptr_dtor(&new_rar_obj);
-		}
+		zval_ptr_dtor(rar_obj);
 		*rar_obj = NULL;
 	}
 
 	return ret;
+}
+/* }}} */
+
+/* {{{ php_stream_tidy_wrapper_error_log */
+/* copied from main/streams/streams.c because it's an internal function */
+void php_stream_tidy_wrapper_error_log(php_stream_wrapper *wrapper TSRMLS_DC)
+{
+	if (wrapper) {
+		/* tidy up the error stack */
+		int i;
+
+		for (i = 0; i < wrapper->err_count; i++) {
+			efree(wrapper->err_stack[i]);
+		}
+		if (wrapper->err_stack) {
+			efree(wrapper->err_stack);
+		}
+		wrapper->err_stack = NULL;
+		wrapper->err_count = 0;
+	}
 }
 /* }}} */
 
@@ -1091,7 +1113,7 @@ static int php_stream_rar_stater(php_stream_wrapper *wrapper,
 
 	fragment_len = wcslen(fragment);
 
-	_rar_entry_search_start(rar, &state);
+	_rar_entry_search_start(rar, RAR_SEARCH_NAME, &state TSRMLS_CC);
 	_rar_entry_search_advance(state, fragment, fragment_len + 1, 0);
 	if (!state->found) {
 		char *mb_entry = _rar_wide_to_utf_with_alloc(fragment,
@@ -1116,6 +1138,16 @@ cleanup:
 		zval_ptr_dtor(&rararch);
 	if (state != NULL)
 		_rar_entry_search_end(state);
+
+	/* note PHP_STREAM_URL_STAT_QUIET is not equivalent to REPORT_ERRORS.
+	 * REPORT_ERRORS instead of emitting a notice, stores the error in the
+	 * wrapper, while with PHP_STREAM_URL_STAT_QUIET the error should not be
+	 * put in the wrapper because the wrapper won't clean it up. For
+	 * consistency, I treat both the same way but clean the wrapper in the end
+	 * if necessary
+	 */
+	if (flags & PHP_STREAM_URL_STAT_QUIET)
+		php_stream_tidy_wrapper_error_log(wrapper TSRMLS_CC);
 	
 	return ret;
 }
@@ -1185,9 +1217,10 @@ static php_stream *php_stream_rar_dir_opener(php_stream_wrapper *wrapper,
 	else
 		self->dir_size = fragment_len + 1;
 	
-	_rar_entry_search_start(rar, &self->state);
+	_rar_entry_search_start(rar, RAR_SEARCH_DIRECTORY | RAR_SEARCH_NAME,
+		&self->state TSRMLS_CC);
 	if (self->dir_size != 1) { /* skip if asked for root */
-		/* try to find directory. only works if the directort itself was added
+		/* try to find directory. only works if the directory itself was added
 		 * to the archive, which I'll assume occurs in all good archives */
 		_rar_entry_search_advance(
 			self->state, self->directory, self->dir_size, 0);
@@ -1209,6 +1242,10 @@ static php_stream *php_stream_rar_dir_opener(php_stream_wrapper *wrapper,
 			goto cleanup;
 		}
 		self->self_header = self->state->header;
+		/* we wouldn't have to rewind were it not for the last access cache,
+		 * because otherwise the exact search for the directory and the
+		 * directory traversal would both use the sorted list and the
+		 * directory always appears before its entries there */
 		_rar_entry_search_rewind(self->state);
 	}
 

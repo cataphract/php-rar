@@ -26,6 +26,8 @@ array(2) {
     ["rarfile%sprivate%s=>
     object(RarArchive)#%s (%s) {
     }
+    ["position%sprivate%s=>
+    int(0)
     ["name%sprivate%s=>
     string(9) "plain.txt"
     ["unpacked_size%sprivate%s=>
@@ -52,6 +54,8 @@ array(2) {
     ["rarfile%sprivate%s=>
     object(RarArchive)#%d (0) {
     }
+    ["position%sprivate%s=>
+    int(1)
     ["name%sprivate%s=>
     string(30) "test file with whitespaces.txt"
     ["unpacked_size%sprivate%s=>
@@ -80,6 +84,8 @@ array(2) {
     ["rarfile%sprivate%s=>
     object(RarArchive)#%d (%d) {
     }
+    ["position%sprivate%s=>
+    int(0)
     ["name%sprivate%s=>
     string(5) "1.txt"
     ["unpacked_size%sprivate%s=>
@@ -106,6 +112,8 @@ array(2) {
     ["rarfile%sprivate%s=>
     object(RarArchive)#%d (%d) {
     }
+    ["position%sprivate%s=>
+    int(1)
     ["name%sprivate%s=>
     string(5) "2.txt"
     ["unpacked_size%sprivate%s=>

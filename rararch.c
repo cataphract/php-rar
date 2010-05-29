@@ -58,10 +58,6 @@ static zend_object_handlers rararch_object_handlers;
 /* }}} */
 
 /* {{{ Function prototypes for functions with internal linkage */
-static int _rar_list_files(rar_file_t * TSRMLS_DC);
-static int _rar_directory_match(const wchar_t *dir, const size_t dir_len,
-								const wchar_t *entry, const size_t entry_len);
-static void _rar_raw_entries_to_array(rar_file_t *rar, zval *target TSRMLS_DC);
 static zend_object_value rararch_ce_create_object(zend_class_entry *class_type TSRMLS_DC);
 static void rararch_ce_destroy_object(ze_rararch_object *object,
 									  zend_object_handle handle TSRMLS_DC);
@@ -69,81 +65,9 @@ static void rararch_ce_free_object_storage(ze_rararch_object *object TSRMLS_DC);
 /* }}} */
 
 /* {{{ Function definitions with external linkage */
-
-#if !HAVE_STRNLEN
-size_t strnlen(const char *s, size_t maxlen) /* {{{ */
-{
-	char *r = memchr(s, '\0', maxlen);
-	return r ? r-s : maxlen;
-}
-/* }}} */
-#endif
-
 int _rar_get_file_resource(zval *zval_file, rar_file_t **rar_file TSRMLS_DC) /* {{{ */
 {
 	return _rar_get_file_resource_ex(zval_file, rar_file, FALSE TSRMLS_CC);
-}
-/* }}} */
-
-/* creates a hashtable whose keys are names of the files inside the RAR
- * archive and the values are indexes (with respect to rar_file->entries)
- * of the first entry of the file with that name */
-int _rar_index_entries(rar_file_t *rar_file TSRMLS_DC) /* {{{ */
-{
-	int i;
-	int first_file_check;
-
-	assert(rar_file->entries_idx == NULL);
-
-	if (rar_file->entries == NULL) {
-		int res = _rar_list_files(rar_file TSRMLS_CC);
-		if (_rar_error_to_string(res) != NULL)
-			return res;
-	}
-
-    ALLOC_HASHTABLE(rar_file->entries_idx);
-    if (zend_hash_init(rar_file->entries_idx, rar_file->entry_count, NULL,
-			NULL, 0) == FAILURE) {
-        FREE_HASHTABLE(rar_file->entries_idx);
-		rar_file->entries_idx = NULL;
-        return FAILURE;
-    }
-	
-	for (i = 0, first_file_check = TRUE; i < rar_file->entry_count; i++) {
-		struct RARHeaderDataEx *entry;
-		const wchar_t *cur_name;
-		uint len;
-
-		entry = rar_file->entries[i];
-		cur_name = entry->FileNameW;
-
-		/* only skip files with continued from last volume flag if they're the
-		 * first entries, otherwise we're interested in them. To be strict, we
-		 * would want to activate the check all the time, except when we've
-		 * just seen a header with a continued in next volume flag */
-		if (first_file_check) {
-			if (entry->Flags & 0x01)
-				continue;
-			else
-				first_file_check = FALSE;
-		}
-
-		{
-			size_t cur_name_len = wcsnlen(cur_name, sizeof entry->FileNameW);
-			if (cur_name_len == sizeof(entry->FileNameW)) {
-				_rar_handle_ext_error("UnRAR library gave an unterminated "
-					"wide filename. Should not have happened! Bug!" TSRMLS_CC);
-				FREE_HASHTABLE(rar_file->entries_idx);
-				rar_file->entries_idx = NULL;
-				return FAILURE;
-			}
-			len = (uint) ((cur_name_len + 1) * sizeof *cur_name);
-		}
-		zend_hash_add(rar_file->entries_idx, (const char *) cur_name, len,
-			&i, sizeof(i), NULL);
-	}
-
-	return SUCCESS;	
 }
 /* }}} */
 
@@ -169,8 +93,6 @@ int _rar_create_rararch_obj(const char* resolved_path,
 	rar->cb_userdata.password = NULL;
 	rar->cb_userdata.callable = NULL;
 	rar->entries = NULL;
-	rar->entries_idx = NULL;
-	rar->entry_count = 0;
 
 	rar->arch_handle = RAROpenArchiveEx(rar->list_open_data);
 	if (rar->arch_handle != NULL && rar->list_open_data->OpenResult == 0) {
@@ -244,232 +166,9 @@ int _rar_get_file_resource_ex(zval *zval_file, rar_file_t **rar_file, int silent
 	return SUCCESS;
 }
 /* }}} */
-
-/* {{{ entry search related */
-typedef struct _rar_find_state {
-	rar_find_output			out;
-	rar_file_t				*rar;
-	struct RARHeaderDataEx	*last_entry;
-	const wchar_t			*last_name;
-	const char				*strict_last_name;
-	unsigned long			packed_size;
-	int						first_file_check;
-	int						index; //next unread
-} rar_find_state;
-
-/* {{{ _rar_entry_search_start */
-void _rar_entry_search_start(rar_file_t *rar, rar_find_output **state)
-{
-	rar_find_state **out = (rar_find_state **) state;
-	assert(out != NULL);
-	*out = ecalloc(1, sizeof **out);
-	(*out)->rar = rar;
-	(*out)->first_file_check = 1;
-}
-/* }}} */
-
-/* {{{ _rar_entry_search_end */
-void _rar_entry_search_end(rar_find_output *state)
-{
-	efree(state);
-}
-/* }}} */
-
-/* {{{ _rar_entry_search_rewind */
-void _rar_entry_search_rewind(rar_find_output *state)
-{
-	rar_find_state *rstate	= (rar_find_state *) state;
-	rar_file_t		*rar	= rstate->rar;
-	memset(rstate, 0, sizeof *rstate);
-	rstate->rar = rar;
-	rstate->first_file_check = 1;
-}
-/* }}} */
-
-/* {{{ _rar_entry_search_advance */
-void _rar_entry_search_advance(rar_find_output *state,
-							  const wchar_t * const file, //NULL = give next
-							  size_t file_size, //length + 1
-							  int directory_match)
-{
-	rar_find_state	*rstate = (rar_find_state *) state;
-	int				i,
-					*hash_i, //for hash lookup
-					commited = FALSE;
-
-	assert(state != NULL);
-
-	//reset output
-	memset(&rstate->out, 0, sizeof rstate->out);
-
-	if (file_size == 0 && (directory_match ||
-			(file != NULL && rstate->rar->entries_idx != NULL)))
-		file_size = wcslen(file) + 1;
-
-	if (!directory_match && file != NULL && rstate->rar->entries_idx != NULL) {
-		if (zend_hash_find(rstate->rar->entries_idx, (const char *) file,
-				(uint) (file_size * sizeof *file), (void **)&hash_i) == SUCCESS) {
-			rstate->index = *hash_i;
-			/* jump; these are no longer valid */
-			rstate->last_name = NULL;
-			rstate->strict_last_name = NULL;
-			rstate->packed_size = 0UL;
-		}
-		else {
-			rstate->out.found = FALSE;
-			return;
-		}
-	}
-
-	for (i = rstate->index; !commited && i <= rstate->rar->entry_count; i++) {
-		struct RARHeaderDataEx *entry;
-		const wchar_t *current_name;
-		const char *strict_current_name;
-		//whether we have a new entry this iteration:
-		int read_entry = (i != rstate->rar->entry_count);
-		//whether we've seen a file and entries for the that file have ended
-		int ended_file = FALSE;
-		//whether we have found a looked for file
-		int commit_file = FALSE;
-		//whether we had an entry last iteration:
-		int has_last_entry = (rstate->strict_last_name != NULL);
-		
-		if (read_entry) {
-			entry = rstate->rar->entries[i];
-			current_name = entry->FileNameW;
-			strict_current_name = entry->FileName;
-
-			if (rstate->first_file_check) {
-				if (entry->Flags & 0x01)
-					continue;
-				else
-					rstate->first_file_check = FALSE;
-			}
-		}
-		
-		/* The wide file name may result from conversion from the
-		 * non-wide filename and this conversion may fail. In that
-		 * case, we can have entries of different files with the
-		 * the same wide file name. For this reason, we use the
-		 * non-wide file name to check if we have a new file and
-		 * don't trust the wide file name. */
-		ended_file = has_last_entry && (!read_entry ||
-			(strncmp(rstate->strict_last_name, strict_current_name,	1024)
-			!= 0));
-		commit_file = ended_file &&
-			(file == NULL ||
-			(!directory_match && wcsncmp(rstate->last_name, file, 1024) == 0) ||
-			(directory_match &&	_rar_directory_match(file, file_size - 1,
-				rstate->last_name, wcsnlen(rstate->last_name, 1024))));
-
-		if (commit_file) {
-			rstate->out.found = 1;
-			rstate->out.header = rstate->last_entry;
-			rstate->out.packed_size = rstate->packed_size;
-			commited = TRUE;
-		}
-
-		if (ended_file) {
-			rstate->packed_size = 0UL; //reset counter
-		}
-
-		if (read_entry) { //sum packed size of current entry
-			/* we would exceed size of ulong. cap at ulong_max
-			 * equivalent to packed_size + entry->PackSize > ULONG_MAX,
-			 * but without overflowing */
-			if (ULONG_MAX - rstate->packed_size < entry->PackSize)
-				rstate->packed_size = ULONG_MAX;
-			else {
-				rstate->packed_size += entry->PackSize;
-				if (entry->PackSizeHigh != 0) {
-#if ULONG_MAX > 0xffffffffUL
-					rstate->packed_size += ((unsigned long) entry->PackSizeHigh) << 32;
-#else
-					rstate->packed_size = ULONG_MAX; //cap
-#endif
-				}
-			}
-
-			//prepare for next entry
-			rstate->last_entry = entry;
-			rstate->last_name = current_name;
-			rstate->strict_last_name = strict_current_name;
-		}
-	}
-
-	rstate->index = i;
-	rstate->out.eof = (i > rstate->rar->entry_count);
-}
-/* }}} */
-/* end entry search related }}} */
 /* end functions with external linkage }}} */
 
 /* {{{ Helper functions and preprocessor definitions */
-static int _rar_list_files(rar_file_t *rar TSRMLS_DC) /* {{{ */
-{
-	int result = 0;
-	int capacity = 0;
-	while (result == 0) {
-		struct RARHeaderDataEx entry;
-		result = RARReadHeaderEx(rar->arch_handle, &entry);
-		//value of 2nd argument is irrelevant in RAR_OM_LIST_[SPLIT] mode
-		if (result == 0) {
-			result = RARProcessFile(rar->arch_handle, RAR_SKIP, NULL, NULL);
-		}
-		if (result == 0) {
-			assert(capacity >= rar->entry_count);
-			if (capacity == rar->entry_count) { //0, 2, 6, 14, 30...
-				capacity = (capacity + 1) * 2;
-				rar->entries = erealloc(rar->entries,
-					sizeof(*rar->entries) * capacity);
-				if (!rar->entries)
-					return FAILURE;
-			}
-			assert(capacity > rar->entry_count);
-			rar->entries[rar->entry_count] = emalloc(sizeof(*rar->entries[0]));
-			memcpy(rar->entries[rar->entry_count], &entry,
-				sizeof *rar->entries[0]);
-			rar->entry_count++;
-		}
-	}
-	
-	return result;
-}
-/* }}} */
-
-/* does not assume null termination */
-static int _rar_directory_match(const wchar_t *dir, const size_t dir_len,
-								const wchar_t *entry, const size_t entry_len) /* {{{ */
-{
-	const wchar_t *chr,
-				  *entry_rem;
-	size_t		  entry_rem_len;
-	
-	/* dir does not end with the path separator */
-
-	if (dir_len > 0) {
-		if (entry_len <= dir_len) /* don't match the dir itself */
-			return FALSE;
-		/* assert(entry_len > dir_len > 0) */
-		if (wmemcmp(dir, entry, dir_len) != 0)
-			return FALSE;
-		/* directory name does not follow path sep or path sep ends the name */
-		if (entry[dir_len] != PATHDIVIDERW[0] || entry_len == dir_len + 1)
-			return FALSE;
-		/* assert(entry_len > dir_len + 1) */
-		entry_rem = &entry[dir_len + 1];
-		entry_rem_len = entry_len - (dir_len + 1);
-	}
-	else {
-		entry_rem = entry;
-		entry_rem_len = entry_len;
-	}
-
-	chr = wmemchr(entry_rem, PATHDIVIDERW[0], entry_rem_len);
-	/* must have no / after the directory */
-	return (chr == NULL);
-}
-/* }}} */
 
 /* target should be initialized */
 static void _rar_raw_entries_to_array(rar_file_t *rar, zval *target TSRMLS_DC) /* {{{ */
@@ -486,7 +185,7 @@ static void _rar_raw_entries_to_array(rar_file_t *rar, zval *target TSRMLS_DC) /
 	 * be destroyed when this new zval we created was destroyed */
 	zend_objects_store_add_ref_by_handle(rar->id TSRMLS_CC);
 
-	_rar_entry_search_start(rar, &state);
+	_rar_entry_search_start(rar, RAR_SEARCH_TRAVERSE, &state TSRMLS_CC);
 	do {
 		_rar_entry_search_advance(state, NULL, 0, 0);
 		if (state->found) {
@@ -494,7 +193,7 @@ static void _rar_raw_entries_to_array(rar_file_t *rar, zval *target TSRMLS_DC) /
 
 			MAKE_STD_ZVAL(entry_obj);
 			_rar_entry_to_zval(rararch_obj, state->header, state->packed_size,
-				entry_obj TSRMLS_CC);
+				state->position, entry_obj TSRMLS_CC);
 
 			add_next_index_zval(target, entry_obj);
 		}
@@ -555,23 +254,13 @@ static void rararch_ce_destroy_object(ze_rararch_object *object,
 static void rararch_ce_free_object_storage(ze_rararch_object *object TSRMLS_DC) /* {{{ */
 {
 	rar_file_t *rar = object->rar_file;
-	int i;
 
 	/* may be NULL if the user did new RarArchive() */
 	if (rar != NULL) {
 		_rar_destroy_userdata(&rar->cb_userdata);
 
-		if ((rar->entries != NULL) && (rar->entry_count > 0)) {
-			for (i = 0; i < rar->entry_count; i++) {
-				efree(rar->entries[i]);
-			}
-			efree(rar->entries);
-			rar->entry_count = 0;
-		}
-		if (rar->entries_idx != NULL) {
-			zend_hash_destroy(rar->entries_idx);
-			FREE_HASHTABLE(rar->entries_idx);
-		}
+		_rar_delete_entries(rar TSRMLS_CC);
+
 		efree(rar->list_open_data->ArcName);
 		efree(rar->list_open_data->CmtBuf);
 		efree(rar->list_open_data);
@@ -591,7 +280,8 @@ static void rararch_ce_free_object_storage(ze_rararch_object *object TSRMLS_DC) 
 
 /* module functions */
 
-/* {{{ proto RarArchive rar_open(string filename [, string password [, callback volume cb]])
+/* {{{ proto RarArchive rar_open(string filename [, string password = NULL
+       [, callback volume_cb = NULL ]])
    Open RAR archive and return RarArchive object */
 PHP_FUNCTION(rar_open)
 {
@@ -605,7 +295,7 @@ PHP_FUNCTION(rar_open)
 
 	/* Files are only opened here and in _rar_find_file */
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|sz!", &filename,
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|s!z!", &filename,
 		&filename_len, &password, &password_len, &callable) == FAILURE) {
 		return;
 	}
@@ -719,11 +409,11 @@ PHP_FUNCTION(rar_entry_get)
 	filename_c = ecalloc(filename_len + 1, sizeof *filename_c); 
 	_rar_utf_to_wide(filename, filename_c, filename_len + 1);
 
-	_rar_entry_search_start(rar, &sstate);
+	_rar_entry_search_start(rar, RAR_SEARCH_NAME, &sstate TSRMLS_CC);
 	_rar_entry_search_advance(sstate, filename_c, 0, 0);
 	if (sstate->found) {
 		_rar_entry_to_zval(file, sstate->header, sstate->packed_size,
-			return_value TSRMLS_CC);
+			sstate->position, return_value TSRMLS_CC);
 	}
 	else {
 		_rar_handle_ext_error(
@@ -916,14 +606,14 @@ static zend_object_iterator *rararch_it_get_iterator(zend_class_entry *ce,
 	if (rar->entries == NULL) {
 		res = _rar_list_files(rar TSRMLS_CC); 
 		if (_rar_handle_error(res TSRMLS_CC) == FAILURE) {
-			rar->entry_count = 0;
+			/* do nothing, notice was already emitted */
 		}
 	}
 
 	zval_add_ref(&object);
 	it->parent.data = object;
 	it->parent.funcs = ce->iterator_funcs.funcs;
-	_rar_entry_search_start(rar, &it->state);
+	_rar_entry_search_start(rar, RAR_SEARCH_TRAVERSE, &it->state TSRMLS_CC);
 	it->value = NULL;
 	return (zend_object_iterator*) it;
 }
@@ -970,7 +660,7 @@ static void rararch_it_fetch(rararch_iterator *it TSRMLS_DC)
 	MAKE_STD_ZVAL(it->value);
 	if (it->state->found)
 		_rar_entry_to_zval(it->parent.data, it->state->header,
-			it->state->packed_size, it->value TSRMLS_CC);
+			it->state->packed_size, it->state->position, it->value TSRMLS_CC);
 	else
 		ZVAL_FALSE(it->value);
 }

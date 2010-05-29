@@ -27,7 +27,6 @@
 
 /* $Id$ */
 
-/* TODO: correct handling of archives with entries with the same name */
 /* TODO: metadata block reading */
 /* TODO: correct support for symlinks inside RAR files. This includes:
  * - Respecting PHP_STREAM_URL_STAT_LINK in the url_stater
@@ -36,12 +35,14 @@
 /* TODO: add support for opening RAR files in a persisten fashion */
 /* TODO: consider making struct rar opaque, outside rararch.c only
  * RarEntry::extract/getStream access the fields */
-/* TODO: merge rar_file_t.entries_idx and rar_file_t.entries */
 /* TODO: consider using a php memory/tmpfile stream to serve as buffer for
  * rar file streams */
 /* TODO: improve RAR archive cache key for url_stater/dir_opener, so that it
  * can detect file modification */
-/* TODO: make configurable the capacity of the usr_stater/dir_opener cache */
+/* TODO: make configurable the capacity of the url_stater/dir_opener cache */
+/* TODO: test url_stater/dir_opener cache exaustion */
+/* TODO: tests with empty rar file */
+/* TODO: optimize _rar_nav_directory_match with the depth */
 
 #ifndef PHP_RAR_H
 #define PHP_RAR_H
@@ -90,10 +91,7 @@ typedef struct _rar_cb_user_data {
 
 typedef struct rar {
 	zend_object_handle			id;
-	int							entry_count; //>= number of files
-	struct RARHeaderDataEx		**entries;
-	//key: entry name, value: index in entries
-	HashTable					*entries_idx; /* TODO: merge into entries */
+	struct _rar_entries			*entries;
 	struct RAROpenArchiveDataEx	*list_open_data;
 	struct RAROpenArchiveDataEx	*extract_open_data;
 	//archive handle opened with RAR_OM_LIST_INCSPLIT open mode
@@ -113,8 +111,9 @@ typedef struct rar {
  *	 persistently allocated buffers since the RarArchive objects cannot be made
  *	 persistent themselves.
  *
- * I'll go with per-request and store zval pointers together with modification
- * time.
+ * I'll go with per-request and store zval pointers with a cache key that
+ * considers filename, modificaion time and stream context (currently only
+ * filename).
  * I'll also go with a FIFO eviction policy because it's simpler to implement
  * (just delete the first element of the HashTable).
  */
@@ -160,13 +159,6 @@ ZEND_EXTERN_MODULE_GLOBALS(rar);
 		{ NULL, 0, NULL, 0, 0, 0, pass_rest_by_reference, return_reference, required_num_args },
 #endif
 
-#if !defined(HAVE_STRNLEN)
-size_t _rar_strnlen(const char *s, size_t maxlen); 
-# define rar_strnlen _rar_strnlen
-#else
-# define rar_strnlen strnlen
-#endif
-
 /* rar.c */
 PHP_MINIT_FUNCTION(rar);
 PHP_MSHUTDOWN_FUNCTION(rar);
@@ -175,6 +167,13 @@ PHP_RSHUTDOWN_FUNCTION(rar);
 PHP_MINFO_FUNCTION(rar);
 
 PHP_FUNCTION(rar_bogus_ctor);
+
+#ifndef HAVE_STRNLEN
+size_t _rar_strnlen(const char *s, size_t maxlen);
+# define strnlen _rar_strnlen
+#else
+# define _rar_strnlen strnlen
+#endif
 
 void _rar_wide_to_utf(const wchar_t *src, char *dest, size_t dest_size);
 void _rar_utf_to_wide(const char *src, wchar_t *dest, size_t dest_size);
@@ -193,6 +192,13 @@ int _rar_find_file_w(struct RAROpenArchiveDataEx *open_data, /* IN */
 					 int *found, /* OUT */
 					 struct RARHeaderDataEx *header_data /* OUT, can be null */
 					 );
+int _rar_find_file_p(struct RAROpenArchiveDataEx *open_data, /* IN */
+					 size_t position, /* IN */
+					 rar_cb_user_data *cb_udata, /* IN, must be managed outside */
+					 void **arc_handle, /* OUT: where to store rar archive handle  */
+					 int *found, /* OUT */
+					 struct RARHeaderDataEx *header_data /* OUT, can be null */
+					 );
 int CALLBACK _rar_unrar_callback(UINT msg, LPARAM UserData, LPARAM P1, LPARAM P2);
 
 /* rar_error.c */
@@ -204,6 +210,35 @@ int _rar_using_exceptions(TSRMLS_D);
 const char * _rar_error_to_string(int errcode);
 void minit_rarerror(TSRMLS_D);
 
+/* rar_navigation.c */
+
+int _rar_list_files(rar_file_t *rar TSRMLS_DC);
+void _rar_delete_entries(rar_file_t *rar TSRMLS_DC);
+
+/* entry search API {{{ */
+typedef struct _rar_find_output {
+	int							found;
+	size_t						position;
+	struct RARHeaderDataEx *	header;
+	unsigned long				packed_size;
+	int							eof;
+} rar_find_output;
+#define RAR_SEARCH_INDEX		0x01U
+#define RAR_SEARCH_TRAVERSE		0x01U
+#define RAR_SEARCH_DIRECTORY	0x02U
+#define RAR_SEARCH_NAME			0x02U
+void _rar_entry_search_start(rar_file_t *rar,
+							 unsigned mode,
+							 rar_find_output **state TSRMLS_DC);
+void _rar_entry_search_end(rar_find_output *state);
+void _rar_entry_search_seek(rar_find_output *state, size_t pos);
+void _rar_entry_search_rewind(rar_find_output *state);
+void _rar_entry_search_advance(rar_find_output *state,
+							   const wchar_t * const file, //NULL = give next
+							   size_t file_size, //length + 1
+							   int directory_match);
+/* end entry search API }}} */
+
 /* rararch.c */
 int _rar_create_rararch_obj(const char* resolved_path,
 							const char* open_password,
@@ -211,23 +246,6 @@ int _rar_create_rararch_obj(const char* resolved_path,
 							zval *object,
 							int *err_code TSRMLS_DC);
 void _rar_close_file_resource(rar_file_t *rar);
-int _rar_index_entries(rar_file_t *rar_file TSRMLS_DC);
-
-/* entry search API {{{ */
-typedef struct _rar_find_output {
-	int							found;
-	struct RARHeaderDataEx *	header;
-	unsigned long				packed_size;
-	int							eof;
-} rar_find_output;
-void _rar_entry_search_start(rar_file_t *rar, rar_find_output **state);
-void _rar_entry_search_end(rar_find_output *state);
-void _rar_entry_search_rewind(rar_find_output *state);
-void _rar_entry_search_advance(rar_find_output *state,
-							   const wchar_t * const file, //NULL = give next
-							   size_t file_size,
-							   int directory_match);
-/* end entry search API }}} */
 
 /* Fetches the rar_file_t part of the RarArchive object in order to use the
  * operations above and (discouraged) to have direct access to the fields
@@ -249,11 +267,12 @@ void minit_rarentry(TSRMLS_D);
 void _rar_entry_to_zval(zval *parent,
 						struct RARHeaderDataEx *entry,
 						unsigned long packed_size,
+						size_t index,
 						zval *entry_object TSRMLS_DC);
 
 /* rar_stream.c */
 php_stream *php_stream_rar_open(char *arc_name,
-								char *utf_file_name,
+								size_t position,
 								rar_cb_user_data *cb_udata_ptr, /* will be copied */
 								char *mode STREAMS_DC TSRMLS_DC);
 extern php_stream_wrapper php_stream_rar_wrapper;
