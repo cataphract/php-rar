@@ -18,7 +18,7 @@ echo "Done\n";
 Number of entries: 1
 RarEntry for file "file3.txt" (bcbce32e)
 
-Warning: rar_entry_get(): cannot find file "file2.txt" in Rar archive "%s. in %s on line %d
+Warning: rar_entry_get(): cannot find file "file2.txt" in Rar archive "%s in %s on line %d
 bool(false)
 RarEntry for file "file3.txt" (bcbce32e)
 Done

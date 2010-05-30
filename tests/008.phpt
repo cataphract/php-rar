@@ -22,7 +22,7 @@ echo "Done\n";
 --EXPECTF--
 RarEntry for file "file1.txt" (52b28202)
 
-Warning: rar_entry_get(): cannot find file "nonexistent_file.txt" in Rar archive "%s". in %s on line %d
+Warning: rar_entry_get(): cannot find file "nonexistent_file.txt" in Rar archive "%s" in %s on line %d
 bool(false)
 
 

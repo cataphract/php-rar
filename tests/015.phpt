@@ -26,5 +26,5 @@ RarEntry for file "1.txt" (a0de71c0)
 
 RAR Archive "%s" (closed)
 
-Warning: RarEntry::extract(): The archive is already closed. in %s on line %d
+Warning: RarEntry::extract(): The archive is already closed in %s on line %d
 Done

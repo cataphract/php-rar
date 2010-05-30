@@ -41,8 +41,10 @@
  * can detect file modification */
 /* TODO: make configurable the capacity of the url_stater/dir_opener cache */
 /* TODO: test url_stater/dir_opener cache exaustion */
-/* TODO: tests with empty rar file */
 /* TODO: optimize _rar_nav_directory_match with the depth */
+/* TODO: investigate whether rararch_it_get_iterator is buggy on list fail */
+/* TODO: make RarArchive have dimensions */
+/* TODO: tests with truncated RAR archive (for which _rar_list_files fails) */
 
 #ifndef PHP_RAR_H
 #define PHP_RAR_H
@@ -214,6 +216,7 @@ void minit_rarerror(TSRMLS_D);
 
 int _rar_list_files(rar_file_t *rar TSRMLS_DC);
 void _rar_delete_entries(rar_file_t *rar TSRMLS_DC);
+size_t _rar_entry_count(rar_file_t *rar);
 
 /* entry search API {{{ */
 typedef struct _rar_find_output {
