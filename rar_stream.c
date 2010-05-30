@@ -100,10 +100,12 @@ static char *_rar_wide_to_utf_with_alloc(const wchar_t *wide, int len)
 /* {{{ php_rar_ops_read */
 static size_t php_rar_ops_read(php_stream *stream, char *buf, size_t count TSRMLS_DC)
 {
-	int n = 0;
+	size_t n = 0;
 	STREAM_DATA_FROM_STREAM
 	size_t left = count;
 
+	/* never return EOF as README.STREAMS says; _php_stream_read doesn't
+	 * expect that nowadays */
 	if (count == 0)
 		return 0;
 
@@ -144,17 +146,20 @@ static size_t php_rar_ops_read(php_stream *stream, char *buf, size_t count TSRML
 				this_read_size);
 			left				-= this_read_size;
 			n					+= this_read_size;
-			self->buffer_pos	+= this_read_size;
+			self->buffer_pos		+= this_read_size;
 			assert(left >= 0);
 		}
 
 		self->cursor += n;
 	}
 
-	//no more data upstream and buffer already read
-	if (self->no_more_data && self->buffer_pos == self->buffer_cont_size)
+	/* no more data upstream (for sure), buffer already read and
+	 * caller asked for more data than we're giving */
+	if (self->no_more_data && self->buffer_pos == self->buffer_cont_size &&
+			((size_t) n) < count)
 		stream->eof = 1;
 
+	/* we should only give no data if we have no more */
 	if (!self->no_more_data && n == 0) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,
 			"Extraction reported as unfinished but no data read. Please report"
@@ -162,7 +167,7 @@ static size_t php_rar_ops_read(php_stream *stream, char *buf, size_t count TSRML
 		stream->eof = 1;
 	}
 
-	return n<1 ? 0 : n;
+	return n;
 }
 /* }}} */
 
@@ -547,6 +552,7 @@ php_stream *php_stream_rar_open(char *arc_name,
 		self->buffer = emalloc(buffer_size);
 		self->buffer_size = buffer_size;
 		stream = php_stream_alloc(&php_stream_rario_ops, self, NULL, mode);
+		stream->flags |= PHP_STREAM_FLAG_NO_BUFFER;
 	}
 
 cleanup:
@@ -916,6 +922,9 @@ static php_stream *php_stream_rar_opener(php_stream_wrapper *wrapper,
 		self->buffer = emalloc(buffer_size);
 		self->buffer_size = buffer_size;
 		stream = php_stream_alloc(&php_stream_rario_ops, self, NULL, mode);
+		/* we have buffering ourselves, thank you: */
+		stream->flags |= PHP_STREAM_FLAG_NO_BUFFER;
+		/* stream->flags |= PHP_STREAM_FLAG_NO_SEEK; unnecessary */
 	}
 
 cleanup:
@@ -976,7 +985,6 @@ static int _rar_get_cachable_rararch(php_stream_wrapper *wrapper,
 				ret = FAILURE;
 
 	assert(rar_obj != NULL);
-	*rar_obj = NULL;
 	
 	_rar_arch_cache_get_key(arch_path, open_passwd, volume_cb, &cache_key,
 		&cache_key_len);
@@ -1047,9 +1055,9 @@ cleanup:
 }
 /* }}} */
 
-/* {{{ php_stream_rar_wrapper_error_log */
+/* {{{ _rar_stream_tidy_wrapper_error_log */
 /* copied from main/streams/streams.c because it's an internal function */
-void php_stream_rar_wrapper_error_log(php_stream_wrapper *wrapper TSRMLS_DC)
+static void _rar_stream_tidy_wrapper_error_log(php_stream_wrapper *wrapper TSRMLS_DC)
 {
 	if (wrapper) {
 		/* tidy up the error stack */
@@ -1139,15 +1147,15 @@ cleanup:
 	if (state != NULL)
 		_rar_entry_search_end(state);
 
-	/* note PHP_STREAM_URL_STAT_QUIET is not equivalent to REPORT_ERRORS.
-	 * REPORT_ERRORS instead of emitting a notice, stores the error in the
+	/* note PHP_STREAM_URL_STAT_QUIET is not equivalent to ~REPORT_ERRORS.
+	 * ~REPORT_ERRORS instead of emitting a notice, stores the error in the
 	 * wrapper, while with PHP_STREAM_URL_STAT_QUIET the error should not be
-	 * put in the wrapper because the wrapper won't clean it up. For
+	 * put in the wrapper because the caller won't clean it up. For
 	 * consistency, I treat both the same way but clean the wrapper in the end
 	 * if necessary
 	 */
 	if (flags & PHP_STREAM_URL_STAT_QUIET)
-		php_stream_rar_wrapper_error_log(wrapper TSRMLS_CC);
+		_rar_stream_tidy_wrapper_error_log(wrapper TSRMLS_CC);
 	
 	return ret;
 }

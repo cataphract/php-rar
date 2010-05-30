@@ -68,7 +68,6 @@ struct _rar_entries {
 
 
 /* {{{ Function prototypes for functions with internal linkage */
-/* static int _rar_nav_list_files(rar_file_t *rar TSRMLS_DC); */
 static void _rar_nav_get_depth_and_length(wchar_t *filenamew, const size_t file_size,
 										  int *depth_out, size_t *wlen_out TSRMLS_DC);
 static int _rar_nav_get_depth(const wchar_t *filenamew, const size_t file_size);
@@ -89,6 +88,12 @@ static size_t _rar_nav_position_on_dir_start(const wchar_t *dir_name,
 
 /* {{{ Functions with external linkage */
 
+/* {{{ _rar_entry_count */
+size_t _rar_entry_count(rar_file_t *rar) {
+	return rar->entries->num_entries;
+}
+/* }}} */
+
 /* {{{ _rar_entry_search_start */
 void _rar_entry_search_start(rar_file_t *rar,
 							 unsigned mode,
@@ -100,8 +105,9 @@ void _rar_entry_search_start(rar_file_t *rar,
 	(*out)->rar = rar;
 	(*out)->out.position = -1;
 	assert(rar->entries != NULL);
-	assert(rar->entries->entries_array != NULL);
-	if ((mode & 0x02U) && (rar->entries->entries_array_s == NULL)) {
+	assert(rar->entries->num_entries == 0 || rar->entries->entries_array != NULL);
+	if ((mode & 0x02U) && (rar->entries->num_entries > 0) &&
+			(rar->entries->entries_array_s == NULL)) {
 		rar->entries->entries_array_s = emalloc(rar->entries->num_entries *
 			sizeof rar->entries->entries_array_s[0]);
 		memcpy(rar->entries->entries_array_s, rar->entries->entries_array,

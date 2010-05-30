@@ -14,6 +14,6 @@ try {
 }
 echo "Done.\n";
 --EXPECTF--
-Message: cannot find file "nonexistentfile.txt" in Rar archive "%slatest_winrar.rar".
+Message: cannot find file "nonexistentfile.txt" in Rar archive "%slatest_winrar.rar"
 Code: -1
 Done.

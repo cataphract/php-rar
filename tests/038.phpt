@@ -12,4 +12,4 @@ foreach ($rarF as $k => $rarE) {
 }
 echo "Done.\n";
 --EXPECTF--
-Fatal error: The archive is already closed, cannot give an iterator in %s on line %d
+Fatal error: main(): The archive is already closed, cannot give an iterator in %s on line %d
