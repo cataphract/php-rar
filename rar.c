@@ -574,18 +574,29 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_rar_entry_get, 0, 0, 2)
 #endif
 	ZEND_ARG_INFO(0, filename)
 ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_rar_allow_broken_set, 0, 0, 2)
+#if 0 /* don't turn on type hinting yet */
+	ZEND_ARG_OBJ_INFO(0, rarfile, RarArchive, 0)
+#else
+	ZEND_ARG_INFO(0, rarfile)
+#endif
+	ZEND_ARG_INFO(0, allow_broken)
+ZEND_END_ARG_INFO()
 /* }}} */
 
 /* {{{ rar_functions[]
  *
  */
 static zend_function_entry rar_functions[] = {
-	PHP_FE(rar_open,		arginfo_rar_open)
-	PHP_FE(rar_list,		arginfo_rar_void_archmeth)
-	PHP_FE(rar_entry_get,	arginfo_rar_entry_get)
-	PHP_FE(rar_solid_is,	arginfo_rar_void_archmeth)
-	PHP_FE(rar_comment_get,	arginfo_rar_void_archmeth)
-	PHP_FE(rar_close,		arginfo_rar_void_archmeth)
+	PHP_FE(rar_open,				arginfo_rar_open)
+	PHP_FE(rar_list,				arginfo_rar_void_archmeth)
+	PHP_FE(rar_entry_get,			arginfo_rar_entry_get)
+	PHP_FE(rar_solid_is,			arginfo_rar_void_archmeth)
+	PHP_FE(rar_comment_get,			arginfo_rar_void_archmeth)
+	PHP_FE(rar_broken_is,			arginfo_rar_void_archmeth)
+	PHP_FE(rar_allow_broken_set,	arginfo_rar_allow_broken_set)
+	PHP_FE(rar_close,				arginfo_rar_void_archmeth)
 	{NULL, NULL, NULL}
 };
 /* }}} */

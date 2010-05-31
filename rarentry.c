@@ -354,6 +354,8 @@ PHP_METHOD(rarentry, getPosition)
 {
 	zval **tmp;
 	zval *entry_obj = getThis();
+
+	RAR_RETNULL_ON_ARGS();
 	
 	RAR_GET_PROPERTY(tmp, "position");
 	
@@ -367,6 +369,8 @@ PHP_METHOD(rarentry, getName)
 {
 	zval **tmp;
 	zval *entry_obj = getThis();
+
+	RAR_RETNULL_ON_ARGS();
 	
 	RAR_GET_PROPERTY(tmp, "name");
 	
@@ -381,6 +385,8 @@ PHP_METHOD(rarentry, getUnpackedSize)
 	zval **tmp;
 	zval *entry_obj = getThis();
 	
+	RAR_RETNULL_ON_ARGS();
+	
 	RAR_GET_PROPERTY(tmp, "unpacked_size");
 	
 	RETURN_LONG(Z_LVAL_PP(tmp));
@@ -393,6 +399,8 @@ PHP_METHOD(rarentry, getPackedSize)
 {
 	zval **tmp;
 	zval *entry_obj = getThis();
+
+	RAR_RETNULL_ON_ARGS();
 	
 	RAR_GET_PROPERTY(tmp, "packed_size");
 	
@@ -406,6 +414,8 @@ PHP_METHOD(rarentry, getHostOs)
 {
 	zval **tmp;
 	zval *entry_obj = getThis();
+
+	RAR_RETNULL_ON_ARGS();
 	
 	RAR_GET_PROPERTY(tmp, "host_os");
 	
@@ -419,6 +429,8 @@ PHP_METHOD(rarentry, getFileTime)
 {
 	zval **tmp;
 	zval *entry_obj = getThis();
+
+	RAR_RETNULL_ON_ARGS();
 	
 	RAR_GET_PROPERTY(tmp, "file_time");
 	
@@ -432,6 +444,8 @@ PHP_METHOD(rarentry, getCrc)
 {
 	zval **tmp;
 	zval *entry_obj = getThis();
+
+	RAR_RETNULL_ON_ARGS();
 	
 	RAR_GET_PROPERTY(tmp, "crc");
 	
@@ -445,6 +459,8 @@ PHP_METHOD(rarentry, getAttr)
 {
 	zval **tmp;
 	zval *entry_obj = getThis();
+
+	RAR_RETNULL_ON_ARGS();
 	
 	RAR_GET_PROPERTY(tmp, "attr");
 	
@@ -458,6 +474,8 @@ PHP_METHOD(rarentry, getVersion)
 {
 	zval **tmp;
 	zval *entry_obj = getThis();
+
+	RAR_RETNULL_ON_ARGS();
 	
 	RAR_GET_PROPERTY(tmp, "version");
 	
@@ -471,6 +489,8 @@ PHP_METHOD(rarentry, getMethod)
 {
 	zval **tmp;
 	zval *entry_obj = getThis();
+
+	RAR_RETNULL_ON_ARGS();
 	
 	RAR_GET_PROPERTY(tmp, "method");
 	
@@ -528,6 +548,8 @@ PHP_METHOD(rarentry, isDirectory)
 	zval *entry_obj = getThis();
 	long flags;
 	int is_dir;
+
+	RAR_RETNULL_ON_ARGS();
 	
 	RAR_GET_PROPERTY(tmp, "flags");
 	flags = Z_LVAL_PP(tmp);
@@ -545,6 +567,8 @@ PHP_METHOD(rarentry, isEncrypted)
 	zval *entry_obj = getThis();
 	long flags;
 	int is_encrypted;
+
+	RAR_RETNULL_ON_ARGS();
 	
 	RAR_GET_PROPERTY(tmp, "flags");
 	flags = Z_LVAL_PP(tmp);
@@ -569,6 +593,8 @@ PHP_METHOD(rarentry, __toString)
 	char		*restring;
 	int			restring_len;
 	const char	format[] = "RarEntry for %s \"%s\" (%s)";
+
+	RAR_RETNULL_ON_ARGS();
 	
 	RAR_GET_PROPERTY(flags_zval, "flags");
 	flags = Z_LVAL_PP(flags_zval);

@@ -42,10 +42,9 @@
 /* TODO: make configurable the capacity of the url_stater/dir_opener cache */
 /* TODO: test url_stater/dir_opener cache exaustion */
 /* TODO: optimize _rar_nav_directory_match with the depth */
-/* TODO: make RarArchive have dimensions */
 /* TODO: tests with truncated RAR archive (for which _rar_list_files fails) */
-/* TODO: tests for dimensions stuff */
-/* TODO: allow dirty read of RAR files */
+/* TODO: tests for allow broken RAR */
+/* TODO: tests for has_property, write_property and [] */
 
 #ifndef PHP_RAR_H
 #define PHP_RAR_H
@@ -104,6 +103,18 @@ typedef struct rar {
 	int							allow_broken;
 } rar_file_t;
 
+/* Misc */
+#ifdef ZTS
+# define RAR_TSRMLS_TC	, void ***
+#else
+# define RAR_TSRMLS_TC
+#endif
+
+#define RAR_RETNULL_ON_ARGS() \
+	if (zend_parse_parameters_none() == FAILURE) { \
+		RETURN_NULL(); \
+	}
+
 /* Per-request cache or make last the duration of the PHP lifespan?
  * - per-request advantages: we can re-use rar_open and store close RarArchive
  *   objects. We store either pointers to the objects directly and manipulate
@@ -121,12 +132,6 @@ typedef struct rar {
  * I'll also go with a FIFO eviction policy because it's simpler to implement
  * (just delete the first element of the HashTable).
  */
-#ifdef ZTS
-# define RAR_TSRMLS_TC	, void ***
-#else
-# define RAR_TSRMLS_TC
-#endif
-
 typedef struct _rar_contents_cache {
 	int			max_size;
 	HashTable	*data;		//persistent HashTable, will hold rar_cache_entry
@@ -148,8 +153,11 @@ ZEND_EXTERN_MODULE_GLOBALS(rar);
 # define RAR_G(v) (rar_globals.v)
 #endif
 
-//PHP 5.2 compatibility
+/* PHP 5.2 compatibility */
 #if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION < 3
+#define zend_parse_parameters_none() \
+	zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "")
+#define Z_DELREF_P ZVAL_DELREF
 # define STREAM_ASSUME_REALPATH 0
 # define ALLOC_PERMANENT_ZVAL(z) \
         (z) = (zval*) malloc(sizeof(zval));
@@ -264,6 +272,8 @@ PHP_FUNCTION(rar_list);
 PHP_FUNCTION(rar_entry_get);
 PHP_FUNCTION(rar_solid_is);
 PHP_FUNCTION(rar_comment_get);
+PHP_FUNCTION(rar_broken_is);
+PHP_FUNCTION(rar_allow_broken_set);
 PHP_FUNCTION(rar_close);
 
 /* rarentry.c */
