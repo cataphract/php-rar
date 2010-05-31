@@ -58,6 +58,19 @@ static zend_class_entry *rararch_ce_ptr;
 static zend_object_handlers rararch_object_handlers;
 /* }}} */
 
+/* {{{ Helper macros */
+#define RAR_THIS_OR_NO_ARGS(file) \
+	if (file == NULL) { \
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O", \
+				&file, rararch_ce_ptr) == FAILURE) { \
+			RETURN_NULL(); \
+		} \
+	} \
+	else { \
+		RAR_RETNULL_ON_ARGS(); \
+	}
+/* }}} */
+
 /* {{{ Function prototypes for functions with internal linkage */
 static zend_object_value rararch_ce_create_object(zend_class_entry *class_type TSRMLS_DC);
 static void rararch_ce_destroy_object(ze_rararch_object *object,
@@ -444,6 +457,7 @@ static zval *rararch_read_dimension(zval *object, zval *offset, int type TSRMLS_
 	_rar_entry_to_zval(object, out->header, out->packed_size, out->position,
 		ret TSRMLS_CC);
 	_rar_entry_search_end(out);
+	Z_DELREF_P(ret); /* set refcount to 0 */
 	return ret;
 }
 
@@ -543,10 +557,7 @@ PHP_FUNCTION(rar_list)
 	zval *file = getThis();
 	rar_file_t *rar = NULL;
 
-	if (file == NULL && zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O",
-		&file, rararch_ce_ptr) == FAILURE) {
-		return;
-	}
+	RAR_THIS_OR_NO_ARGS(file);
 
 	if (_rar_get_file_resource(file, &rar TSRMLS_CC) == FAILURE) {
 		RETURN_FALSE;
@@ -574,15 +585,13 @@ PHP_FUNCTION(rar_entry_get)
 
 	if (file == NULL) {
 		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Os",
-			&file, rararch_ce_ptr, &filename, &filename_len) == FAILURE) {
+				&file, rararch_ce_ptr, &filename, &filename_len) == FAILURE) {
 			return;
 		}
 	}
-	else {
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s",
+	else if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s",
 			&filename, &filename_len) == FAILURE) {
-			return;
-		}
+		return;
 	}
 
 	if (_rar_get_file_resource(file, &rar TSRMLS_CC) == FAILURE) {
@@ -620,10 +629,7 @@ PHP_FUNCTION(rar_solid_is)
 	zval *file = getThis();
 	rar_file_t *rar = NULL;
 
-	if (file == NULL && zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O",
-		&file, rararch_ce_ptr) == FAILURE) {
-		return;
-	}
+	RAR_THIS_OR_NO_ARGS(file);
 
 	if (_rar_get_file_resource(file, &rar TSRMLS_CC) == FAILURE) {
 		RETURN_FALSE;
@@ -641,10 +647,7 @@ PHP_FUNCTION(rar_comment_get)
 	rar_file_t *rar = NULL;
 	unsigned cmt_state;
 
-	if (file == NULL && zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O",
-		&file, rararch_ce_ptr) == FAILURE) {
-		return;
-	}
+	RAR_THIS_OR_NO_ARGS(file);
 
 	if (_rar_get_file_resource(file, &rar TSRMLS_CC) == FAILURE) {
 		RETURN_FALSE;
@@ -666,6 +669,53 @@ PHP_FUNCTION(rar_comment_get)
 }
 /* }}} */
 
+/* {{{ proto bool rar_is_broken(RarArchive rarfile)
+   Check whether a RAR archive is broken */
+PHP_FUNCTION(rar_broken_is)
+{
+	zval		*file = getThis();
+	rar_file_t	*rar = NULL;
+	int			result;
+
+	RAR_THIS_OR_NO_ARGS(file);
+
+	if (_rar_get_file_resource(file, &rar TSRMLS_CC) == FAILURE) {
+		RETURN_FALSE;
+	}
+
+	result = _rar_list_files(rar TSRMLS_CC);
+
+	RETURN_BOOL(_rar_error_to_string(result) != NULL);	
+}
+
+/* {{{ proto bool rar_allow_broken_set(RarArchive rarfile, bool allow_broken)
+   Whether to allow entry retrieval of broken RAR archives */
+PHP_FUNCTION(rar_allow_broken_set)
+{
+	zval		*file = getThis();
+	rar_file_t	*rar = NULL;
+	zend_bool	allow_broken;
+
+	if (file == NULL) {
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ob",
+				&file, rararch_ce_ptr, &allow_broken) == FAILURE) {
+			return;
+		}
+	}
+	else if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "b",
+			&allow_broken) == FAILURE) {
+		return;
+	}
+
+	if (_rar_get_file_resource(file, &rar TSRMLS_CC) == FAILURE) {
+		RETURN_FALSE;
+	}
+
+	rar->allow_broken = (int) allow_broken;
+
+	RETURN_TRUE;
+}
+
 /* {{{ proto bool rar_close(RarArchive rarfile)
    Close Rar archive and free all resources */
 PHP_FUNCTION(rar_close)
@@ -673,10 +723,7 @@ PHP_FUNCTION(rar_close)
 	zval *file = getThis();
 	rar_file_t *rar = NULL;
 
-	if (file == NULL && zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O",
-		&file, rararch_ce_ptr) == FAILURE) {
-		return;
-	}
+	RAR_THIS_OR_NO_ARGS(file);
 
 	if (_rar_get_file_resource(file, &rar TSRMLS_CC) == FAILURE) {
 		RETURN_FALSE;
@@ -699,6 +746,8 @@ PHP_METHOD(rararch, __toString)
 	char				*restring;
 	size_t				restring_size;
 	int					is_closed;
+	
+	RAR_RETNULL_ON_ARGS();
 
 	if (_rar_get_file_resource_ex(arch_obj, &rar, TRUE TSRMLS_CC) == FAILURE) {
 		RETURN_FALSE;
@@ -732,22 +781,28 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_rararchive_getentry, 0, 0, 1)
 	ZEND_ARG_INFO(0, filename)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_rararchive_setallowbroken, 0, 0, 1)
+	ZEND_ARG_INFO(0, allow_broken)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO(arginfo_rararchive_void, 0)
 ZEND_END_ARG_INFO()
 /* }}} */
 
 static zend_function_entry php_rararch_class_functions[] = {
-	PHP_ME_MAPPING(open,		rar_open,			arginfo_rararchive_open,		ZEND_ACC_STATIC | ZEND_ACC_PUBLIC)
-	PHP_ME_MAPPING(getEntries,	rar_list,			arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
-	PHP_ME_MAPPING(getEntry,	rar_entry_get,		arginfo_rararchive_getentry,	ZEND_ACC_PUBLIC)
+	PHP_ME_MAPPING(open,			rar_open,				arginfo_rararchive_open,		ZEND_ACC_STATIC | ZEND_ACC_PUBLIC)
+	PHP_ME_MAPPING(getEntries,		rar_list,				arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
+	PHP_ME_MAPPING(getEntry,		rar_entry_get,			arginfo_rararchive_getentry,	ZEND_ACC_PUBLIC)
 #ifdef RAR_ARCHIVE_LIST_ALIAS
-	PHP_ME_MAPPING(list,		rar_list,			arginfo_rararchive_void,		ZEND_ACC_PUBLIC | ZEND_ACC_DEPRECATED)
+	PHP_ME_MAPPING(list,			rar_list,				arginfo_rararchive_void,		ZEND_ACC_PUBLIC | ZEND_ACC_DEPRECATED)
 #endif
-	PHP_ME_MAPPING(isSolid,		rar_solid_is,		arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
-	PHP_ME_MAPPING(getComment,	rar_comment_get,	arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
-	PHP_ME_MAPPING(close,		rar_close,			arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
-	PHP_ME(rararch,				__toString,			arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
-	PHP_ME_MAPPING(__construct,	rar_bogus_ctor,		arginfo_rararchive_void,		ZEND_ACC_PRIVATE | ZEND_ACC_CTOR)
+	PHP_ME_MAPPING(isSolid,			rar_solid_is,			arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
+	PHP_ME_MAPPING(getComment,		rar_comment_get,		arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
+	PHP_ME_MAPPING(isBroken,		rar_broken_is,			arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
+	PHP_ME_MAPPING(setAllowBroken,	rar_allow_broken_set,	arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
+	PHP_ME_MAPPING(close,			rar_close,				arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
+	PHP_ME(rararch,					__toString,				arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
+	PHP_ME_MAPPING(__construct,		rar_bogus_ctor,			arginfo_rararchive_void,		ZEND_ACC_PRIVATE | ZEND_ACC_CTOR)
 	{NULL, NULL, NULL}
 };
 

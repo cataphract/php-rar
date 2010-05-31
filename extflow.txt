@@ -1,3 +1,5 @@
+(some information is outdated)
+
 rar_open/RarArchive::open()
 gives
 RarArchive object
