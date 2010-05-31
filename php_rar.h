@@ -42,9 +42,10 @@
 /* TODO: make configurable the capacity of the url_stater/dir_opener cache */
 /* TODO: test url_stater/dir_opener cache exaustion */
 /* TODO: optimize _rar_nav_directory_match with the depth */
-/* TODO: investigate whether rararch_it_get_iterator is buggy on list fail */
 /* TODO: make RarArchive have dimensions */
 /* TODO: tests with truncated RAR archive (for which _rar_list_files fails) */
+/* TODO: tests for dimensions stuff */
+/* TODO: allow dirty read of RAR files */
 
 #ifndef PHP_RAR_H
 #define PHP_RAR_H
@@ -100,6 +101,7 @@ typedef struct rar {
 	void						*arch_handle;
 	//user data to pass the RAR callback
 	rar_cb_user_data			cb_userdata;
+	int							allow_broken;
 } rar_file_t;
 
 /* Per-request cache or make last the duration of the PHP lifespan?

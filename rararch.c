@@ -48,7 +48,8 @@ typedef struct _ze_rararch_object {
 typedef struct _rararch_iterator {
 	zend_object_iterator	parent;
 	rar_find_output			*state;
-	zval					*value;	
+	zval					*value;
+	int						empty_iterator; /* iterator should give nothing */
 } rararch_iterator;
 /* }}} */
 
@@ -66,7 +67,11 @@ static void rararch_ce_free_object_storage(ze_rararch_object *object TSRMLS_DC);
 
 /* {{{ RarArchive handlers */
 static int rararch_handlers_preamble(zval *object, rar_file_t **rar TSRMLS_DC);
+static int rararch_dimensions_preamble(rar_file_t *rar, zval *offset, long *index, int quiet TSRMLS_DC);
 static int rararch_count_elements(zval *object, long *count TSRMLS_DC);
+static zval *rararch_read_dimension(zval *object, zval *offset, int type TSRMLS_DC);
+static void rararch_write_dimension(zval *object, zval *offset, zval *value TSRMLS_DC);
+static int rararch_has_dimension(zval *object, zval *offset, int check_empty TSRMLS_DC);
 /* }}} */
 
 /* {{{ Function definitions with external linkage */
@@ -98,6 +103,7 @@ int _rar_create_rararch_obj(const char* resolved_path,
 	rar->cb_userdata.password = NULL;
 	rar->cb_userdata.callable = NULL;
 	rar->entries = NULL;
+	rar->allow_broken = 0;
 
 	rar->arch_handle = RAROpenArchiveEx(rar->list_open_data);
 	if (rar->arch_handle != NULL && rar->list_open_data->OpenResult == 0) {
@@ -286,19 +292,105 @@ static void rararch_ce_free_object_storage(ze_rararch_object *object TSRMLS_DC) 
 /* {{{ RarArchive handlers */
 static int rararch_handlers_preamble(zval *object, rar_file_t **rar TSRMLS_DC) /* {{{ */
 {
-	int result;
-
 	/* don't call zend_objects_get_address or zend_object_store_get directly;
 	 * _rar_get_file_resource checks if the archive was closed */
 	if (_rar_get_file_resource(object, rar TSRMLS_CC) == FAILURE) {
 		return FAILURE;
 	}
+	
+	return _rar_handle_error(_rar_list_files(*rar TSRMLS_CC) TSRMLS_CC);
+}
+/* }}} */
 
-	if ((*rar)->entries == NULL) {
-		result = _rar_list_files(*rar TSRMLS_CC); 
-		if (_rar_handle_error(result TSRMLS_CC) == FAILURE) {
+#define RAR_DOCREF_IF_UNQUIET(...) \
+	if (!quiet) { php_error_docref(__VA_ARGS__); }
+
+/* {{{ rararch_dimensions_preamble - semi-strict parsing of int argument */
+static int rararch_dimensions_preamble(rar_file_t *rar,
+									   zval *offset,
+									   long *index,
+									   int quiet TSRMLS_DC)
+{
+	if (offset == NULL) {
+		RAR_DOCREF_IF_UNQUIET(NULL TSRMLS_CC, E_ERROR,
+			"Empty dimension syntax is not supported for RarArchive objects");
+		return FAILURE;
+	}
+
+	if (Z_TYPE_P(offset) == IS_LONG) {
+		*index = Z_LVAL_P(offset);
+	}
+	else if (Z_TYPE_P(offset) == IS_STRING) {
+		int type;
+		double d;
+
+		if ((type = is_numeric_string(Z_STRVAL_P(offset), Z_STRLEN_P(offset),
+				index, &d, -1)) == 0) {
+			RAR_DOCREF_IF_UNQUIET(NULL TSRMLS_CC, E_WARNING,
+				"Attempt to use a non-numeric dimension to access a "
+				"RarArchive object (invalid string)");
 			return FAILURE;
 		}
+		else if (type == IS_DOUBLE) {
+			if (d > LONG_MAX || d < LONG_MIN) {
+				RAR_DOCREF_IF_UNQUIET(NULL TSRMLS_CC, E_WARNING,
+					"Dimension index is out of integer bounds");
+				return FAILURE;
+			}
+
+			*index = zend_dval_to_lval(d);
+		}
+	}
+	else if (Z_TYPE_P(offset) == IS_DOUBLE) {
+		if (Z_DVAL_P(offset) > LONG_MAX || Z_DVAL_P(offset) < LONG_MIN) {
+			RAR_DOCREF_IF_UNQUIET(NULL TSRMLS_CC, E_WARNING,
+				"Dimension index is out of integer bounds");
+			return FAILURE;
+		}
+		*index = zend_dval_to_lval(Z_DVAL_P(offset));
+	}
+	else if (Z_TYPE_P(offset) == IS_OBJECT) {
+		if (Z_OBJ_HT_P(offset)->get) {
+			/* get handler cannot return NULL */
+			zval *newoffset = Z_OBJ_HT_P(offset)->get(offset TSRMLS_CC);
+			int ret;
+
+			if (Z_TYPE_P(newoffset) == IS_OBJECT) {
+				RAR_DOCREF_IF_UNQUIET(NULL TSRMLS_CC, E_WARNING,
+					"Could not convert object given as dimension index into "
+					"an integer (get handler returned another object)");
+				return FAILURE;
+			}
+			
+			ret = rararch_dimensions_preamble(rar, newoffset, index, quiet
+				TSRMLS_CC);
+			FREE_ZVAL(newoffset);
+			return ret;
+		}
+		else {
+			RAR_DOCREF_IF_UNQUIET(NULL TSRMLS_CC, E_WARNING,
+				"Attempt to use an object with no get handler as a dimension "
+				"to access a RarArchive object");
+			return FAILURE;
+		}
+	}
+	else {
+		RAR_DOCREF_IF_UNQUIET(NULL TSRMLS_CC, E_WARNING,
+			"Attempt to use a non-numeric dimension to access a "
+			"RarArchive object (invalid type)");
+		return FAILURE;
+	}
+
+	if (*index < 0L) {
+		RAR_DOCREF_IF_UNQUIET(NULL TSRMLS_CC, E_WARNING,
+			"Dimension index must be non-negative, given %d", *index);
+		return FAILURE;
+	}
+	if ((size_t) *index >= _rar_entry_count(rar)) {
+		RAR_DOCREF_IF_UNQUIET(NULL TSRMLS_CC, E_WARNING,
+			"Dimension index exceeds or equals number of entries in RAR "
+			"archive");
+		return FAILURE;
 	}
 
 	return SUCCESS;
@@ -313,7 +405,7 @@ static int rararch_count_elements(zval *object, long *count TSRMLS_DC)
 	
 	if (rararch_handlers_preamble(object, &rar TSRMLS_CC) == FAILURE) {
 		*count = 0L;
-		return SUCCESS;
+		return SUCCESS; /* intentional */
 	}
 
 	entry_count = _rar_entry_count(rar);
@@ -323,6 +415,61 @@ static int rararch_count_elements(zval *object, long *count TSRMLS_DC)
 	*count = (long) entry_count;
 
 	return SUCCESS;
+}
+
+static zval *rararch_read_dimension(zval *object, zval *offset, int type TSRMLS_DC)
+{
+	long					index;
+	rar_file_t				*rar = NULL;
+	struct _rar_find_output	*out;
+	zval					*ret = NULL;
+
+	if (rararch_handlers_preamble(object, &rar TSRMLS_CC) == FAILURE) {
+		return NULL;
+	}
+
+	if (rararch_dimensions_preamble(rar, offset, &index, (type == BP_VAR_IS)
+			TSRMLS_CC) == FAILURE)
+		return NULL;
+
+	if (type == BP_VAR_RW || type == BP_VAR_W || type == BP_VAR_UNSET)
+		php_error_docref(NULL TSRMLS_CC, E_ERROR,
+			"A RarArchive object is not modifiable.");
+
+	_rar_entry_search_start(rar, RAR_SEARCH_INDEX, &out TSRMLS_CC);
+	_rar_entry_search_seek(out, (size_t) index);
+	_rar_entry_search_advance(out, NULL, 0, 0);
+	assert(out->found);
+	ALLOC_INIT_ZVAL(ret);
+	_rar_entry_to_zval(object, out->header, out->packed_size, out->position,
+		ret TSRMLS_CC);
+	_rar_entry_search_end(out);
+	return ret;
+}
+
+static void rararch_write_dimension(zval *object, zval *offset, zval *value TSRMLS_DC)
+{
+	php_error_docref(NULL TSRMLS_CC, E_ERROR,
+		"A RarArchive object is not writable.");
+}
+
+static int rararch_has_dimension(zval *object, zval *offset, int check_empty TSRMLS_DC)
+{
+	long		index;
+	rar_file_t	*rar = NULL;
+	zval		*ret = NULL;
+
+	(void) check_empty; /* don't care */
+
+	if (rararch_handlers_preamble(object, &rar TSRMLS_CC) == FAILURE) {
+		return 0;
+	}
+
+	if (rararch_dimensions_preamble(rar, offset, &index, 1 TSRMLS_CC) ==
+			FAILURE)
+		return 0;
+
+	return 1;
 }
 /* }}} */
 /* }}} */
@@ -395,7 +542,6 @@ PHP_FUNCTION(rar_list)
 {
 	zval *file = getThis();
 	rar_file_t *rar = NULL;
-	int result;
 
 	if (file == NULL && zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O",
 		&file, rararch_ce_ptr) == FAILURE) {
@@ -406,12 +552,8 @@ PHP_FUNCTION(rar_list)
 		RETURN_FALSE;
 	}
 
-	if (rar->entries == NULL) {
-		result = _rar_list_files(rar TSRMLS_CC); 
-		if (_rar_handle_error(result TSRMLS_CC) == FAILURE) {
-			RETURN_FALSE;
-		}
-	}
+	if (_rar_handle_error(_rar_list_files(rar TSRMLS_CC) TSRMLS_CC) == FAILURE)
+		RETURN_FALSE;
 	
 	array_init(return_value);
 	
@@ -426,7 +568,6 @@ PHP_FUNCTION(rar_entry_get)
 	zval *file = getThis();
 	char *filename;
 	rar_file_t *rar = NULL;
-	int result;
 	int filename_len;
 	wchar_t *filename_c = NULL;
 	rar_find_output *sstate;
@@ -448,12 +589,8 @@ PHP_FUNCTION(rar_entry_get)
 		RETURN_FALSE;
 	}
 
-	if (rar->entries == NULL) {
-		result = _rar_list_files(rar TSRMLS_CC); 
-		if (_rar_handle_error(result TSRMLS_CC) == FAILURE) {
-			RETURN_FALSE;
-		}
-	}
+	if (_rar_handle_error(_rar_list_files(rar TSRMLS_CC) TSRMLS_CC) == FAILURE)
+		RETURN_FALSE;
 
 	filename_c = ecalloc(filename_len + 1, sizeof *filename_c); 
 	_rar_utf_to_wide(filename, filename_c, filename_len + 1);
@@ -653,12 +790,13 @@ static zend_object_iterator *rararch_it_get_iterator(zend_class_entry *ce,
 	if (rar->arch_handle == NULL)
 		php_error_docref(NULL TSRMLS_CC, E_ERROR,
 			"The archive is already closed, cannot give an iterator");
-	if (rar->entries == NULL) {
-		res = _rar_list_files(rar TSRMLS_CC); 
-		if (_rar_handle_error(res TSRMLS_CC) == FAILURE) {
-			/* do nothing, notice was already emitted */
-		}
+	res = _rar_list_files(rar TSRMLS_CC); 
+	if (_rar_handle_error(res TSRMLS_CC) == FAILURE) {
+		/* if it failed, do not expose the possibly incomplete entry list */
+		it->empty_iterator = 1;
 	}
+	else
+		it->empty_iterator = 0;
 
 	zval_add_ref(&object);
 	it->parent.data = object;
@@ -701,6 +839,12 @@ static void rararch_it_fetch(rararch_iterator *it TSRMLS_DC)
 	int			res;
 
 	assert(it->value == NULL);
+
+	if (it->empty_iterator) {
+		MAKE_STD_ZVAL(it->value);
+		ZVAL_FALSE(it->value);
+		return;
+	}
 
 	res = _rar_get_file_resource_ex(it->parent.data, &rar_file, 1 TSRMLS_CC);
 	if (res == FAILURE)
@@ -775,7 +919,10 @@ void minit_rararch(TSRMLS_D)
 
 	memcpy(&rararch_object_handlers, zend_get_std_object_handlers(),
 		sizeof rararch_object_handlers);
-	rararch_object_handlers.count_elements = rararch_count_elements;
+	rararch_object_handlers.count_elements  = rararch_count_elements;
+	rararch_object_handlers.read_dimension  = rararch_read_dimension;
+	rararch_object_handlers.write_dimension = rararch_write_dimension;
+	rararch_object_handlers.has_dimension   = rararch_has_dimension;
 
 	INIT_CLASS_ENTRY(ce, "RarArchive", php_rararch_class_functions);
 	rararch_ce_ptr = zend_register_internal_class(&ce TSRMLS_CC);

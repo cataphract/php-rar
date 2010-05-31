@@ -367,6 +367,7 @@ int CALLBACK _rar_unrar_callback(UINT msg, LPARAM UserData, LPARAM P1, LPARAM P2
 
 			}
 
+			/* always a warning, never an exception here */
 			if (ret == -1)
 				php_error_docref(NULL TSRMLS_CC, E_WARNING,
 					"Volume %s was not found", (char*) P1);

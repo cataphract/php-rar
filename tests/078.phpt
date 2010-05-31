@@ -32,6 +32,10 @@ foreach ($it as $e) {
 }
 echo "Success.\n";
 
+echo "\nUsage of static url stat:\n";
+stat("rar://" . rawurlencode($f) . "#not_there");
+echo "Success.\n";
+
 echo "\n";
 echo "Done.\n";
 --EXPECTF--
@@ -51,6 +55,13 @@ Warning: RarArchive::getEntry(): cannot find file "garbage.txt" in Rar archive "
 bool(false)
 
 Usage of directory stream:
+Success.
+
+Usage of static url stat:
+
+Warning: stat(): Found no entry not_there in archive %sgarbage.part03.rar in %s on line %d
+
+Warning: stat(): stat failed for rar://%sgarbage.part03.rar#not_there in %s on line %d
 Success.
 
 Done.
