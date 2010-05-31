@@ -63,6 +63,7 @@ struct _rar_entries {
 	struct _rar_unique_entry	**entries_array; /* shoud not be NULL */
 	struct _rar_unique_entry	**entries_array_s; /* sorted version for bsearch */
 	struct _rar_unique_entry	*last_accessed;
+	int							list_result; /* tell whether the archive's broken */
 };
 /* }}} */
 
@@ -311,6 +312,9 @@ void _rar_delete_entries(rar_file_t *rar TSRMLS_DC)
 }
 /* }}} */
 
+/* guarantees correct initialization of rar->entries on failure
+ * If the passed rar_file_t structure has the allow_broken option, it
+ * always returns success (ERAR_END_ARCHIVE) */
 int _rar_list_files(rar_file_t *rar TSRMLS_DC) /* {{{ */
 {
 	int result = 0;
@@ -318,6 +322,14 @@ int _rar_list_files(rar_file_t *rar TSRMLS_DC) /* {{{ */
 	int first_file_check = TRUE;
 	unsigned long packed_size = 0UL;
 	struct _rar_entries *ents;
+
+	if (rar->entries != NULL) {
+		/* we've already listed this file's entries */
+		if (rar->allow_broken)
+			return ERAR_END_ARCHIVE;
+		else
+			return rar->entries->list_result;
+	}
 
 	assert(rar->entries == NULL);
 	rar->entries = emalloc(sizeof *rar->entries);
@@ -388,8 +400,10 @@ int _rar_list_files(rar_file_t *rar TSRMLS_DC) /* {{{ */
 			&ents->entries_array[ents->num_entries]->name_wlen TSRMLS_CC);
 		ents->num_entries++;
 	}
+
+	rar->entries->list_result = result;
 	
-	return result;
+	return rar->allow_broken ? ERAR_END_ARCHIVE : result;
 }
 /* }}} */
 

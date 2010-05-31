@@ -1020,6 +1020,7 @@ static int _rar_get_cachable_rararch(php_stream_wrapper *wrapper,
 
 			res = _rar_list_files(*rar TSRMLS_CC);
 
+			/* we don't cache incomplete archives */
 			if ((err_str = _rar_error_to_string(res)) != NULL) {
 				php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
 					"Error reading entries of archive %s: %s", arch_path,
