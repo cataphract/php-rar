@@ -429,7 +429,9 @@ static int rararch_count_elements(zval *object, long *count TSRMLS_DC)
 
 	return SUCCESS;
 }
+/* }}} */
 
+/* {{{ RarArchive read_dimension handler */
 static zval *rararch_read_dimension(zval *object, zval *offset, int type TSRMLS_DC)
 {
 	long					index;
@@ -447,7 +449,7 @@ static zval *rararch_read_dimension(zval *object, zval *offset, int type TSRMLS_
 
 	if (type == BP_VAR_RW || type == BP_VAR_W || type == BP_VAR_UNSET)
 		php_error_docref(NULL TSRMLS_CC, E_ERROR,
-			"A RarArchive object is not modifiable.");
+			"A RarArchive object is not modifiable");
 
 	_rar_entry_search_start(rar, RAR_SEARCH_INDEX, &out TSRMLS_CC);
 	_rar_entry_search_seek(out, (size_t) index);
@@ -460,13 +462,17 @@ static zval *rararch_read_dimension(zval *object, zval *offset, int type TSRMLS_
 	Z_DELREF_P(ret); /* set refcount to 0 */
 	return ret;
 }
+/* }}} */
 
+/* {{{ RarArchive write_dimension handler */
 static void rararch_write_dimension(zval *object, zval *offset, zval *value TSRMLS_DC)
 {
 	php_error_docref(NULL TSRMLS_CC, E_ERROR,
-		"A RarArchive object is not writable.");
+		"A RarArchive object is not writable");
 }
+/* }}} */
 
+/* {{{ RarArchive has_dimension handler */
 static int rararch_has_dimension(zval *object, zval *offset, int check_empty TSRMLS_DC)
 {
 	long		index;
@@ -484,6 +490,14 @@ static int rararch_has_dimension(zval *object, zval *offset, int check_empty TSR
 		return 0;
 
 	return 1;
+}
+/* }}} */
+
+/* {{{ RarArchive unset_dimension handler */
+static void rararch_unset_dimension(zval *object, zval *offset TSRMLS_DC)
+{
+	php_error_docref(NULL TSRMLS_CC, E_ERROR,
+		"A RarArchive object is not writable");
 }
 /* }}} */
 /* }}} */
@@ -978,6 +992,7 @@ void minit_rararch(TSRMLS_D)
 	rararch_object_handlers.read_dimension  = rararch_read_dimension;
 	rararch_object_handlers.write_dimension = rararch_write_dimension;
 	rararch_object_handlers.has_dimension   = rararch_has_dimension;
+	rararch_object_handlers.unset_dimension = rararch_unset_dimension;
 
 	INIT_CLASS_ENTRY(ce, "RarArchive", php_rararch_class_functions);
 	rararch_ce_ptr = zend_register_internal_class(&ce TSRMLS_CC);
