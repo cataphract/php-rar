@@ -111,7 +111,7 @@ void _rar_entry_to_zval(zval *parent, //zval to RarArchive object, will have its
 	zend_update_property_string(rar_class_entry_ptr, object, "file_time",
 		sizeof("file_time") - 1, time TSRMLS_CC);
 	
-	sprintf(tmp_s, "%lx", entry->FileCRC);
+	sprintf(tmp_s, "%x", entry->FileCRC);
 	zend_update_property_string(rar_class_entry_ptr, object, "crc",
 		sizeof("crc") - 1, tmp_s TSRMLS_CC);
 	

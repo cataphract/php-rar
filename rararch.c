@@ -396,7 +396,7 @@ static int rararch_dimensions_preamble(rar_file_t *rar,
 
 	if (*index < 0L) {
 		RAR_DOCREF_IF_UNQUIET(NULL TSRMLS_CC, E_WARNING,
-			"Dimension index must be non-negative, given %d", *index);
+			"Dimension index must be non-negative, given %ld", *index);
 		return FAILURE;
 	}
 	if ((size_t) *index >= _rar_entry_count(rar)) {
@@ -477,7 +477,6 @@ static int rararch_has_dimension(zval *object, zval *offset, int check_empty TSR
 {
 	long		index;
 	rar_file_t	*rar = NULL;
-	zval		*ret = NULL;
 
 	(void) check_empty; /* don't care */
 
