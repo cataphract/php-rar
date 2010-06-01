@@ -44,7 +44,6 @@
 /* TODO: optimize _rar_nav_directory_match with the depth */
 /* TODO: tests with truncated RAR archive (for which _rar_list_files fails) */
 /* TODO: tests for allow broken RAR */
-/* TODO: tests for has_property, write_property and [] */
 
 #ifndef PHP_RAR_H
 #define PHP_RAR_H
