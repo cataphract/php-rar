@@ -484,11 +484,8 @@ static int rararch_has_dimension(zval *object, zval *offset, int check_empty TSR
 		return 0;
 	}
 
-	if (rararch_dimensions_preamble(rar, offset, &index, 1 TSRMLS_CC) ==
-			FAILURE)
-		return 0;
-
-	return 1;
+	return (rararch_dimensions_preamble(rar, offset, &index, 1 TSRMLS_CC) ==
+			SUCCESS);
 }
 /* }}} */
 
@@ -688,7 +685,8 @@ PHP_FUNCTION(rar_broken_is)
 {
 	zval		*file = getThis();
 	rar_file_t	*rar = NULL;
-	int			result;
+	int			result,
+				orig_allow_broken;
 
 	RAR_THIS_OR_NO_ARGS(file);
 
@@ -696,7 +694,10 @@ PHP_FUNCTION(rar_broken_is)
 		RETURN_FALSE;
 	}
 
+	orig_allow_broken = rar->allow_broken;
+	rar->allow_broken = 0; /* with 1 we'd always get success from list_files */
 	result = _rar_list_files(rar TSRMLS_CC);
+	rar->allow_broken = orig_allow_broken;
 
 	RETURN_BOOL(_rar_error_to_string(result) != NULL);	
 }
@@ -763,7 +764,7 @@ PHP_METHOD(rararch, __toString)
 	RAR_RETNULL_ON_ARGS();
 
 	if (_rar_get_file_resource_ex(arch_obj, &rar, TRUE TSRMLS_CC) == FAILURE) {
-		RETURN_FALSE;
+		RETURN_FALSE; /* should never happen */
 	}
 
 	is_closed = (rar->arch_handle == NULL);

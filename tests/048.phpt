@@ -22,7 +22,5 @@ echo "Done.\n";
 --EXPECTF--
 Warning: RarArchive::getEntries(): Cound not expand filename aaaa%s in %s on line %d
 
-Warning: RarArchive::getEntries(): Volume %s was not found in %s on line %d
-
 Warning: RarArchive::getEntries(): ERAR_EOPEN (file open error) in %s on line %d
 Done.

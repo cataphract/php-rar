@@ -34,6 +34,12 @@ echo $a["-18446744073709551616"];
 echo "\n* 18446744073709551616 (float, 2^64):\n";
 echo $a[(float) 18446744073709551616];
 
+echo "\n* array():\n";
+echo $a[array()];
+
+echo "\n* new stdClass():\n";
+echo $a[new stdClass()];
+
 echo "\n";
 echo "Done.\n";
 --EXPECTF--
@@ -68,5 +74,13 @@ Warning: main(): Dimension index is out of integer bounds in %s on line %d
 * 18446744073709551616 (float, 2^64):
 
 Warning: main(): Dimension index is out of integer bounds in %s on line %d
+
+* array():
+
+Warning: main(): Attempt to use a non-numeric dimension to access a RarArchive object (invalid type) in %s on line %d
+
+* new stdClass():
+
+Warning: main(): Attempt to use an object with no get handler as a dimension to access a RarArchive object in %s on line %d
 
 Done.

@@ -347,7 +347,7 @@ int CALLBACK _rar_unrar_callback(UINT msg, LPARAM UserData, LPARAM P1, LPARAM P2
 	}
 	else if (msg == UCM_CHANGEVOLUME) {
 		if (((int) P2) == RAR_VOL_ASK) {
-			int ret;
+			int ret, called_cb = 0;
 			if (userdata->callable == NULL) {
 				/* if there's no callback, abort */
 				ret = -1;
@@ -360,6 +360,7 @@ int CALLBACK _rar_unrar_callback(UINT msg, LPARAM UserData, LPARAM P1, LPARAM P2
 						TSRMLS_CC) == SUCCESS) {
 					ret = _rar_unrar_volume_user_callback(
 						(char*) P1, &fci, &cache TSRMLS_CC);
+					called_cb = 1;
 				}
 				else {
 					ret = -1;
@@ -368,7 +369,7 @@ int CALLBACK _rar_unrar_callback(UINT msg, LPARAM UserData, LPARAM P1, LPARAM P2
 			}
 
 			/* always a warning, never an exception here */
-			if (ret == -1)
+			if (ret == -1 && !called_cb)
 				php_error_docref(NULL TSRMLS_CC, E_WARNING,
 					"Volume %s was not found", (char*) P1);
 
