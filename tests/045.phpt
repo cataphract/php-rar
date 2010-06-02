@@ -66,8 +66,6 @@ Given callback that takes more arguments:
 
 Warning: array_walk() expects at least %d parameters, 1 given in %s on line %d
 
-Warning: RarArchive::getEntries(): Volume %smulti_broken.part2.rar was not found in %s on line %d
-
 Warning: RarArchive::getEntries(): ERAR_EOPEN (file open error) in %s on line %d
 
 Given callback that takes another kind of arguments:
@@ -76,23 +74,17 @@ Warning: ksort() expects parameter 1 to be array, string given in %s on line %d
 
 Warning: RarArchive::getEntries(): Wrong type returned by volume find callback, expected string or NULL in %s on line %d
 
-Warning: RarArchive::getEntries(): Volume %smulti_broken.part2.rar was not found in %s on line %d
-
 Warning: RarArchive::getEntries(): ERAR_EOPEN (file open error) in %s on line %d
 
 Given callback that returns another kind of arguments:
 
 Warning: RarArchive::getEntries(): Wrong type returned by volume find callback, expected string or NULL in %s on line %d
 
-Warning: RarArchive::getEntries(): Volume %smulti_broken.part2.rar was not found in %s on line %d
-
 Warning: RarArchive::getEntries(): ERAR_EOPEN (file open error) in %s on line %d
 
 Given callback that throws Exception:
 
 Warning: RarArchive::getEntries(): Failure to call volume find callback in %s on line %d
-
-Warning: RarArchive::getEntries(): Volume %smulti_broken.part2.rar was not found in %s on line %d
 
 Warning: RarArchive::getEntries(): ERAR_EOPEN (file open error) in %s on line %d
 OK, threw exception.

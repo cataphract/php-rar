@@ -43,7 +43,6 @@
 /* TODO: test url_stater/dir_opener cache exaustion */
 /* TODO: optimize _rar_nav_directory_match with the depth */
 /* TODO: tests with truncated RAR archive (for which _rar_list_files fails) */
-/* TODO: tests for allow broken RAR */
 
 #ifndef PHP_RAR_H
 #define PHP_RAR_H
