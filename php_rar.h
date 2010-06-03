@@ -133,6 +133,8 @@ typedef struct rar {
 typedef struct _rar_contents_cache {
 	int			max_size;
 	HashTable	*data;		//persistent HashTable, will hold rar_cache_entry
+	int			hits;
+	int			misses;
 	/* args: cache key, cache key size, cached object) */
 	void (*put)(const char *, uint, zval * RAR_TSRMLS_TC);
 	zval *(*get)(const char *, uint RAR_TSRMLS_TC);
