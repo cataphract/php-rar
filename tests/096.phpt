@@ -37,7 +37,7 @@ echo "Done.\n";
 --EXPECTF--
 RAR support => enabled
 RAR EXT version => %d.%d.%d%s
-Revision => $Revision$ 
+Revision => %s
 UnRAR version => %d.%d patch%d %d-%d-%d
 UnRAR API version => %d extension %d
 
