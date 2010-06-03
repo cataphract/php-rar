@@ -391,6 +391,21 @@ PHP_FUNCTION(rar_bogus_ctor) /* {{{ */
 		0 TSRMLS_CC);
 }
 /* }}} */
+
+PHP_FUNCTION(rar_wrapper_cache_stats) /* {{{ */
+{
+	char *result = NULL;
+	int len;
+
+	if (zend_parse_parameters_none() == FAILURE)
+		return;
+
+	len = spprintf(&result, 0, "%u/%u (hits/misses)",
+		RAR_G(contents_cache).hits, RAR_G(contents_cache).misses);
+
+	RETURN_STRINGL(result, len, 0);
+}
+/* }}} */
 /* }}} */
 
 /* {{{ Functions with internal linkage */
@@ -584,6 +599,9 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_rar_allow_broken_set, 0, 0, 2)
 #endif
 	ZEND_ARG_INFO(0, allow_broken)
 ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO(arginfo_rar_wrapper_cache_stats, 0)
+ZEND_END_ARG_INFO()
 /* }}} */
 
 /* {{{ rar_functions[]
@@ -598,6 +616,7 @@ static zend_function_entry rar_functions[] = {
 	PHP_FE(rar_broken_is,			arginfo_rar_void_archmeth)
 	PHP_FE(rar_allow_broken_set,	arginfo_rar_allow_broken_set)
 	PHP_FE(rar_close,				arginfo_rar_void_archmeth)
+	PHP_FE(rar_wrapper_cache_stats,	arginfo_rar_wrapper_cache_stats)
 	{NULL, NULL, NULL}
 };
 /* }}} */
@@ -635,12 +654,12 @@ static zval *_rar_contents_cache_get(const char *key,
 	zend_hash_find(cc->data, key, key_len, (void **) &element);
 
 	if (element != NULL) {
-		/*php_printf("cache hit!\n");*/
+		cc->hits++;
 		zval_add_ref(element);
 		return *element;
 	}
 	else {
-		/*php_printf("cache miss!\n");*/
+		cc->misses++;
 		return NULL;
 	}
 }
@@ -652,6 +671,8 @@ static void ZEND_MODULE_GLOBALS_CTOR_N(rar)(void *arg TSRMLS_DC) /* {{{ */
 {
 	zend_rar_globals *rar_globals = arg;
 	rar_globals->contents_cache.max_size = 5; /* TODO make configurable */
+	rar_globals->contents_cache.hits = 0;
+	rar_globals->contents_cache.misses = 0;
 	rar_globals->contents_cache.put = _rar_contents_cache_put;
 	rar_globals->contents_cache.get = _rar_contents_cache_get;
 	rar_globals->contents_cache.data =
