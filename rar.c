@@ -744,11 +744,11 @@ ZEND_MODULE_INFO_D(rar)
 	php_info_print_table_row(2, "Revision", PHP_RAR_REVISION);
 
 #if	RARVER_BETA != 0
-	sprintf(version,"%d.%02d beta%d patch%d %d-%d-%d", RARVER_MAJOR,
+	sprintf(version,"%d.%02d beta%d patch%d %d-%02d-%02d", RARVER_MAJOR,
 		RARVER_MINOR, RARVER_BETA, RARVER_PATCH, RARVER_YEAR, RARVER_MONTH,
 		RARVER_DAY);
 #else
-	sprintf(version,"%d.%02d patch%d %d-%d-%d", RARVER_MAJOR, RARVER_MINOR,
+	sprintf(version,"%d.%02d patch%d %d-%02d-%02d", RARVER_MAJOR, RARVER_MINOR,
 		RARVER_PATCH, RARVER_YEAR, RARVER_MONTH, RARVER_DAY);
 #endif
 
