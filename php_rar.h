@@ -40,7 +40,6 @@
 /* TODO: improve RAR archive cache key for url_stater/dir_opener, so that it
  * can detect file modification */
 /* TODO: make configurable the capacity of the url_stater/dir_opener cache */
-/* TODO: test url_stater/dir_opener cache exaustion */
 /* TODO: optimize _rar_nav_directory_match with the depth */
 /* TODO: tests with truncated RAR archive (for which _rar_list_files fails) */
 
@@ -214,7 +213,7 @@ int _rar_find_file_p(struct RAROpenArchiveDataEx *open_data, /* IN */
 int CALLBACK _rar_unrar_callback(UINT msg, LPARAM UserData, LPARAM P1, LPARAM P2);
 
 /* rar_error.c */
-zend_class_entry *rarexception_ce_ptr;
+extern zend_class_entry *rarexception_ce_ptr;
 int _rar_handle_error(int errcode TSRMLS_DC);
 int _rar_handle_error_ex(const char *preamble, int errcode TSRMLS_DC);
 void _rar_handle_ext_error(const char *format TSRMLS_DC, ...);
