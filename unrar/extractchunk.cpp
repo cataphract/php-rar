@@ -45,8 +45,8 @@ bool CmdExtract::ExtractCurrentFileChunkInit(CommandData *Cmd,
   if ((Arc.NewLhd.Flags & (LHD_SPLIT_BEFORE/*|LHD_SOLID*/)) && FirstFile)
   {
     char CurVolName[NM];
-    strncpy(ArcName, Arc.FileName, NM);
-    strcpy(CurVolName, ArcName);
+    strncpyz(ArcName, Arc.FileName, NM);
+    strncpyz(CurVolName, ArcName, sizeof CurVolName);
 
     VolNameToFirstName(ArcName,ArcName,(Arc.NewMhd.Flags & MHD_NEWNUMBERING)!=0);
     if (stricomp(ArcName,CurVolName)!=0 && FileExist(ArcName))
@@ -88,7 +88,7 @@ bool CmdExtract::ExtractCurrentFileChunkInit(CommandData *Cmd,
         return false;
       }
     }
-    strncpy(Password, Cmd->Password, sizeof Password);
+    strncpyz(Password, Cmd->Password, sizeof Password);
   }
 
   if (Arc.NewLhd.UnpVer<13 || Arc.NewLhd.UnpVer>UNP_VER)

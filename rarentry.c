@@ -624,6 +624,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_rarentry_extract, 0, 0, 1)
 	ZEND_ARG_INFO(0, path)
 	ZEND_ARG_INFO(0, filename)
 	ZEND_ARG_INFO(0, password)
+	ZEND_ARG_INFO(0, extended_data)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_rarentry_getstream, 0, 0, 0)
