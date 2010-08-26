@@ -66,7 +66,7 @@ static int _rar_make_userdata_fcall(zval *callable,
 /* }}} */
 
 /* {{{ Functions with external linkage */
-#if !HAVE_STRNLEN
+#if !defined(HAVE_STRNLEN) || !HAVE_STRNLEN
 size_t _rar_strnlen(const char *s, size_t maxlen) /* {{{ */
 {
 	char *r = memchr(s, '\0', maxlen);
@@ -414,15 +414,6 @@ PHP_FUNCTION(rar_wrapper_cache_stats) /* {{{ */
  * Removes the characters use value if > 0x10ffff; these are not
  * valid UTF characters.
  */
-
-#if !defined(HAVE_STRNLEN)
-size_t _rar_strnlen(const char *s, size_t maxlen) /* {{{ */
-{
-	char *r = memchr(s, '\0', maxlen);
-	return r ? r-s : maxlen;
-}
-/* }}} */
-#endif
 
 static void _rar_fix_wide(wchar_t *str, size_t max_size) /* {{{ */
 {
