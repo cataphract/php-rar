@@ -1302,7 +1302,7 @@ static php_stream_wrapper_ops rar_stream_wops = {
 	NULL	/* rmdir */
 };
 
-extern php_stream_wrapper php_stream_rar_wrapper = {
+php_stream_wrapper php_stream_rar_wrapper = {
 	&rar_stream_wops,
 	NULL,
 	0 /* is_url */
