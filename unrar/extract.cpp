@@ -927,26 +927,16 @@ bool CmdExtract::ExtractCurrentFile(CommandData *Cmd,Archive &Arc,size_t HeaderS
   return(true);
 }
 
-//added by me
-#if !defined(MIN)
-#define MIN(a, b)  (((a)<(b))?(a):(b))
-#endif
-
 void CmdExtract::UnstoreFile(ComprDataIO &DataIO,int64 DestUnpSize)
 {
-  Array<byte> Buffer(0x10000);
+  Array<byte> Buffer(0x10000); /* must be multiple of 16 because of decryption algo */
   while (1)
   {
-    //uint Code=DataIO.UnpRead(&Buffer[0],Buffer.Size());
-    /* With that original code, the whole file would necessarily be read on the
-     * first call to this method */
-    uint Code=DataIO.UnpRead(&Buffer[0], MIN(Buffer.Size(), (size_t) DestUnpSize));
+    uint Code=DataIO.UnpRead(&Buffer[0],Buffer.Size());
     if (Code==0 || (int)Code==-1)
       break;
-    //Code=Code<DestUnpSize ? Code:(uint)DestUnpSize;
-    /* original code (basically Code = MIN(Code, (uint) DestUnpSize))
-     * discards extra data.
-     * It should not be necessary anymore (see change above) */
+	/* basically Code = MIN(Code, (uint) DestUnpSize); discards extra data; precaution?. */
+    Code=Code<DestUnpSize ? Code:(uint)DestUnpSize;
     DataIO.UnpWrite(&Buffer[0],Code);
     if (DestUnpSize>=0)
       DestUnpSize-=Code;
