@@ -38,7 +38,7 @@ echo "Done.\n";
 RAR support => enabled
 RAR EXT version => %d.%d.%d%s
 Revision => %s
-UnRAR version => %d.%d patch%d %d-%d-%d
+UnRAR version => %d.%d%spatch%d %d-%d-%d
 UnRAR API version => %d extension %d
 
 Done.

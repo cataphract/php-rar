@@ -61,10 +61,10 @@ class ComprDataIO
     void SetFiles(File *SrcFile,File *DestFile);
     void SetCommand(CmdAdd *Cmd) {Command=Cmd;}
     void SetSubHeader(FileHeader *hd,int64 *Pos) {SubHead=hd;SubHeadPos=Pos;}
-    void SetEncryption(int Method,const char *Password,const byte *Salt,bool Encrypt,bool HandsOffHash);
+    void SetEncryption(int Method,const wchar *Password,const byte *Salt,bool Encrypt,bool HandsOffHash);
     void SetAV15Encryption();
     void SetCmt13Encryption();
-    void SetUnpackToMemory(byte *Addr,size_t Size); //changed from uint by me
+    void SetUnpackToMemory(byte *Addr,uint Size);
     void SetCurrentCommand(char Cmd) {CurrentCommand=Cmd;}
 
     bool PackVolume;

@@ -68,27 +68,19 @@ bool CmdExtract::ExtractCurrentFileChunkInit(CommandData *Cmd,
   if ((Arc.NewLhd.Flags & LHD_PASSWORD)!=0)
   {
     if (*Cmd->Password==0)
+    {
+      char PasswordA[MAXPASSWORD];
+
       if (Cmd->Callback==NULL ||
-          Cmd->Callback(UCM_NEEDPASSWORD,Cmd->UserData,(LPARAM)Cmd->Password,
-          (LPARAM)sizeof(Cmd->Password))==-1)
+          Cmd->Callback(UCM_NEEDPASSWORD,Cmd->UserData,(LPARAM)PasswordA,ASIZE(PasswordA))==-1)
       {
         ErrHandler.SetErrorCode(WARNING);
         Cmd->DllError = ERAR_MISSING_PASSWORD;
         return false;
-      }
-    strcpy(Password,Cmd->Password);
-  }
-
-  if ((Arc.NewLhd.Flags & LHD_PASSWORD) != 0) {
-    if (*Cmd->Password == '\0') {
-      if (Cmd->Callback == NULL ||
-          Cmd->Callback(UCM_NEEDPASSWORD, Cmd->UserData, (LPARAM) Cmd->Password,
-          (LPARAM) sizeof(Cmd->Password)) == -1) {
-        Cmd->DllError = ERAR_MISSING_PASSWORD;
-        return false;
-      }
+		    }
+      GetWideName(PasswordA,NULL,Cmd->Password,ASIZE(Cmd->Password));
     }
-    strncpyz(Password, Cmd->Password, sizeof Password);
+    wcscpy(Password,Cmd->Password);
   }
 
   if (Arc.NewLhd.UnpVer<13 || Arc.NewLhd.UnpVer>UNP_VER)
