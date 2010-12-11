@@ -250,7 +250,7 @@ int _rar_find_file_w(struct RAROpenArchiveDataEx *open_data, /* IN */
 	}
 
 	if (result != 0 && result != 1) {
-		//0 indicates success, 1 indicates normal end of file
+		/* 0 indicates success, 1 indicates normal end of file */
 		retval = result;
 		goto cleanup;
 	}
@@ -308,7 +308,7 @@ int _rar_find_file_p(struct RAROpenArchiveDataEx *open_data, /* IN */
 	}
 
 	if (result != 0 && result != 1) {
-		//0 indicates success, 1 indicates normal end of file
+		/* 0 indicates success, 1 indicates normal end of file */
 		retval = result;
 		goto cleanup;
 	}
@@ -331,7 +331,7 @@ int CALLBACK _rar_unrar_callback(UINT msg, LPARAM UserData, LPARAM P1, LPARAM P2
 	rar_cb_user_data *userdata = (rar_cb_user_data*)  UserData;
 	
 	if (msg == UCM_NEEDPASSWORD) {
-		//user data is the password or null if none
+		/* user data is the password or null if none */
 		char *password = userdata->password;
 
 		if (password == NULL || password[0] == '\0') {
@@ -462,7 +462,7 @@ static int _rar_unrar_volume_user_callback(char* dst_buffer,
 	
 	assert(*fci->retval_ptr_ptr == retval_ptr);
 	if (Z_TYPE_P(retval_ptr) == IS_NULL) {
-		//let return -1
+		/* let return -1 */
 	}
 	else if (Z_TYPE_P(retval_ptr) == IS_STRING) {
 		char *filename = Z_STRVAL_P(retval_ptr);
@@ -489,13 +489,13 @@ static int _rar_unrar_volume_user_callback(char* dst_buffer,
 
 		strncpy(dst_buffer, resolved_path, NM);
 		dst_buffer[NM - 1] = '\0';
-		ret = 1; //try this new filename
+		ret = 1; /* try this new filename */
 	}
 	else {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,
 			"Wrong type returned by volume find callback, "
 			"expected string or NULL");
-		//let return -1
+		/* let return -1 */
 	}
 
 cleanup:
@@ -705,7 +705,7 @@ ZEND_MODULE_STARTUP_D(rar)
 	REGISTER_LONG_CONSTANT("RAR_HOST_UNIX",		HOST_UNIX,	CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("RAR_HOST_MACOS",	HOST_MACOS,	CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("RAR_HOST_BEOS",		HOST_BEOS,	CONST_CS | CONST_PERSISTENT);
-	//PHP < 5.3 doesn't have the PHP_MAXPATHLEN constant
+	/* PHP < 5.3 doesn't have the PHP_MAXPATHLEN constant */
 #if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION < 3
 	REGISTER_LONG_CONSTANT("RAR_MAXPATHLEN",	MAXPATHLEN,	CONST_CS | CONST_PERSISTENT);
 #endif
@@ -759,9 +759,9 @@ zend_module_entry rar_module_entry = {
 	"rar",
 	rar_functions,
 	ZEND_MODULE_STARTUP_N(rar),
-	//ZEND_MODULE_SHUTDOWN_N(rar),
+	/* ZEND_MODULE_SHUTDOWN_N(rar), */
 	NULL,
-	//ZEND_MODULE_ACTIVATE_N(rar),
+	/* ZEND_MODULE_ACTIVATE_N(rar), */
 	NULL,
 	ZEND_MODULE_DEACTIVATE_N(rar),
 	ZEND_MODULE_INFO_N(rar),
@@ -769,7 +769,7 @@ zend_module_entry rar_module_entry = {
 	ZEND_MODULE_GLOBALS(rar),
 	ZEND_MODULE_GLOBALS_CTOR_N(rar),
 	ZEND_MODULE_GLOBALS_DTOR_N(rar),
-	NULL, //post_deactivate_func
+	NULL, /* post_deactivate_func */
 	STANDARD_MODULE_PROPERTIES_EX,
 };
 /* }}} */

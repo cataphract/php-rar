@@ -25,7 +25,7 @@ $root1 = "rar://" .
 
 echo "\nRAR root:\n";
 $statr1 = stat($root1);
-var_dump($statr1);
+print_r(array_slice($statr1, 13));
 echo "\nRAR root is dir:\n";
 var_dump(is_dir($root1));
 	
@@ -45,13 +45,13 @@ $file = "rar://" .
 	"#file";
 
 echo "\nRegular file:\n";
-var_dump(stat($file));
+print_r(array_slice(stat($file), 13));
 	
 $dir = "rar://" .
 	dirname(__FILE__) . '/dirlink_unix.rar' .
 	"#emptydir";
 echo "\nRegular file:\n";
-var_dump(stat($dir));
+print_r(array_slice(stat($dir), 13));
 
 echo "Done.\n";
 --EXPECTF--
@@ -70,60 +70,22 @@ Warning: stat(): stat failed for rar://%s/dirlink_unix.rar#inexistent entry in %
 bool(false)
 
 RAR root:
-array(26) {
-  [0]=>
-  int(0)
-  [1]=>
-  int(0)
-  [2]=>
-  int(16895)
-  [3]=>
-  int(1)
-  [4]=>
-  int(0)
-  [5]=>
-  int(0)
-  [6]=>
-  int(0)
-  [7]=>
-  int(0)
-  [8]=>
-  int(0)
-  [9]=>
-  int(312768000)
-  [10]=>
-  int(0)
-  [11]=>
-  int(%s)
-  [12]=>
-  int(%s)
-  ["dev"]=>
-  int(0)
-  ["ino"]=>
-  int(0)
-  ["mode"]=>
-  int(16895)
-  ["nlink"]=>
-  int(1)
-  ["uid"]=>
-  int(0)
-  ["gid"]=>
-  int(0)
-  ["rdev"]=>
-  int(0)
-  ["size"]=>
-  int(0)
-  ["atime"]=>
-  int(0)
-  ["mtime"]=>
-  int(312768000)
-  ["ctime"]=>
-  int(0)
-  ["blksize"]=>
-  int(%s)
-  ["blocks"]=>
-  int(%s)
-}
+Array
+(
+    [dev] => 0
+    [ino] => 0
+    [mode] => 16895
+    [nlink] => 1
+    [uid] => 0
+    [gid] => 0
+    [rdev] => 0
+    [size] => 0
+    [atime] => 0
+    [mtime] => 312768000
+    [ctime] => 0
+    [blksize] => %s
+    [blocks] => %s
+)
 
 RAR root is dir:
 bool(true)
@@ -135,114 +97,38 @@ RAR root variant 3 matches:
 bool(true)
 
 Regular file:
-array(26) {
-  [0]=>
-  int(0)
-  [1]=>
-  int(0)
-  [2]=>
-  int(33188)
-  [3]=>
-  int(1)
-  [4]=>
-  int(0)
-  [5]=>
-  int(0)
-  [6]=>
-  int(0)
-  [7]=>
-  int(8)
-  [8]=>
-  int(0)
-  [9]=>
-  int(1259625512)
-  [10]=>
-  int(0)
-  [11]=>
-  int(%s)
-  [12]=>
-  int(%s)
-  ["dev"]=>
-  int(0)
-  ["ino"]=>
-  int(0)
-  ["mode"]=>
-  int(33188)
-  ["nlink"]=>
-  int(1)
-  ["uid"]=>
-  int(0)
-  ["gid"]=>
-  int(0)
-  ["rdev"]=>
-  int(0)
-  ["size"]=>
-  int(8)
-  ["atime"]=>
-  int(0)
-  ["mtime"]=>
-  int(1259625512)
-  ["ctime"]=>
-  int(0)
-  ["blksize"]=>
-  int(%s)
-  ["blocks"]=>
-  int(%s)
-}
+Array
+(
+    [dev] => 0
+    [ino] => 0
+    [mode] => 33188
+    [nlink] => 1
+    [uid] => 0
+    [gid] => 0
+    [rdev] => 0
+    [size] => 8
+    [atime] => 0
+    [mtime] => 1259625512
+    [ctime] => 0
+    [blksize] => %s
+    [blocks] => %s
+)
 
 Regular file:
-array(26) {
-  [0]=>
-  int(0)
-  [1]=>
-  int(0)
-  [2]=>
-  int(16877)
-  [3]=>
-  int(1)
-  [4]=>
-  int(0)
-  [5]=>
-  int(0)
-  [6]=>
-  int(0)
-  [7]=>
-  int(0)
-  [8]=>
-  int(0)
-  [9]=>
-  int(1259625807)
-  [10]=>
-  int(0)
-  [11]=>
-  int(%s)
-  [12]=>
-  int(%s)
-  ["dev"]=>
-  int(0)
-  ["ino"]=>
-  int(0)
-  ["mode"]=>
-  int(16877)
-  ["nlink"]=>
-  int(1)
-  ["uid"]=>
-  int(0)
-  ["gid"]=>
-  int(0)
-  ["rdev"]=>
-  int(0)
-  ["size"]=>
-  int(0)
-  ["atime"]=>
-  int(0)
-  ["mtime"]=>
-  int(1259625807)
-  ["ctime"]=>
-  int(0)
-  ["blksize"]=>
-  int(%s)
-  ["blocks"]=>
-  int(%s)
-}
+Array
+(
+    [dev] => 0
+    [ino] => 0
+    [mode] => 16877
+    [nlink] => 1
+    [uid] => 0
+    [gid] => 0
+    [rdev] => 0
+    [size] => 0
+    [atime] => 0
+    [mtime] => 1259625807
+    [ctime] => 0
+    [blksize] => %s
+    [blocks] => %s
+)
 Done.

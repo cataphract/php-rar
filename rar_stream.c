@@ -112,7 +112,7 @@ static size_t php_rar_ops_read(php_stream *stream, char *buf, size_t count TSRML
 	if (self->buffer != NULL && self->rar_handle != NULL) {
 		while (left > 0) {
 			size_t this_read_size;
-			//if nothing in the buffer or buffer already read, fill buffer
+			/* if nothing in the buffer or buffer already read, fill buffer */
 			if (/*self->buffer_cont_size == 0 || > condition not necessary */
 				self->buffer_pos == self->buffer_cont_size)
 			{
@@ -131,14 +131,14 @@ static size_t php_rar_ops_read(php_stream *stream, char *buf, size_t count TSRML
 					self->buffer_size, &self->buffer_cont_size,
 					&self->no_more_data);
 				if (_rar_handle_error(res TSRMLS_CC) == FAILURE) {
-					break; //finish in case of failure
+					break; /* finish in case of failure */
 				}
 				assert(self->buffer_cont_size <= self->buffer_size);
-				//we did not read anything. no need to continue
+				/* we did not read anything. no need to continue */
 				if (self->buffer_cont_size == 0)
 					break;
 			}
-			//if we get here we have data to be read in the buffer
+			/* if we get here we have data to be read in the buffer */
 			this_read_size = MIN(left,
 				self->buffer_cont_size - self->buffer_pos);
 			assert(this_read_size > 0);
@@ -202,7 +202,7 @@ static int php_rar_ops_close(php_stream *stream, int close_handle TSRMLS_DC)
 		if (close_handle) {
 			int res = RARCloseArchive(self->rar_handle);
 			if (_rar_handle_error(res TSRMLS_CC) == FAILURE) {
-				; //not much we can do...
+				; /* not much we can do... */
 			}
 		}
 		self->rar_handle = NULL;
@@ -367,7 +367,7 @@ static int _rar_stat_from_header(struct RARHeaderDataEx *header,
 	ssb->sb.st_blocks = 0;
 #endif
 	/* php_stat in filestat.c doesn't check this one, so don't touch it */
-	//ssb->sb.st_attr = ;
+	/* ssb->sb.st_attr = ; */
 
 	return SUCCESS;
 }
@@ -470,7 +470,7 @@ static int php_rar_dir_ops_stat(php_stream *stream, php_stream_statbuf *ssb TSRM
 {
 	STREAM_DIR_DATA_FROM_STREAM
 
-	if (self->self_header == NULL) { //root
+	if (self->self_header == NULL) { /* root */
 		/* RAR root has no entry, so we make something up.
 		 * We could use the RAR archive itself instead, but I think that would
 		 * not be very consistent */
@@ -511,7 +511,7 @@ php_stream *php_stream_rar_open(char *arc_name,
 	int						result,
 							found;
 
-	//mode must be exactly "r"
+	/* mode must be exactly "r" */
 	if (strncmp(mode, "r", sizeof("r")) != 0) {
 		goto cleanup;
 	}
@@ -538,7 +538,7 @@ php_stream *php_stream_rar_open(char *arc_name,
 		_rar_handle_ext_error("Can't find file with index %u in archive %s"
 			TSRMLS_CC, position, arc_name);
 	else {
-		//no need to allocate a buffer bigger than the file uncomp size
+		/* no need to allocate a buffer bigger than the file uncomp size */
 		size_t buffer_size = (size_t)
 			MIN((uint64) RAR_CHUNK_BUFFER_SIZE,
 			INT32TO64(self->header_data.UnpSizeHigh,
@@ -556,7 +556,7 @@ php_stream *php_stream_rar_open(char *arc_name,
 	}
 
 cleanup:
-	if (stream == NULL) { //failed
+	if (stream == NULL) { /* failed */
 		if (self != NULL) {
 			if (self->open_data.ArcName != NULL)
 				efree(self->open_data.ArcName);
@@ -642,7 +642,7 @@ static void php_rar_process_context(php_stream_context *context,
 									php_stream_wrapper *wrapper,
 									int options,
 									char **open_password,
-									char **file_password, //can be NULL
+									char **file_password, /* can be NULL */
 									zval **volume_cb TSRMLS_DC)
 {
 	zval **ctx_opt = NULL;
@@ -762,7 +762,7 @@ static int _rar_get_archive_and_fragment(php_stream_wrapper *wrapper,
 
 	if (!(options & STREAM_DISABLE_OPEN_BASEDIR) &&
 			php_check_open_basedir(*archive TSRMLS_CC)) {
-		//php_check_open_basedir already emits the error
+		/* php_check_open_basedir already emits the error */
 		goto cleanup;
 	}
 
@@ -842,7 +842,7 @@ static php_stream *php_stream_rar_opener(php_stream_wrapper *wrapper,
 		return NULL;
 	}
 
-	//mode must be exactly "r"
+	/* mode must be exactly "r" */
 	if (strncmp(mode, "r", sizeof("r")) != 0) {
 		php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
 			"Only the \"r\" open mode is permitted, given %s", mode);
@@ -903,7 +903,7 @@ static php_stream *php_stream_rar_opener(php_stream_wrapper *wrapper,
 
 
 	{
-		//no need to allocate a buffer bigger than the file uncomp size
+		/* no need to allocate a buffer bigger than the file uncomp size */
 		size_t buffer_size = (size_t)
 			MIN((uint64) RAR_CHUNK_BUFFER_SIZE,
 			INT32TO64(self->header_data.UnpSizeHigh,
@@ -938,7 +938,7 @@ cleanup:
 	if (fragment != NULL)
 		efree(fragment);
 
-	if (stream == NULL) { //failed
+	if (stream == NULL) { /* failed */
 		if (self != NULL) {
 			if (self->open_data.ArcName != NULL)
 				efree(self->open_data.ArcName);
@@ -1189,7 +1189,7 @@ static php_stream *php_stream_rar_dir_opener(php_stream_wrapper *wrapper,
 		return NULL;
 	}
 
-	//mode must be exactly "r"
+	/* mode must be exactly "r" */
 	if (strncmp(mode, "r", sizeof("r")) != 0) {
 		php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
 			"Only the \"r\" open mode is permitted, given %s", mode);
@@ -1273,7 +1273,7 @@ cleanup:
 	if (fragment != NULL)
 		efree(fragment);
 
-	if (stream == NULL) { //failed
+	if (stream == NULL) { /* failed */
 		if (self != NULL) {
 			if (self->rar_obj != NULL)
 				zval_ptr_dtor(&self->rar_obj);

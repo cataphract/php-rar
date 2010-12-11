@@ -57,7 +57,7 @@ static zend_object_value rarentry_ce_create_object(zend_class_entry *class_type 
 /* {{{ Functions with external linkage */
 /* should be passed the last entry that corresponds to a given file
  * only that one has the correct CRC. Still, it may have a wrong packedSize */
-void _rar_entry_to_zval(zval *parent, //zval to RarArchive object, will have its refcount increased
+void _rar_entry_to_zval(zval *parent, /* zval to RarArchive object, will have its refcount increased */
 						struct RARHeaderDataEx *entry,
 						unsigned long packed_size,
 						size_t position,
@@ -76,7 +76,7 @@ void _rar_entry_to_zval(zval *parent, //zval to RarArchive object, will have its
 #if ULONG_MAX > 0xffffffffUL
 	unp_size = ((long) entry->UnpSize) + (((long) entry->UnpSizeHigh) << 32);
 #else
-	//for 32-bit long, at least don't give negative values
+	/* for 32-bit long, at least don't give negative values */
 	if ((unsigned long) entry->UnpSize > (unsigned long) LONG_MAX
 			|| entry->UnpSizeHigh != 0)
 		unp_size = LONG_MAX;
@@ -236,7 +236,7 @@ static zend_object_value rarentry_ce_create_object(zend_class_entry *class_type 
        [, string password = NULL [, bool extended_data  = FALSE]])
    Extract file from the archive */
 PHP_METHOD(rarentry, extract)
-{ //lots of variables, but no need to be intimidated
+{ /* lots of variables, but no need to be intimidated */
 	char					*dir,
 							*filepath = NULL,
 							*password = NULL;
@@ -277,7 +277,7 @@ PHP_METHOD(rarentry, extract)
 	/* the arguments are mutually exclusive.
 	 * If the second is specified, we ignore the first */
 	if (!with_second_arg) {
-		if (dir_len == 0) //both params empty
+		if (dir_len == 0) /* both params empty */
 			dir = ".";
 		considered_path = dir;
 	}
@@ -508,7 +508,7 @@ PHP_METHOD(rarentry, getStream)
 	zval				*entry_obj = getThis();
 	php_stream			*stream = NULL;
 	char				*password = NULL;
-	int					password_len; //ignored
+	int					password_len; /* ignored */
 	rar_cb_user_data	cb_udata = {NULL};
 
 	
@@ -523,7 +523,7 @@ PHP_METHOD(rarentry, getStream)
 		RETURN_FALSE;
 	}
 
-	//use rar_open password (stored in rar->cb_userdata) by default
+	/* use rar_open password (stored in rar->cb_userdata) by default */
 	memcpy(&cb_udata, &rar->cb_userdata, sizeof cb_udata);
 	if (password != NULL)
 		cb_udata.password = password;
@@ -606,13 +606,13 @@ PHP_METHOD(rarentry, __toString)
 	RAR_GET_PROPERTY(crc_zval, "crc");
 	crc = Z_STRVAL_PP(crc_zval);
 
-	//2 is size of %s, 8 is size of crc
+	/* 2 is size of %s, 8 is size of crc */
 	restring_len = (sizeof(format)-1) - 2 * 3 + (sizeof("directory")-1) +
 		strlen(name) + 8 + 1;
 	restring = emalloc(restring_len);
 	snprintf(restring, restring_len, format, is_dir?"directory":"file",
 		name, crc);
-	restring[restring_len - 1] = '\0'; //just to be safe
+	restring[restring_len - 1] = '\0'; /* just to be safe */
 	
 	RETURN_STRING(restring, 0);
 }
@@ -666,7 +666,7 @@ void minit_rarentry(TSRMLS_D)
 	rar_class_entry_ptr = zend_register_internal_class(&ce TSRMLS_CC);
 	rar_class_entry_ptr->ce_flags |= ZEND_ACC_FINAL_CLASS;
 	rar_class_entry_ptr->clone = NULL;
-	//Custom creation currently not really needed, but you never know...
+	/* Custom creation currently not really needed, but you never know... */
 	rar_class_entry_ptr->create_object = &rarentry_ce_create_object;
 
 	REG_RAR_PROPERTY("rarfile", "Associated RAR archive");
@@ -689,7 +689,7 @@ void minit_rarentry(TSRMLS_D)
 	REG_RAR_CLASS_CONST_LONG("HOST_MACOS",	HOST_MACOS);
 	REG_RAR_CLASS_CONST_LONG("HOST_BEOS",	HOST_BEOS);
 
-	//see WinNT.h
+	/* see WinNT.h */
 	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_WIN_READONLY",				0x00001L);
 	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_WIN_HIDDEN",				0x00002L);
 	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_WIN_SYSTEM",				0x00004L);
