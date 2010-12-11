@@ -64,7 +64,7 @@ class ComprDataIO
     void SetEncryption(int Method,const wchar *Password,const byte *Salt,bool Encrypt,bool HandsOffHash);
     void SetAV15Encryption();
     void SetCmt13Encryption();
-    void SetUnpackToMemory(byte *Addr,uint Size);
+    void SetUnpackToMemory(byte *Addr,size_t Size); //changed by me
     void SetCurrentCommand(char Cmd) {CurrentCommand=Cmd;}
 
     bool PackVolume;

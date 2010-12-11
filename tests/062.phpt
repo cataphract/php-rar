@@ -11,126 +11,50 @@ echo "Root:\n";
 $u = "rar://" .
 	dirname(__FILE__) . '/dirs_and_extra_headers.rar';
 
-var_dump(fstat(opendir($u)));
+print_r(array_slice(fstat(opendir($u)), 13));
 
 echo "\nSub-root directory:\n";
 
 $u = "rar://" .
 	dirname(__FILE__) . '/dirs_and_extra_headers.rar#%EF%AC%B0';
 
-var_dump(fstat(opendir($u)));
+print_r(array_slice(fstat(opendir($u)), 13));
 
 echo "Done.\n";
 --EXPECTF--
 Root:
-array(26) {
-  [0]=>
-  int(0)
-  [1]=>
-  int(0)
-  [2]=>
-  int(16895)
-  [3]=>
-  int(1)
-  [4]=>
-  int(0)
-  [5]=>
-  int(0)
-  [6]=>
-  int(0)
-  [7]=>
-  int(0)
-  [8]=>
-  int(0)
-  [9]=>
-  int(312768000)
-  [10]=>
-  int(0)
-  [11]=>
-  int(%s)
-  [12]=>
-  int(%s)
-  ["dev"]=>
-  int(0)
-  ["ino"]=>
-  int(0)
-  ["mode"]=>
-  int(16895)
-  ["nlink"]=>
-  int(1)
-  ["uid"]=>
-  int(0)
-  ["gid"]=>
-  int(0)
-  ["rdev"]=>
-  int(0)
-  ["size"]=>
-  int(0)
-  ["atime"]=>
-  int(0)
-  ["mtime"]=>
-  int(312768000)
-  ["ctime"]=>
-  int(0)
-  ["blksize"]=>
-  int(%s)
-  ["blocks"]=>
-  int(%s)
-}
+Array
+(
+    [dev] => 0
+    [ino] => 0
+    [mode] => 16895
+    [nlink] => 1
+    [uid] => 0
+    [gid] => 0
+    [rdev] => 0
+    [size] => 0
+    [atime] => 0
+    [mtime] => 312768000
+    [ctime] => 0
+    [blksize] => %s
+    [blocks] => %s
+)
 
 Sub-root directory:
-array(26) {
-  [0]=>
-  int(0)
-  [1]=>
-  int(0)
-  [2]=>
-  int(16895)
-  [3]=>
-  int(1)
-  [4]=>
-  int(0)
-  [5]=>
-  int(0)
-  [6]=>
-  int(0)
-  [7]=>
-  int(0)
-  [8]=>
-  int(1272938643)
-  [9]=>
-  int(1272938643)
-  [10]=>
-  int(1272813170)
-  [11]=>
-  int(%s)
-  [12]=>
-  int(%s)
-  ["dev"]=>
-  int(0)
-  ["ino"]=>
-  int(0)
-  ["mode"]=>
-  int(16895)
-  ["nlink"]=>
-  int(1)
-  ["uid"]=>
-  int(0)
-  ["gid"]=>
-  int(0)
-  ["rdev"]=>
-  int(0)
-  ["size"]=>
-  int(0)
-  ["atime"]=>
-  int(1272938643)
-  ["mtime"]=>
-  int(1272938643)
-  ["ctime"]=>
-  int(1272813170)
-  ["blksize"]=>
-  int(%s)
-  ["blocks"]=>
-  int(%s)
-}
+Array
+(
+    [dev] => 0
+    [ino] => 0
+    [mode] => 16895
+    [nlink] => 1
+    [uid] => 0
+    [gid] => 0
+    [rdev] => 0
+    [size] => 0
+    [atime] => 1272938643
+    [mtime] => 1272938643
+    [ctime] => 1272813170
+    [blksize] => %s
+    [blocks] => %s
+)
 Done.

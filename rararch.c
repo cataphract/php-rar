@@ -97,7 +97,7 @@ int _rar_get_file_resource(zval *zval_file, rar_file_t **rar_file TSRMLS_DC) /* 
 /* Creates a RarArchive object, all three in args will be dupped */
 int _rar_create_rararch_obj(const char* resolved_path,
 							const char* open_password,
-							zval *volume_callback, //must be callable or NULL
+							zval *volume_callback, /* must be callable or NULL */
 							zval *object,
 							int *err_code TSRMLS_DC) /* {{{ */
 {
@@ -112,7 +112,7 @@ int _rar_create_rararch_obj(const char* resolved_path,
 	rar->extract_open_data = ecalloc(1, sizeof *rar->extract_open_data);
 	rar->extract_open_data->ArcName = estrdup(resolved_path);
 	rar->extract_open_data->OpenMode = RAR_OM_EXTRACT;
-	rar->extract_open_data->CmtBuf = NULL; //not interested in it again
+	rar->extract_open_data->CmtBuf = NULL; /* not interested in it again */
 	rar->cb_userdata.password = NULL;
 	rar->cb_userdata.callable = NULL;
 	rar->entries = NULL;
@@ -182,7 +182,7 @@ int _rar_get_file_resource_ex(zval *zval_file, rar_file_t **rar_file, int silent
 	}
 
 	*rar_file = zobj->rar_file;
-	if ((*rar_file)->arch_handle == NULL && !silent) { //rar_close was called
+	if ((*rar_file)->arch_handle == NULL && !silent) { /* rar_close was called */
 		_rar_handle_ext_error("The archive is already closed" TSRMLS_CC);
 		return FAILURE;
 	}
@@ -266,7 +266,7 @@ static void rararch_ce_destroy_object(ze_rararch_object *object,
 	 * if object construction fails */
 	assert(rar != NULL);
 
-	//not really relevant, calls destr. zend func. ce->destructor if it exists
+	/* not really relevant, calls destr. zend func. ce->destructor if it exists */
 	zend_objects_destroy_object((zend_object*) object, handle TSRMLS_CC);
 	
 	if (rar->arch_handle != NULL) {
@@ -529,7 +529,7 @@ PHP_FUNCTION(rar_open)
 	}
 	assert(strnlen(resolved_path, MAXPATHLEN) < MAXPATHLEN);
 
-	if (callable != NULL) { //given volume resolver callback
+	if (callable != NULL) { /* given volume resolver callback */
 #if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION == 2
 		if (!zend_is_callable(callable, IS_CALLABLE_STRICT, NULL)) {
 #else
@@ -668,11 +668,11 @@ PHP_FUNCTION(rar_comment_get)
 	if (_rar_handle_error(cmt_state TSRMLS_CC) == FAILURE)
 		RETURN_FALSE;
 
-	if (cmt_state == 0) //comment not present
-		RETURN_NULL(); //oddly, requires ()
+	if (cmt_state == 0) /* comment not present */
+		RETURN_NULL();
 
-	if (cmt_state == 1) { //comment read completely
-		//CmtSize - 1 because we don't need the null terminator
+	if (cmt_state == 1) { /* comment read completely */
+		/* CmtSize - 1 because we don't need the null terminator */
 		RETURN_STRINGL(rar->list_open_data->CmtBuf,
 			rar->list_open_data->CmtSize - 1, 1);
 	}
@@ -769,7 +769,7 @@ PHP_METHOD(rararch, __toString)
 
 	is_closed = (rar->arch_handle == NULL);
 
-	//2 is size of %s, 1 is terminating 0
+	/* 2 is size of %s, 1 is terminating 0 */
 	restring_size = (sizeof(format) - 1) - 2 * 2 + 1;
 	restring_size += strlen(rar->list_open_data->ArcName);
 	if (is_closed)
@@ -778,7 +778,7 @@ PHP_METHOD(rararch, __toString)
 	restring = emalloc(restring_size);
 	snprintf(restring, restring_size, format, rar->list_open_data->ArcName,
 		is_closed?closed:"");
-	restring[restring_size - 1] = '\0'; //just to be safe
+	restring[restring_size - 1] = '\0'; /* just to be safe */
 	
 	RETURN_STRINGL(restring, (int) restring_size - 1, 0);
 }

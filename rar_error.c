@@ -96,7 +96,7 @@ int _rar_using_exceptions(TSRMLS_D)
 	return Z_BVAL_P(pval);
 }
 
-//returns a string or NULL if not an error
+/* returns a string or NULL if not an error */
 const char * _rar_error_to_string(int errcode) /* {{{ */
 {
 	const char *ret;
@@ -188,7 +188,7 @@ PHP_METHOD(rarexception, isUsingExceptions)
 		return;
 	}
 	
-	//or zend_read_static_property, which calls zend_std_get... after chg scope
+	/* or zend_read_static_property, which calls zend_std_get... after chg scope */
 #if PHP_VERSION_ID < 50399
 	pval = zend_std_get_static_property(rarexception_ce_ptr, "usingExceptions",
 		sizeof("usingExceptions") -1, (zend_bool) 0 TSRMLS_CC);
@@ -196,7 +196,7 @@ PHP_METHOD(rarexception, isUsingExceptions)
 	pval = zend_std_get_static_property(rarexception_ce_ptr, "usingExceptions",
 		sizeof("usingExceptions") -1, (zend_bool) 0, NULL TSRMLS_CC);
 #endif
-	//property always exists
+	/* property always exists */
 	assert(pval != NULL);
 	assert(Z_TYPE_PP(pval) == IS_BOOL);	
 	

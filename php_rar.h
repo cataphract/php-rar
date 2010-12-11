@@ -80,12 +80,12 @@ enum HOST_SYSTEM {
 #define  LHD_WINDOWMASK     0x00e0U
 #define  LHD_DIRECTORY      0x00e0U
 
-//maximum comment size if 64KB
+/* maximum comment size if 64KB */
 #define RAR_MAX_COMMENT_SIZE 65536
 
 typedef struct _rar_cb_user_data {
-	char					*password;	//can be NULL
-	zval					*callable;  //can be NULL
+	char					*password;	/* can be NULL */
+	zval					*callable;  /* can be NULL */
 } rar_cb_user_data;
 
 typedef struct rar {
@@ -93,9 +93,9 @@ typedef struct rar {
 	struct _rar_entries			*entries;
 	struct RAROpenArchiveDataEx	*list_open_data;
 	struct RAROpenArchiveDataEx	*extract_open_data;
-	//archive handle opened with RAR_OM_LIST_INCSPLIT open mode
+	/* archive handle opened with RAR_OM_LIST_INCSPLIT open mode */
 	void						*arch_handle;
-	//user data to pass the RAR callback
+	/* user data to pass the RAR callback */
 	rar_cb_user_data			cb_userdata;
 	int							allow_broken;
 } rar_file_t;
@@ -131,7 +131,7 @@ typedef struct rar {
  */
 typedef struct _rar_contents_cache {
 	int			max_size;
-	HashTable	*data;		//persistent HashTable, will hold rar_cache_entry
+	HashTable	*data;		/* persistent HashTable, will hold rar_cache_entry */
 	int			hits;
 	int			misses;
 	/* args: cache key, cache key size, cached object) */
@@ -247,15 +247,15 @@ void _rar_entry_search_end(rar_find_output *state);
 void _rar_entry_search_seek(rar_find_output *state, size_t pos);
 void _rar_entry_search_rewind(rar_find_output *state);
 void _rar_entry_search_advance(rar_find_output *state,
-							   const wchar_t * const file, //NULL = give next
-							   size_t file_size, //length + 1
+							   const wchar_t * const file, /* NULL = give next */
+							   size_t file_size, /* length + 1 */
 							   int directory_match);
 /* end entry search API }}} */
 
 /* rararch.c */
 int _rar_create_rararch_obj(const char* resolved_path,
 							const char* open_password,
-							zval *volume_callback, //must be callable or NULL
+							zval *volume_callback, /* must be callable or NULL */
 							zval *object,
 							int *err_code TSRMLS_DC);
 void _rar_close_file_resource(rar_file_t *rar);

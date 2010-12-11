@@ -156,7 +156,7 @@ void _rar_entry_search_rewind(rar_find_output *state)
 
 /* {{{ _rar_entry_search_advance */
 void _rar_entry_search_advance(rar_find_output *state,
-							   const wchar_t * const file, //NULL = give next
+							   const wchar_t * const file, /* NULL = give next */
 							   size_t file_size, /* length + 1; 0 if unknown */
 							   int directory_match)
 {
@@ -175,7 +175,7 @@ void _rar_entry_search_advance(rar_find_output *state,
 	if ((file != NULL) && (file_size == 0))
 		file_size = wcslen(file) + 1;
 
-	//reset output
+	/* reset output */
 	memset(&rstate->out, 0, sizeof rstate->out);
 
 	filenamewsize = sizeof(entries->entries_array[0]->entry.FileNameW) /
@@ -342,7 +342,7 @@ int _rar_list_files(rar_file_t *rar TSRMLS_DC) /* {{{ */
 	while (result == 0) {
 		struct RARHeaderDataEx entry;
 		result = RARReadHeaderEx(rar->arch_handle, &entry);
-		//value of 2nd argument is irrelevant in RAR_OM_LIST_[SPLIT] mode
+		/* value of 2nd argument is irrelevant in RAR_OM_LIST_[SPLIT] mode */
 		if (result == 0) {
 			result = RARProcessFile(rar->arch_handle, RAR_SKIP, NULL, NULL);
 		}
@@ -371,7 +371,7 @@ int _rar_list_files(rar_file_t *rar TSRMLS_DC) /* {{{ */
 #if ULONG_MAX > 0xffffffffUL
 				packed_size += ((unsigned long) entry.PackSizeHigh) << 32;
 #else
-				packed_size = ULONG_MAX; //cap
+				packed_size = ULONG_MAX; /* cap */
 #endif
 			}
 		}
@@ -381,7 +381,7 @@ int _rar_list_files(rar_file_t *rar TSRMLS_DC) /* {{{ */
 
 		/* commit the entry */
 		assert(capacity >= ents->num_entries);
-		if (capacity == ents->num_entries) { //0, 2, 6, 14, 30...
+		if (capacity == ents->num_entries) { /* 0, 2, 6, 14, 30... */
 			capacity = (capacity + 1) * 2;
 			ents->entries_array = safe_erealloc(ents->entries_array, capacity,
 				sizeof(*ents->entries_array), 0);
