@@ -351,7 +351,7 @@ static int rararch_dimensions_preamble(rar_file_t *rar,
 				return FAILURE;
 			}
 
-			*index = zend_dval_to_lval(d);
+			*index = (long) d;
 		}
 	}
 	else if (Z_TYPE_P(offset) == IS_DOUBLE) {
@@ -360,7 +360,7 @@ static int rararch_dimensions_preamble(rar_file_t *rar,
 				"Dimension index is out of integer bounds");
 			return FAILURE;
 		}
-		*index = zend_dval_to_lval(Z_DVAL_P(offset));
+		*index = (long) Z_DVAL_P(offset);
 	}
 	else if (Z_TYPE_P(offset) == IS_OBJECT) {
 		if (Z_OBJ_HT_P(offset)->get) {
