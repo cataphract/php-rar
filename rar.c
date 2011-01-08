@@ -327,8 +327,8 @@ cleanup:
  * the volume find callback returns null, cancel the operation. */
 int CALLBACK _rar_unrar_callback(UINT msg, LPARAM UserData, LPARAM P1, LPARAM P2) /* {{{ */
 {
-	TSRMLS_FETCH();
 	rar_cb_user_data *userdata = (rar_cb_user_data*)  UserData;
+	TSRMLS_FETCH();
 	
 	if (msg == UCM_NEEDPASSWORD) {
 		/* user data is the password or null if none */
