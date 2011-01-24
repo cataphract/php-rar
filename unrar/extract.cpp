@@ -117,9 +117,9 @@ EXTRACT_ARC_CODE CmdExtract::ExtractArchive(CommandData *Cmd)
     return(EXTRACT_ARC_NEXT);
   }
 
-  // archive with corrupt encrypted header can be closed in IsArchive() call
-  if (!Arc.IsOpened())
-    return(EXTRACT_ARC_NEXT);
+  // Archive with corrupt encrypted header can be closed in IsArchive() call.
+//  if (!Arc.IsOpened())
+//    return(EXTRACT_ARC_NEXT);
 
 #ifndef SFX_MODULE
   if (Arc.Volume && Arc.NotFirstVolume)
@@ -182,8 +182,8 @@ EXTRACT_ARC_CODE CmdExtract::ExtractArchive(CommandData *Cmd)
   Arc.ViewComment();
 
   // RAR can close a corrupt encrypted archive
-  if (!Arc.IsOpened())
-    return(EXTRACT_ARC_NEXT);
+//  if (!Arc.IsOpened())
+//    return(EXTRACT_ARC_NEXT);
 
 
   while (1)
@@ -877,7 +877,7 @@ bool CmdExtract::ExtractCurrentFile(CommandData *Cmd,Archive &Arc,size_t HeaderS
               Unp->DoUnpack(Arc.NewLhd.UnpVer,(Arc.NewLhd.Flags & LHD_SOLID)!=0);
           }
 
-      if (Arc.IsOpened())
+//      if (Arc.IsOpened())
         Arc.SeekToNext();
 
       bool ValidCRC=Arc.OldFormat && UINT32(DataIO.UnpFileCRC)==UINT32(Arc.NewLhd.FileCRC) ||
@@ -959,7 +959,7 @@ bool CmdExtract::ExtractCurrentFile(CommandData *Cmd,Archive &Arc,size_t HeaderS
   }
   if (ExactMatch)
     MatchedArgs++;
-  if (DataIO.NextVolumeMissing || !Arc.IsOpened())
+  if (DataIO.NextVolumeMissing/* || !Arc.IsOpened()*/)
     return(false);
   if (!ExtrFile)
     if (!Arc.Solid)
