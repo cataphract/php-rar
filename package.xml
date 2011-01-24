@@ -227,6 +227,7 @@ For the other changes, see the changelog for version 2.0.0RC1.
     <file name="config.m4" role="src" />
     <file name="config.w32" role="src" />
     <file name="CREDITS" role="doc" />
+    <file name="README" role="doc" />
     <file name="example.php" role="doc" />
     <file name="php_rar.h" role="src" />
     <file name="rar.c" role="src" />
