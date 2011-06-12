@@ -5,6 +5,7 @@ RAR directory stream stat
 if(!extension_loaded("rar")) die("skip");
 --FILE--
 <?php
+umask(0);
 
 echo "Root:\n";
 
