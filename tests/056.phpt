@@ -5,6 +5,7 @@ RAR file stream stat
 if(!extension_loaded("rar")) die("skip");
 --FILE--
 <?php
+umask(0);
 $stream = fopen("rar://" .
 	dirname(__FILE__) . '/latest_winrar.rar' .
 	"#1.txt", "r");

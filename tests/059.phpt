@@ -5,7 +5,7 @@ url stat test
 if(!extension_loaded("rar")) die("skip");
 --FILE--
 <?php
-
+umask(0);
 $inex_rar = "rar://" .
 	dirname(__FILE__) . '/not_found.rar' .
 	"#emptydir";
