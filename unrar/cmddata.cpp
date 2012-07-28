@@ -28,6 +28,7 @@ void CommandData::Init()
 
   ListMode=RCLM_AUTO;
 
+
   FileArgs=new StringList;
   ExclArgs=new StringList;
   InclArgs=new StringList;
@@ -251,7 +252,9 @@ void CommandData::ParseEnvVar()
 {
   char *EnvStr=getenv("RAR");
   if (EnvStr!=NULL)
+  {
     ProcessSwitchesString(EnvStr);
+  }
 }
 #endif
 
@@ -568,10 +571,14 @@ void CommandData::ProcessSwitch(const char *Switch,const wchar *SwitchW)
         case 'I':
           {
             Priority=atoi(Switch+2);
+            if (Priority<0 || Priority>15)
+              BadSwitch(Switch);
             const char *ChPtr=strchr(Switch+2,':');
             if (ChPtr!=NULL)
             {
               SleepTime=atoi(ChPtr+1);
+              if (SleepTime>1000)
+                BadSwitch(Switch);
               InitSystemOptions(SleepTime);
             }
             SetPriority(Priority);
@@ -646,13 +653,16 @@ void CommandData::ProcessSwitch(const char *Switch,const wchar *SwitchW)
     case 'P':
       if (Switch[1]==0)
       {
-        GetPassword(PASSWORD_GLOBAL,NULL,NULL,Password,ASIZE(Password));
+        GetPassword(PASSWORD_GLOBAL,NULL,NULL,&Password);
         eprintf("\n");
       }
       else
       {
-        CharToWide(Switch+1,Password,ASIZE(Password));
-        Password[ASIZE(Password)-1]=0;
+        wchar PlainPsw[MAXPASSWORD];
+        CharToWide(Switch+1,PlainPsw,ASIZE(PlainPsw));
+        PlainPsw[ASIZE(PlainPsw)-1]=0;
+        Password.Set(PlainPsw);
+        cleandata(PlainPsw,ASIZE(PlainPsw));
       }
       break;
     case 'H':
@@ -661,13 +671,16 @@ void CommandData::ProcessSwitch(const char *Switch,const wchar *SwitchW)
         EncryptHeaders=true;
         if (Switch[2]!=0)
         {
-          CharToWide(Switch+2,Password,ASIZE(Password));
-          Password[ASIZE(Password)-1]=0;
+          wchar PlainPsw[MAXPASSWORD];
+          CharToWide(Switch+2,PlainPsw,ASIZE(PlainPsw));
+          PlainPsw[ASIZE(PlainPsw)-1]=0;
+          Password.Set(PlainPsw);
+          cleandata(PlainPsw,ASIZE(PlainPsw));
         }
         else
-          if (*Password==0)
+          if (!Password.IsSet())
           {
-            GetPassword(PASSWORD_GLOBAL,NULL,NULL,Password,ASIZE(Password));
+            GetPassword(PASSWORD_GLOBAL,NULL,NULL,&Password);
             eprintf("\n");
           }
       }
@@ -675,12 +688,17 @@ void CommandData::ProcessSwitch(const char *Switch,const wchar *SwitchW)
     case 'Z':
       if (Switch[1]==0 && (!WidePresent || SwitchW[1]==0))
       {
+#ifndef GUI // stdin is not supported by WinRAR.
         // If comment file is not specified, we read data from stdin.
         strcpy(CommentFile,"stdin");
+#endif
       }
-      strncpyz(CommentFile,Switch+1,ASIZE(CommentFile));
-      if (WidePresent)
-        wcsncpyz(CommentFileW,SwitchW+1,ASIZE(CommentFileW));
+      else
+      {
+        strncpyz(CommentFile,Switch+1,ASIZE(CommentFile));
+        if (WidePresent)
+          wcsncpyz(CommentFileW,SwitchW+1,ASIZE(CommentFileW));
+      }
       break;
     case 'M':
       switch(etoupper(Switch[1]))
@@ -689,7 +707,7 @@ void CommandData::ProcessSwitch(const char *Switch,const wchar *SwitchW)
           {
             const char *Str=Switch+2;
             if (*Str=='-')
-              for (int I=0;I<sizeof(FilterModes)/sizeof(FilterModes[0]);I++)
+              for (uint I=0;I<ASIZE(FilterModes);I++)
                 FilterModes[I].State=FILTER_DISABLE;
             else
               while (*Str)
@@ -763,10 +781,10 @@ void CommandData::ProcessSwitch(const char *Switch,const wchar *SwitchW)
             }
           }
           break;
-#ifdef PACK_SMP
+#ifdef RAR_SMP
         case 'T':
           Threads=atoi(Switch+2);
-          if (Threads>16)
+          if (Threads>MaxPoolThreads || Threads<1)
             BadSwitch(Switch);
           else
           {
@@ -797,62 +815,7 @@ void CommandData::ProcessSwitch(const char *Switch,const wchar *SwitchW)
           VolSize=0;
           break;
         default:
-          {
-            int64 NewVolSize=atoil(&Switch[1]);
-
-            if (NewVolSize==0)
-              NewVolSize=INT64NDF; // Autodetecting volume size.
-            else
-              switch (Switch[strlen(Switch)-1])
-              {
-                case 'f':
-                case 'F':
-                  switch(NewVolSize)
-                  {
-                    case 360:
-                      NewVolSize=362496;
-                      break;
-                    case 720:
-                      NewVolSize=730112;
-                      break;
-                    case 1200:
-                      NewVolSize=1213952;
-                      break;
-                    case 1440:
-                      NewVolSize=1457664;
-                      break;
-                    case 2880:
-                      NewVolSize=2915328;
-                      break;
-                  }
-                  break;
-                case 'k':
-                  NewVolSize*=1024;
-                  break;
-                case 'm':
-                  NewVolSize*=1024*1024;
-                  break;
-                case 'M':
-                  NewVolSize*=1000*1000;
-                  break;
-                case 'g':
-                  NewVolSize*=1024*1024*1024;
-                  break;
-                case 'G':
-                  NewVolSize*=1000*1000*1000;
-                  break;
-                case 'b':
-                case 'B':
-                  break;
-                default:
-                  NewVolSize*=1000;
-                  break;
-              }
-            if (VolSize==0)
-              VolSize=NewVolSize;
-            else
-              NextVolSizes.Push(NewVolSize);
-          }
+          VolSize=VOLSIZE_AUTO; // UnRAR -v switch for list command.
           break;
       }
       break;
@@ -977,7 +940,7 @@ void CommandData::ProcessSwitch(const char *Switch,const wchar *SwitchW)
       break;
 #ifndef GUI
     case '?' :
-      OutHelp();
+      OutHelp(RARX_SUCCESS);
       break;
 #endif
     default :
@@ -992,7 +955,7 @@ void CommandData::ProcessSwitch(const char *Switch,const wchar *SwitchW)
 void CommandData::BadSwitch(const char *Switch)
 {
   mprintf(St(MUnknownOption),Switch);
-  ErrHandler.Exit(USER_ERROR);
+  ErrHandler.Exit(RARX_USERERROR);
 }
 #endif
 
@@ -1038,7 +1001,7 @@ inline bool CmpMSGID(MSGID i1,MSGID i2)
 #endif
 }
 
-void CommandData::OutHelp()
+void CommandData::OutHelp(RAR_EXIT ExitCode)
 {
 #if !defined(GUI) && !defined(SILENT)
   OutTitle();
@@ -1098,7 +1061,7 @@ void CommandData::OutHelp()
     if (CmpMSGID(Help[I],MCHelpSwOL))
       continue;
 #endif
-#ifndef PACK_SMP
+#ifndef RAR_SMP
     if (CmpMSGID(Help[I],MCHelpSwMT))
       continue;
 #endif
@@ -1117,7 +1080,7 @@ void CommandData::OutHelp()
     mprintf(St(Help[I]));
   }
   mprintf("\n");
-  ErrHandler.Exit(USER_ERROR);
+  ErrHandler.Exit(ExitCode);
 #endif
 }
 
@@ -1184,7 +1147,7 @@ bool CommandData::ExclCheckArgs(StringList *Args,bool Dir,char *CheckName,bool C
     if (CheckFullPath && IsFullPath(CurMask))
     {
       // We do not need to do the special "*\" processing here, because
-      // onlike the "else" part of this "if", now we convert names to full
+      // unlike the "else" part of this "if", now we convert names to full
       // format, so they all include the path, which is matched by "*\"
       // correctly. Moreover, removing "*\" from mask would break
       // the comparison, because now all names have the path.
@@ -1333,7 +1296,7 @@ void CommandData::ProcessCommand()
 
   const char *SingleCharCommands="FUADPXETK";
   if (Command[0]!=0 && Command[1]!=0 && strchr(SingleCharCommands,*Command)!=NULL || *ArcName==0)
-    OutHelp();
+    OutHelp(*Command==0 ? RARX_SUCCESS:RARX_USERERROR); // Return 'success' for 'rar' without parameters.
 
 #ifdef _UNIX
   if (GetExt(ArcName)==NULL && (!FileExist(ArcName) || IsDir(GetFileAttr(ArcName))))
@@ -1377,7 +1340,7 @@ void CommandData::ProcessCommand()
       ListArchive(this);
       break;
     default:
-      OutHelp();
+      OutHelp(RARX_USERERROR);
 #endif
   }
   if (!BareOutput)

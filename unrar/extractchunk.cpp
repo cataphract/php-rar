@@ -21,7 +21,7 @@ bool CmdExtract::ExtractCurrentFileChunkInit(CommandData *Cmd,
 #else
       if (!MergeArchive(Arc,&DataIO,false,Command)) //command irrelevant
       {
-        ErrHandler.SetErrorCode(WARNING);
+        ErrHandler.SetErrorCode(RARX_WARNING);
         return false;
       }
       SignatureFound=false;
@@ -45,15 +45,21 @@ bool CmdExtract::ExtractCurrentFileChunkInit(CommandData *Cmd,
   if ((Arc.NewLhd.Flags & (LHD_SPLIT_BEFORE/*|LHD_SOLID*/)) && FirstFile)
   {
     char CurVolName[NM];
+    /* are these first two needed? */
+    wcsncpyz(ArcNameW, Arc.FileNameW, ASIZE(ArcNameW));
     strncpyz(ArcName, Arc.FileName, NM);
     strncpyz(CurVolName, ArcName, sizeof CurVolName);
 
-    VolNameToFirstName(ArcName,ArcName,(Arc.NewMhd.Flags & MHD_NEWNUMBERING)!=0);
-    if (stricomp(ArcName,CurVolName)!=0 && FileExist(ArcName))
+    bool NewNumbering=(Arc.NewMhd.Flags & MHD_NEWNUMBERING)!=0;
+    VolNameToFirstName(ArcName,ArcName,NewNumbering);
+    if (*ArcNameW!=0)
+      VolNameToFirstName(ArcNameW,ArcNameW,NewNumbering);
+
+    if (stricomp(ArcName,CurVolName)!=0 && FileExist(ArcName,ArcNameW))
     {
       *ArcNameW=0;
       Repeat=true;
-      ErrHandler.SetErrorCode(WARNING);
+      ErrHandler.SetErrorCode(RARX_WARNING);
       /* Actually known. The problem is that the file doesn't start on this volume. */
       Cmd->DllError = ERAR_UNKNOWN;
       return false;
@@ -67,25 +73,38 @@ bool CmdExtract::ExtractCurrentFileChunkInit(CommandData *Cmd,
 
   if ((Arc.NewLhd.Flags & LHD_PASSWORD)!=0)
   {
-    if (*Cmd->Password==0)
+    if (!Cmd->Password.IsSet())
     {
-      char PasswordA[MAXPASSWORD];
-
-      if (Cmd->Callback==NULL ||
-          Cmd->Callback(UCM_NEEDPASSWORD,Cmd->UserData,(LPARAM)PasswordA,ASIZE(PasswordA))==-1)
+      if (Cmd->Callback!=NULL)
       {
-        ErrHandler.SetErrorCode(WARNING);
-        Cmd->DllError = ERAR_MISSING_PASSWORD;
+        wchar PasswordW[MAXPASSWORD];
+        *PasswordW=0;
+        if (Cmd->Callback(UCM_NEEDPASSWORDW,Cmd->UserData,(LPARAM)PasswordW,ASIZE(PasswordW))==-1)
+          *PasswordW=0;
+        if (*PasswordW==0)
+        {
+          char PasswordA[MAXPASSWORD];
+          *PasswordA=0;
+          if (Cmd->Callback(UCM_NEEDPASSWORD,Cmd->UserData,(LPARAM)PasswordA,ASIZE(PasswordA))==-1)
+            *PasswordA=0;
+          GetWideName(PasswordA,NULL,PasswordW,ASIZE(PasswordW));
+          cleandata(PasswordA,sizeof(PasswordA));
+        }
+        Cmd->Password.Set(PasswordW);
+        cleandata(PasswordW,sizeof(PasswordW));
+      }
+      if (!Cmd->Password.IsSet())
+      {
+        Cmd->DllError = ERAR_MISSING_PASSWORD; //added by me
         return false;
-		    }
-      GetWideName(PasswordA,NULL,Cmd->Password,ASIZE(Cmd->Password));
+      }
     }
-    wcscpy(Password,Cmd->Password);
+    Password=Cmd->Password;
   }
 
   if (Arc.NewLhd.UnpVer<13 || Arc.NewLhd.UnpVer>UNP_VER)
   {
-    ErrHandler.SetErrorCode(WARNING);
+    ErrHandler.SetErrorCode(RARX_WARNING);
     Cmd->DllError=ERAR_UNKNOWN_FORMAT;
     return false;
   }
@@ -101,7 +120,7 @@ bool CmdExtract::ExtractCurrentFileChunkInit(CommandData *Cmd,
   DataIO.UnpFileCRC= Arc.OldFormat ? 0 : 0xffffffff;
   DataIO.PackedCRC= 0xffffffff;
   DataIO.SetEncryption(
-    (Arc.NewLhd.Flags & LHD_PASSWORD) ? Arc.NewLhd.UnpVer : 0, Password,
+    (Arc.NewLhd.Flags & LHD_PASSWORD) ? Arc.NewLhd.UnpVer : 0, &Password,
     (Arc.NewLhd.Flags & LHD_SALT) ? Arc.NewLhd.Salt : NULL, false,
     Arc.NewLhd.UnpVer >= 36);
   DataIO.SetPackedSizeToRead(Arc.NewLhd.FullPackSize);

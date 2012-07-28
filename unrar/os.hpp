@@ -12,8 +12,10 @@
 #define SILENT
 #endif
 
-#if defined(_WIN_ALL) || defined(_EMX)
-#define ENABLE_BAD_ALLOC
+#define ENABLE_BAD_ALLOC // Undefine if std::bad_alloc is not supported.
+
+#if defined(ENABLE_BAD_ALLOC) && defined(__cplusplus)
+  #include <new>
 #endif
 
 
@@ -24,12 +26,12 @@
 
 #if defined(_WIN_ALL) && !defined(LEAN_RAR_INCLUDES)
 
-  #define STRICT
-  #define UNICODE
-  #undef WINVER
-  #undef _WIN32_WINNT
-  #define WINVER 0x0500
-  #define _WIN32_WINNT 0x0500
+#define STRICT
+#define UNICODE
+#undef WINVER
+#undef _WIN32_WINNT
+#define WINVER 0x0501
+#define _WIN32_WINNT 0x0501
 
 
 #define WIN32_LEAN_AND_MEAN
@@ -37,45 +39,29 @@
 #include <windows.h>
 #include <prsht.h>
 #include <shlwapi.h>
+#include <shellapi.h>
+#include <shlobj.h>
+#include <winioctl.h>
 
-#ifndef _WIN_CE
-  #include <shellapi.h>
-  #include <shlobj.h>
-  #include <winioctl.h>
-
-
-#endif // _WIN_CE
 
 
 #endif // _WIN_ALL
 
-#ifndef _WIN_CE
-  #include <sys/types.h>
-  #include <sys/stat.h>
-  #include <dos.h>
-#endif // _WIN_CE
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <dos.h>
 
-#if !defined(_EMX) && !defined(_MSC_VER) && !defined(_WIN_CE)
+#if !defined(_EMX) && !defined(_MSC_VER)
   #include <dir.h>
 #endif
 #ifdef _MSC_VER
   #if _MSC_VER<1500
     #define for if (0) ; else for
   #endif
-  #ifndef _WIN_CE
-    #include <direct.h>
-  #endif
+  #include <direct.h>
 #else
   #include <dirent.h>
 #endif // _MSC_VER
-
-#ifndef _WIN_CE
-  #include <share.h>
-#endif // _WIN_CE
-
-#if defined(ENABLE_BAD_ALLOC) && !defined(_WIN_CE) && !defined(LEAN_RAR_INCLUDES)
-  #include <new.h>
-#endif
 
 #ifdef _EMX
   #include <unistd.h>
@@ -89,14 +75,6 @@
     #include <sys/utime.h>
     #include <emx/syscalls.h>
   #endif
-#else
-  #ifndef LEAN_RAR_INCLUDES
-    #if (defined(_MSC_VER) || defined(__MINGW32__))
-      #include <exception>
-    #else
-      #include <except.h>
-    #endif
-  #endif
 #endif
 
 #undef _WSTDIO_DEFINED
@@ -105,19 +83,11 @@
 #include <stdarg.h>
 #include <string.h>
 #include <ctype.h>
-#ifndef _WIN_CE
-  #include <fcntl.h>
-  #include <dos.h>
-  #include <io.h>
-  #include <time.h>
-  #include <signal.h>
-#endif
-
-/*
-#ifdef _WIN_ALL
-#pragma hdrstop
-#endif // _WIN_ALL
-*/
+#include <fcntl.h>
+#include <dos.h>
+#include <io.h>
+#include <time.h>
+#include <signal.h>
 
 #define ENABLE_ACCESS
 
@@ -135,6 +105,7 @@
 #define READTEXT     "rt"
 #define UPDATEBINARY "r+b"
 #define CREATEBINARY "w+b"
+#define WRITEBINARY  "wb"
 #define APPENDTEXT   "at"
 
 #if defined(_WIN_ALL)
@@ -174,6 +145,9 @@
 #include <sys/file.h>
 #if defined(__QNXNTO__)
   #include <sys/param.h>
+#endif
+#if defined(RAR_SMP) && defined(__APPLE__)
+  #include <sys/sysctl.h>
 #endif
 #if defined(__FreeBSD__) || defined (__NetBSD__) || defined (__OpenBSD__) || defined(__APPLE__)
   #include <sys/param.h>
@@ -216,6 +190,7 @@
 #define READTEXT     "r"
 #define UPDATEBINARY "r+"
 #define CREATEBINARY "w+"
+#define WRITEBINARY  "w"
 #define APPENDTEXT   "a"
 
 #define _stdfunction 
@@ -267,13 +242,13 @@
 #endif
 
 #if !defined(BIG_ENDIAN) && !defined(_WIN_CE) && defined(_WIN_ALL)
-/* allow not aligned integer access, increases speed in some operations */
+// Allow not aligned integer access, increases speed in some operations.
 #define ALLOW_NOT_ALIGNED_INT
 #endif
 
 #if defined(__sparc) || defined(sparc) || defined(__sparcv9)
-/* prohibit not aligned access to data structures in text comression
-   algorithm, increases memory requirements */
+// Prohibit not aligned access to data structures in text compression
+// algorithm, increases memory requirements
 #define STRICT_ALIGNMENT_REQUIRED
 #endif
 

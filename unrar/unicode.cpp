@@ -53,7 +53,7 @@ bool WideToChar(const wchar *Src,char *Dest,size_t DestSize)
     }
 #endif
 
-  // We tried to return the zero terminated string if conversion is failed,
+  // We tried to return the empty string if conversion is failed,
   // but it does not work well. WideCharToMultiByte returns 'failed' code
   // and partially converted string even if we wanted to convert only a part
   // of string and passed DestSize smaller than required for fully converted
@@ -112,7 +112,7 @@ bool CharToWide(const char *Src,wchar *Dest,size_t DestSize)
     }
 #endif
 
-  // We tried to return the zero terminated string if conversion is failed,
+  // We tried to return the empty string if conversion is failed,
   // but it does not work well. MultiByteToWideChar returns 'failed' code
   // even if we wanted to convert only a part of string and passed DestSize
   // smaller than required for fully converted string. Such call is the valid
@@ -180,8 +180,10 @@ void WideToUtf(const wchar *Src,char *Dest,size_t DestSize)
 }
 
 
-void UtfToWide(const char *Src,wchar *Dest,size_t DestSize)
+// Dest can be NULL if we only need to check validity of Src.
+bool UtfToWide(const char *Src,wchar *Dest,size_t DestSize)
 {
+  bool Success=true;
   long dsize=(long)DestSize;
   dsize--;
   while (*Src!=0)
@@ -214,20 +216,37 @@ void UtfToWide(const char *Src,wchar *Dest,size_t DestSize)
             Src+=3;
           }
           else
-            break;
-    if (--dsize<0)
+          {
+            // Skip bad character, but continue processing, so we can handle
+            // archived UTF-8 file names even if one of characters is corrupt.
+            Success=false;
+            continue;
+          }
+    if (Dest!=NULL && --dsize<0)
       break;
     if (d>0xffff)
     {
-      if (--dsize<0 || d>0x10ffff)
+      if (Dest!=NULL && --dsize<0)
         break;
-      *(Dest++)=((d-0x10000)>>10)+0xd800;
-      *(Dest++)=(d&0x3ff)+0xdc00;
+      if (d>0x10ffff)
+      {
+        // UTF-8 is restricted by RFC 3629 to end at 0x10ffff.
+        Success=false;
+        continue;
+      }
+      if (Dest!=NULL)
+      {
+        *(Dest++)=((d-0x10000)>>10)+0xd800;
+        *(Dest++)=(d&0x3ff)+0xdc00;
+      }
     }
     else
-      *(Dest++)=d;
+      if (Dest!=NULL)
+        *(Dest++)=d;
   }
-  *Dest=0;
+  if (Dest!=NULL)
+    *Dest=0;
+  return Success;
 }
 
 
