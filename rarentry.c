@@ -34,7 +34,7 @@ extern "C" {
 #define _GNU_SOURCE
 #include <string.h>
 
-#include "php.h"
+#include <php.h>
 #include "php_rar.h"
 
 /* {{{ Globals with external linkage */

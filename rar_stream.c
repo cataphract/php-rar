@@ -34,7 +34,7 @@
 extern "C" {
 #endif
 
-#include "php.h"
+#include <php.h>
 
 #if HAVE_RAR
 
@@ -43,9 +43,10 @@ extern "C" {
 #include "php_rar.h"
 #include "unrar/rartypes.hpp"
 
-#include "php_streams.h"
-#include "ext/standard/url.h"
-#include "ext/standard/php_string.h"
+#include <php_streams.h>
+#include <ext/standard/url.h>
+#include <ext/standard/php_string.h>
+
 
 typedef struct php_rar_stream_data_t {
 	struct RAROpenArchiveDataEx	open_data;
