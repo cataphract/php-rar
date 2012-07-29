@@ -755,7 +755,7 @@ static int _rar_get_archive_and_fragment(php_stream_wrapper *wrapper,
 			if ((*archive = expand_filepath(tmp_archive, NULL TSRMLS_CC))
 					== NULL) {
 				php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
-					"Could not expand the path %s", archive);
+					"Could not expand the path %s", tmp_archive);
 				goto cleanup;
 			}
 		}
