@@ -23,10 +23,10 @@ http://pear.php.net/dtd/package-2.0.xsd">
   <active>no</active>
  </developer>
 
- <date>2011-06-12</date>
- <time>05:00:00</time>
+ <date>2012-07-29</date>
+ <time>04:00:00</time>
  <version>
-  <release>3.0.0</release>
+  <release>3.0.1</release>
   <api>3.0.0</api>
  </version>
 
@@ -37,23 +37,11 @@ http://pear.php.net/dtd/package-2.0.xsd">
 
  <license uri="http://www.php.net/license">PHP License</license>
  <notes>Changes in this version:
-- Updated to unrar 4.0.7 (corresponds to WinRAR 4.0.0 stable).
-- Support for PHP 5.4.
-- Added url wrapper rar://.
-- Added volume find callback to RarArchive::open/rar_open.
-- Added support for stat, both static and to opened streams.
-- Added rar_allow_broken_set/RarArchive::setAllowBroken and rar_broken_is/
-  RarArchive::isBroken, which control/query the behavior with archives with
-  missing volumes.
-- Added option to RarEntry::extract() to allow from extraction of ACL (windows)
-  /owner (unix)/extended attributes (os/2).
-- Added support for RAR archives that have several entries with the same name.
-- Implemented count elements handler for RarArchive.
-- Implemented dimensions handlers for RarArchive.
-- Fixed packed sizes which were using high bits from unpacked sizes.
-- Fixed PECL bug #20498 (RarEntry::extract not really accepting a password).
-- Fixed PECL bug #18449 (Extraction of uncompressed and encrypted files fails).
-- Many more tests.
+- Merge changes made to unrar up to version 4.2.2.
+- Fix leak in PHP >= 5.3.11, = 5.4.0 and compile error in master.
+- Fix some tests failing if TZ != Europe/Lisbon.
+- Fix bad pointer in an error message.
+- Added test for bug #59939 (can't reproduce).
  </notes>
  <contents>
   <dir name="/">
@@ -157,11 +145,13 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file role="test" name="096.phpt"/>
     <file role="test" name="097.phpt"/>
     <file role="test" name="098.phpt"/>
+    <file role="test" name="099.phpt"/>
     <file role="test" name="commented.rar"/>
     <file role="test" name="corrupted.rar"/>
     <file role="test" name="directories.rar"/>
     <file role="test" name="dirlink_unix.rar"/>
     <file role="test" name="dirs_and_extra_headers.rar"/>
+    <file role="test" name="empty_file.rar"/>
     <file role="test" name="encrypted_headers.rar"/>
     <file role="test" name="encrypted_only_files.rar"/>
     <file role="test" name="garbage.part03.rar"/>
@@ -181,6 +171,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file role="test" name="store_method.rar"/>
    </dir> <!-- /tests -->
    <dir name="unrar">
+    <file name="acknow.txt" role="doc" />
     <file name="arccmt.cpp" role="src" />
     <file name="archive.cpp" role="src" />
     <file name="archive.hpp" role="src" />
@@ -268,6 +259,8 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file name="savepos.hpp" role="src" />
     <file name="scantree.cpp" role="src" />
     <file name="scantree.hpp" role="src" />
+    <file name="secpassword.cpp" role="src" />
+    <file name="secpassword.hpp" role="src" />
     <file name="sha1.cpp" role="src" />
     <file name="sha1.hpp" role="src" />
     <file name="smallfn.cpp" role="src" />
