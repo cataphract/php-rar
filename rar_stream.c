@@ -46,7 +46,7 @@ extern "C" {
 #include <php_streams.h>
 #include <ext/standard/url.h>
 #include <ext/standard/php_string.h>
-
+#include <ext/standard/file.h>
 
 typedef struct php_rar_stream_data_t {
 	struct RAROpenArchiveDataEx	open_data;
@@ -1057,7 +1057,9 @@ cleanup:
 }
 /* }}} */
 
-/* {{{ _rar_stream_tidy_wrapper_error_log */
+/* {{{ _rar_stream_tidy_wrapper_error_log
+ *     These two different versions are because of PHP commit 7166298 */
+#if PHP_VERSION_ID <= 50310 || PHP_VERSION_ID == 50400
 /* copied from main/streams/streams.c because it's an internal function */
 static void _rar_stream_tidy_wrapper_error_log(php_stream_wrapper *wrapper TSRMLS_DC)
 {
@@ -1075,6 +1077,14 @@ static void _rar_stream_tidy_wrapper_error_log(php_stream_wrapper *wrapper TSRML
 		wrapper->err_count = 0;
 	}
 }
+#else
+static void _rar_stream_tidy_wrapper_error_log(php_stream_wrapper *wrapper TSRMLS_DC)
+{
+    if (wrapper && FG(wrapper_errors)) {
+        zend_hash_del(FG(wrapper_errors), (const char*)&wrapper, sizeof wrapper);
+    }
+}
+#endif
 /* }}} */
 
 /* {{{ php_stream_rar_stater */
