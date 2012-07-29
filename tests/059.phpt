@@ -3,6 +3,8 @@ url stat test
 --SKIPIF--
 <?php
 if(!extension_loaded("rar")) die("skip");
+--ENV--
+TZ=Europe/Lisbon
 --FILE--
 <?php
 umask(0);
