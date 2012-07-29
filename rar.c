@@ -732,7 +732,6 @@ ZEND_MODULE_INFO_D(rar)
 	php_info_print_table_start();
 	php_info_print_table_header(2, "RAR support", "enabled");
 	php_info_print_table_row(2, "RAR EXT version", PHP_RAR_VERSION);
-	php_info_print_table_row(2, "Revision", PHP_RAR_REVISION);
 
 #if	RARVER_BETA != 0
 	sprintf(version,"%d.%02d beta%d patch%d %d-%02d-%02d", RARVER_MAJOR,
