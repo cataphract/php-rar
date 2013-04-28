@@ -516,7 +516,7 @@ PHP_METHOD(rarentry, getStream)
 
 	/* doesn't matter that cb_udata is stack allocated, it will be copied */
 	stream = php_stream_rar_open(rar->extract_open_data->ArcName,
-		Z_LVAL_P(position), &cb_udata, "r" STREAMS_CC TSRMLS_CC);
+		Z_LVAL_P(position), &cb_udata STREAMS_CC TSRMLS_CC);
 
 	if (stream != NULL) {
 		php_stream_to_zval(stream, return_value);

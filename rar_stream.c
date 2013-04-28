@@ -504,18 +504,13 @@ static php_stream_ops php_stream_rar_dirio_ops = {
  * was already done in RarArchive::open */
 php_stream *php_stream_rar_open(char *arc_name,
 								size_t position,
-								rar_cb_user_data *cb_udata_ptr, /* will be copied */
-								char *mode STREAMS_DC TSRMLS_DC)
+								rar_cb_user_data *cb_udata_ptr /* will be copied */
+								STREAMS_DC TSRMLS_DC)
 {
 	php_stream				*stream	= NULL;
 	php_rar_stream_data_P	self	= NULL;
 	int						result,
 							found;
-
-	/* mode must be exactly "r" */
-	if (strncmp(mode, "r", sizeof("r")) != 0) {
-		goto cleanup;
-	}
 
 	self = ecalloc(1, sizeof *self);
 	self->open_data.ArcName		= estrdup(arc_name);
@@ -552,7 +547,7 @@ php_stream *php_stream_rar_open(char *arc_name,
 
 		self->buffer = emalloc(buffer_size);
 		self->buffer_size = buffer_size;
-		stream = php_stream_alloc(&php_stream_rario_ops, self, NULL, mode);
+		stream = php_stream_alloc(&php_stream_rario_ops, self, NULL, "rb");
 		stream->flags |= PHP_STREAM_FLAG_NO_BUFFER;
 	}
 
@@ -843,10 +838,10 @@ static php_stream *php_stream_rar_opener(php_stream_wrapper *wrapper,
 		return NULL;
 	}
 
-	/* mode must be exactly "r" */
-	if (strncmp(mode, "r", sizeof("r")) != 0) {
+	/* mode must be "r" or "rb", which, for BC reasons, are treated identically */
+	if (mode[0] != 'r' || (mode[1] != '\0' && mode[1] != 'b') || strlen(mode) > 2) {
 		php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
-			"Only the \"r\" open mode is permitted, given %s", mode);
+			"Only the \"r\" and \"rb\" open modes are permitted, given %s", mode);
 		return NULL;
 	}
 

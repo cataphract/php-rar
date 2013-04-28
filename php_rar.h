@@ -287,8 +287,8 @@ void _rar_entry_to_zval(zval *parent,
 /* rar_stream.c */
 php_stream *php_stream_rar_open(char *arc_name,
 								size_t position,
-								rar_cb_user_data *cb_udata_ptr, /* will be copied */
-								char *mode STREAMS_DC TSRMLS_DC);
+								rar_cb_user_data *cb_udata_ptr /* will be copied */
+								STREAMS_DC TSRMLS_DC);
 extern php_stream_wrapper php_stream_rar_wrapper;
 
 #endif	/* PHP_RAR_H */
