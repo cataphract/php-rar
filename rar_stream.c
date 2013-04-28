@@ -80,7 +80,7 @@ typedef struct php_rar_dir_stream_data_t {
 #define STREAM_DIR_DATA_FROM_STREAM \
 	php_rar_dir_stream_data_P self = (php_rar_dir_stream_data_P) stream->abstract;
 
-/* len can be -1 (calculate) */ 
+/* len can be -1 (calculate) */
 static char *_rar_wide_to_utf_with_alloc(const wchar_t *wide, int len)
 {
 	size_t size;
@@ -264,7 +264,7 @@ static mode_t _rar_convert_file_attrs(unsigned os_attrs,
 			/* leave as is */
 			ret = (mode_t) (os_attrs & 0xffff);
 			break;
-		
+
 		default:
 			if ((flags & LHD_WINDOWMASK) == LHD_DIRECTORY)
 				ret = S_IFDIR;
@@ -431,7 +431,7 @@ static size_t php_rar_dir_ops_read(php_stream *stream, char *buf, size_t count T
 		strlcpy(entry.d_name, encoded_name, sizeof entry.d_name);
 		efree(encoded_name);
 	}
-	
+
 
 	self->cur_offset++;
 
@@ -444,7 +444,7 @@ static size_t php_rar_dir_ops_read(php_stream *stream, char *buf, size_t count T
 static int php_rar_dir_ops_close(php_stream *stream, int close_handle TSRMLS_DC)
 {
 	STREAM_DIR_DATA_FROM_STREAM
-	
+
 	zval_ptr_dtor(&self->rar_obj);
 	efree(self->directory);
 	efree(self->state);
@@ -452,7 +452,7 @@ static int php_rar_dir_ops_close(php_stream *stream, int close_handle TSRMLS_DC)
 	stream->abstract = NULL;
 
 	/* 0 because that's what php_plain_files_dirstream_close returns... */
-	return 0; 
+	return 0;
 }
 /* }}} */
 
@@ -527,7 +527,7 @@ php_stream *php_stream_rar_open(char *arc_name,
 		self->cb_userdata.callable = cb_udata_ptr->callable;
 		zval_add_ref(&self->cb_userdata.callable);
 	}
-	
+
 	result = _rar_find_file_p(&self->open_data, position, &self->cb_userdata,
 		&self->rar_handle, &found, &self->header_data);
 
@@ -592,7 +592,7 @@ static char *zend_resolve_path(const char *filename,
 	}
 
 	/* do not use the include path in these circumstances */
-	if ((*filename == '.' && (IS_SLASH(filename[1]) || 
+	if ((*filename == '.' && (IS_SLASH(filename[1]) ||
 			((filename[1] == '.') && IS_SLASH(filename[2])))) ||
 			IS_ABSOLUTE_PATH(filename, filename_length) ||
 			path == NULL || path[0] == '\0') {
@@ -729,7 +729,7 @@ static int _rar_get_archive_and_fragment(php_stream_wrapper *wrapper,
 			"<urlencoded entry name>]]\"");
 		goto cleanup;
 	}
-	
+
 	tmp_arch_len = (tmp_fragment != NULL)?
 		(tmp_fragment - filename) : (strlen(filename));
 	tmp_archive = emalloc(tmp_arch_len + 1);
@@ -871,7 +871,7 @@ static php_stream *php_stream_rar_opener(php_stream_wrapper *wrapper,
 		zval_add_ref(&self->cb_userdata.callable);
 		SEPARATE_ZVAL(&self->cb_userdata.callable);
 	}
-	
+
 	rar_result = _rar_find_file_w(&self->open_data, fragment,
 		&self->cb_userdata, &self->rar_handle, &file_found,
 		&self->header_data);
@@ -889,7 +889,7 @@ static php_stream *php_stream_rar_opener(php_stream_wrapper *wrapper,
 		efree(mb_fragment);
 		goto cleanup;
 	}
-	
+
 	/* once found, the password that matters is the file level password.
 	 * we will NOT default on the open password if no file level password is
 	 * given, but an open password is. This behaviour is differs from that of
@@ -986,7 +986,7 @@ static int _rar_get_cachable_rararch(php_stream_wrapper *wrapper,
 				ret = FAILURE;
 
 	assert(rar_obj != NULL);
-	
+
 	_rar_arch_cache_get_key(arch_path, open_passwd, volume_cb, &cache_key,
 		&cache_key_len);
 	*rar_obj = RAR_G(contents_cache).get(cache_key, cache_key_len TSRMLS_CC);
@@ -1118,7 +1118,7 @@ static int php_stream_rar_stater(php_stream_wrapper *wrapper,
 			NULL, &volume_cb TSRMLS_CC);
 	}
 	/* end preliminaries }}} */
-	
+
 	if (_rar_get_cachable_rararch(wrapper, options, open_path, open_passwd,
 			volume_cb, &rararch, &rar TSRMLS_CC) == FAILURE)
 		goto cleanup;
@@ -1168,7 +1168,7 @@ cleanup:
 	 */
 	if (flags & PHP_STREAM_URL_STAT_QUIET)
 		_rar_stream_tidy_wrapper_error_log(wrapper TSRMLS_CC);
-	
+
 	return ret;
 }
 /* }}} */
@@ -1227,7 +1227,7 @@ static php_stream *php_stream_rar_dir_opener(php_stream_wrapper *wrapper,
 	fragment_len = wcslen(fragment);
 	self->directory = ecalloc(fragment_len + 1, sizeof *self->directory);
 	wmemcpy(self->directory, fragment, fragment_len + 1);
-	
+
 	/* Remove the ending in the path separator */
 	if (fragment_len > 0 &&
 			self->directory[fragment_len - 1] == PATHDIVIDERW[0]) {
@@ -1236,7 +1236,7 @@ static php_stream *php_stream_rar_dir_opener(php_stream_wrapper *wrapper,
 	}
 	else
 		self->dir_size = fragment_len + 1;
-	
+
 	_rar_entry_search_start(rar, RAR_SEARCH_DIRECTORY | RAR_SEARCH_NAME,
 		&self->state TSRMLS_CC);
 	if (self->dir_size != 1) { /* skip if asked for root */
@@ -1247,7 +1247,7 @@ static php_stream *php_stream_rar_dir_opener(php_stream_wrapper *wrapper,
 		if (!self->state->found || ((self->state->header->Flags &
 				LHD_WINDOWMASK) != LHD_DIRECTORY)) {
 			const char *message;
-			char *mb_entry = _rar_wide_to_utf_with_alloc(self->directory, 
+			char *mb_entry = _rar_wide_to_utf_with_alloc(self->directory,
 				(size_t) self->dir_size - 1);
 
 			if (!self->state->found)

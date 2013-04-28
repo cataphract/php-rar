@@ -130,7 +130,7 @@ int _rar_create_rararch_obj(const char* resolved_path,
 			zval_add_ref(&rar->cb_userdata.callable);
 			SEPARATE_ZVAL(&rar->cb_userdata.callable);
 		}
-		
+
 		object_init_ex(object, rararch_ce_ptr);
 		zobj = zend_object_store_get_object(object TSRMLS_CC);
 		zobj->rar_file = rar;
@@ -138,11 +138,11 @@ int _rar_create_rararch_obj(const char* resolved_path,
 
 		RARSetCallback(rar->arch_handle, _rar_unrar_callback,
 			(LPARAM) &rar->cb_userdata);
-		
+
 		return SUCCESS;
 	} else {
 		*err_code = rar->list_open_data->OpenResult;
-		
+
 		efree(rar->list_open_data->ArcName);
 		efree(rar->list_open_data->CmtBuf);
 		efree(rar->list_open_data);
@@ -157,7 +157,7 @@ int _rar_create_rararch_obj(const char* resolved_path,
 void _rar_close_file_resource(rar_file_t *rar) /* {{{ */
 {
 	assert(rar->arch_handle != NULL);
-	
+
 	/* When changed from resource to custom object, instead of fiddling
 	 * with the refcount to force object destruction, an indication that
 	 * the file is already closed is given by setting rar->arch_handle
@@ -268,7 +268,7 @@ static void rararch_ce_destroy_object(ze_rararch_object *object,
 
 	/* not really relevant, calls destr. zend func. ce->destructor if it exists */
 	zend_objects_destroy_object((zend_object*) object, handle TSRMLS_CC);
-	
+
 	if (rar->arch_handle != NULL) {
 		RARCloseArchive(rar->arch_handle);
 	}
@@ -292,7 +292,7 @@ static void rararch_ce_free_object_storage(ze_rararch_object *object TSRMLS_DC) 
 		efree(rar->extract_open_data);
 		efree(rar);
 	}
-	
+
 	/* could call zend_objects_free_object_storage here (not before!), but
 	 * instead I'll mimic its behaviour */
 	zend_object_std_dtor((zend_object*) object TSRMLS_CC);
@@ -310,7 +310,7 @@ static int rararch_handlers_preamble(zval *object, rar_file_t **rar TSRMLS_DC) /
 	if (_rar_get_file_resource(object, rar TSRMLS_CC) == FAILURE) {
 		return FAILURE;
 	}
-	
+
 	return _rar_handle_error(_rar_list_files(*rar TSRMLS_CC) TSRMLS_CC);
 }
 /* }}} */
@@ -374,7 +374,7 @@ static int rararch_dimensions_preamble(rar_file_t *rar,
 					"an integer (get handler returned another object)");
 				return FAILURE;
 			}
-			
+
 			ret = rararch_dimensions_preamble(rar, newoffset, index, quiet
 				TSRMLS_CC);
 			FREE_ZVAL(newoffset);
@@ -411,11 +411,11 @@ static int rararch_dimensions_preamble(rar_file_t *rar,
 /* }}} */
 
 /* {{{ RarArchive count_elements handler */
-static int rararch_count_elements(zval *object, long *count TSRMLS_DC) 
+static int rararch_count_elements(zval *object, long *count TSRMLS_DC)
 {
 	rar_file_t	*rar = NULL;
 	size_t		entry_count;
-	
+
 	if (rararch_handlers_preamble(object, &rar TSRMLS_CC) == FAILURE) {
 		*count = 0L;
 		return SUCCESS; /* intentional */
@@ -540,7 +540,7 @@ PHP_FUNCTION(rar_open)
 			RETURN_FALSE;
 		}
 	}
-	
+
 	if (_rar_create_rararch_obj(resolved_path, password, callable,
 			return_value, &err_code TSRMLS_CC) == FAILURE) {
 		const char *err_str = _rar_error_to_string(err_code);
@@ -575,9 +575,9 @@ PHP_FUNCTION(rar_list)
 
 	if (_rar_handle_error(_rar_list_files(rar TSRMLS_CC) TSRMLS_CC) == FAILURE)
 		RETURN_FALSE;
-	
+
 	array_init(return_value);
-	
+
 	_rar_raw_entries_to_array(rar, return_value TSRMLS_CC);
 }
 /* }}} */
@@ -611,7 +611,7 @@ PHP_FUNCTION(rar_entry_get)
 	if (_rar_handle_error(_rar_list_files(rar TSRMLS_CC) TSRMLS_CC) == FAILURE)
 		RETURN_FALSE;
 
-	filename_c = ecalloc(filename_len + 1, sizeof *filename_c); 
+	filename_c = ecalloc(filename_len + 1, sizeof *filename_c);
 	_rar_utf_to_wide(filename, filename_c, filename_len + 1);
 
 	_rar_entry_search_start(rar, RAR_SEARCH_NAME, &sstate TSRMLS_CC);
@@ -624,7 +624,7 @@ PHP_FUNCTION(rar_entry_get)
 		_rar_handle_ext_error(
 			"cannot find file \"%s\" in Rar archive \"%s\""
 			TSRMLS_CC, filename, rar->list_open_data->ArcName);
-		RETVAL_FALSE;	
+		RETVAL_FALSE;
 	}
 	_rar_entry_search_end(sstate);
 
@@ -662,7 +662,7 @@ PHP_FUNCTION(rar_comment_get)
 	if (_rar_get_file_resource(file, &rar TSRMLS_CC) == FAILURE) {
 		RETURN_FALSE;
 	}
-	
+
 	cmt_state = rar->list_open_data->CmtState;
 
 	if (_rar_handle_error(cmt_state TSRMLS_CC) == FAILURE)
@@ -699,7 +699,7 @@ PHP_FUNCTION(rar_broken_is)
 	result = _rar_list_files(rar TSRMLS_CC);
 	rar->allow_broken = orig_allow_broken;
 
-	RETURN_BOOL(_rar_error_to_string(result) != NULL);	
+	RETURN_BOOL(_rar_error_to_string(result) != NULL);
 }
 
 /* {{{ proto bool rar_allow_broken_set(RarArchive rarfile, bool allow_broken)
@@ -760,7 +760,7 @@ PHP_METHOD(rararch, __toString)
 	char				*restring;
 	size_t				restring_size;
 	int					is_closed;
-	
+
 	RAR_RETNULL_ON_ARGS();
 
 	if (_rar_get_file_resource_ex(arch_obj, &rar, TRUE TSRMLS_CC) == FAILURE) {
@@ -779,7 +779,7 @@ PHP_METHOD(rararch, __toString)
 	snprintf(restring, restring_size, format, rar->list_open_data->ArcName,
 		is_closed?closed:"");
 	restring[restring_size - 1] = '\0'; /* just to be safe */
-	
+
 	RETURN_STRINGL(restring, (int) restring_size - 1, 0);
 }
 /* }}} */
@@ -859,7 +859,7 @@ static zend_object_iterator *rararch_it_get_iterator(zend_class_entry *ce,
 	if (rar->arch_handle == NULL)
 		php_error_docref(NULL TSRMLS_CC, E_ERROR,
 			"The archive is already closed, cannot give an iterator");
-	res = _rar_list_files(rar TSRMLS_CC); 
+	res = _rar_list_files(rar TSRMLS_CC);
 	if (_rar_handle_error(res TSRMLS_CC) == FAILURE) {
 		/* if it failed, do not expose the possibly incomplete entry list */
 		it->empty_iterator = 1;
@@ -891,11 +891,11 @@ static void rararch_it_invalidate_current(zend_object_iterator *iter TSRMLS_DC)
 static void rararch_it_dtor(zend_object_iterator *iter TSRMLS_DC)
 {
 	rararch_iterator *it = (rararch_iterator *) iter;
-	
+
 	rararch_it_invalidate_current((zend_object_iterator *) it TSRMLS_CC);
-	
+
 	zval_ptr_dtor((zval**) &it->parent.data); /* decrease refcount on zval object */
-	
+
 	_rar_entry_search_end(it->state);
 	efree(it);
 }

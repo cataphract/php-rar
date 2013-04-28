@@ -52,11 +52,11 @@ int _rar_handle_error_ex(const char *preamble, int errcode TSRMLS_DC) /* {{{ */
 	if (err == NULL) {
 		return SUCCESS;
 	}
-	
+
 	if (_rar_using_exceptions(TSRMLS_C)) {
 		zend_throw_exception_ex(rarexception_ce_ptr, errcode TSRMLS_CC,
 			"unRAR internal error: %s%s", preamble, err);
-	}	
+	}
 	else {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s%s", preamble, err);
 	}
@@ -91,7 +91,7 @@ int _rar_using_exceptions(TSRMLS_D)
 	zval *pval;
 	pval = zend_read_static_property(rarexception_ce_ptr, "usingExceptions",
 		sizeof("usingExceptions") -1, (zend_bool) 1 TSRMLS_CC);
-	assert(Z_TYPE_P(pval) == IS_BOOL);	
+	assert(Z_TYPE_P(pval) == IS_BOOL);
 
 	return Z_BVAL_P(pval);
 }
@@ -187,7 +187,7 @@ PHP_METHOD(rarexception, isUsingExceptions)
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "") == FAILURE ) {
 		return;
 	}
-	
+
 	/* or zend_read_static_property, which calls zend_std_get... after chg scope */
 #if PHP_VERSION_ID < 50399
 	pval = zend_std_get_static_property(rarexception_ce_ptr, "usingExceptions",
@@ -198,8 +198,8 @@ PHP_METHOD(rarexception, isUsingExceptions)
 #endif
 	/* property always exists */
 	assert(pval != NULL);
-	assert(Z_TYPE_PP(pval) == IS_BOOL);	
-	
+	assert(Z_TYPE_PP(pval) == IS_BOOL);
+
 	RETURN_ZVAL(*pval, 0, 0);
 }
 /* }}} */

@@ -402,7 +402,7 @@ int _rar_list_files(rar_file_t *rar TSRMLS_DC) /* {{{ */
 	}
 
 	rar->entries->list_result = result;
-	
+
 	return rar->allow_broken ? ERAR_END_ARCHIVE : result;
 }
 /* }}} */
@@ -507,7 +507,7 @@ static int _rar_nav_directory_match(const wchar_t *dir, const size_t dir_len,
 	const wchar_t *chr,
 				  *entry_rem;
 	size_t		  entry_rem_len;
-	
+
 	/* dir does not end with the path separator */
 
 	if (dir_len > 0) {
@@ -564,7 +564,7 @@ static size_t _rar_nav_position_on_dir_start(const wchar_t *dir_name,
 		else
 			high = mid;
 	}
-	
+
 	if (low >= orig_high)
 		return -1;
 

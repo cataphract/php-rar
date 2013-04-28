@@ -106,15 +106,15 @@ void _rar_entry_to_zval(zval *parent, /* zval to RarArchive object, will have it
 		sizeof("packed_size") - 1, packed_size TSRMLS_CC);
 	zend_update_property_long(rar_class_entry_ptr, object, "host_os",
 		sizeof("host_os") - 1, entry->HostOS TSRMLS_CC);
-	
+
 	_rar_dos_date_to_text(entry->FileTime, time);
 	zend_update_property_string(rar_class_entry_ptr, object, "file_time",
 		sizeof("file_time") - 1, time TSRMLS_CC);
-	
+
 	sprintf(tmp_s, "%x", entry->FileCRC);
 	zend_update_property_string(rar_class_entry_ptr, object, "crc",
 		sizeof("crc") - 1, tmp_s TSRMLS_CC);
-	
+
 	zend_update_property_long(rar_class_entry_ptr, object, "attr",
 		sizeof("attr") - 1, entry->FileAttr TSRMLS_CC);
 	zend_update_property_long(rar_class_entry_ptr, object, "version",
@@ -245,7 +245,7 @@ PHP_METHOD(rarentry, extract)
 	/* gotta have a new copy (shallow is enough) because we may want to use a
 	 * password that's different from the one stored in the rar_file_t object*/
 	rar_cb_user_data		cb_udata = {NULL};
-	
+
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|ss!b", &dir,
 			&dir_len, &filepath, &filepath_len, &password, &password_len,
 			&process_ed) == FAILURE ) {
@@ -270,14 +270,14 @@ PHP_METHOD(rarentry, extract)
 	else {
 		considered_path = filepath;
 	}
-	
+
 	if (OPENBASEDIR_CHECKPATH(considered_path)) {
 		RETURN_FALSE;
 	}
 	if (!expand_filepath(considered_path, considered_path_res TSRMLS_CC)) {
 		RETURN_FALSE;
 	}
-	
+
 	/* Find file inside archive */
 	RAR_GET_PROPERTY(tmp_position, "position");
 
@@ -327,7 +327,7 @@ PHP_METHOD(rarentry, extract)
 	else {
 		RETVAL_TRUE;
 	}
-	
+
 cleanup:
 	if (extract_handle != NULL)
 		RARCloseArchive(extract_handle);
@@ -342,9 +342,9 @@ PHP_METHOD(rarentry, getPosition)
 	zval *entry_obj = getThis();
 
 	RAR_RETNULL_ON_ARGS();
-	
+
 	RAR_GET_PROPERTY(tmp, "position");
-	
+
 	RETURN_LONG(Z_LVAL_P(tmp));
 }
 /* }}} */
@@ -357,9 +357,9 @@ PHP_METHOD(rarentry, getName)
 	zval *entry_obj = getThis();
 
 	RAR_RETNULL_ON_ARGS();
-	
+
 	RAR_GET_PROPERTY(tmp, "name");
-	
+
 	RETURN_STRINGL(Z_STRVAL_P(tmp), Z_STRLEN_P(tmp), 1);
 }
 /* }}} */
@@ -370,11 +370,11 @@ PHP_METHOD(rarentry, getUnpackedSize)
 {
 	zval *tmp;
 	zval *entry_obj = getThis();
-	
+
 	RAR_RETNULL_ON_ARGS();
-	
+
 	RAR_GET_PROPERTY(tmp, "unpacked_size");
-	
+
 	RETURN_LONG(Z_LVAL_P(tmp));
 }
 /* }}} */
@@ -387,9 +387,9 @@ PHP_METHOD(rarentry, getPackedSize)
 	zval *entry_obj = getThis();
 
 	RAR_RETNULL_ON_ARGS();
-	
+
 	RAR_GET_PROPERTY(tmp, "packed_size");
-	
+
 	RETURN_LONG(Z_LVAL_P(tmp));
 }
 /* }}} */
@@ -402,9 +402,9 @@ PHP_METHOD(rarentry, getHostOs)
 	zval *entry_obj = getThis();
 
 	RAR_RETNULL_ON_ARGS();
-	
+
 	RAR_GET_PROPERTY(tmp, "host_os");
-	
+
 	RETURN_LONG(Z_LVAL_P(tmp));
 }
 /* }}} */
@@ -417,9 +417,9 @@ PHP_METHOD(rarentry, getFileTime)
 	zval *entry_obj = getThis();
 
 	RAR_RETNULL_ON_ARGS();
-	
+
 	RAR_GET_PROPERTY(tmp, "file_time");
-	
+
 	RETURN_STRINGL(Z_STRVAL_P(tmp), Z_STRLEN_P(tmp), 1);
 }
 /* }}} */
@@ -432,9 +432,9 @@ PHP_METHOD(rarentry, getCrc)
 	zval *entry_obj = getThis();
 
 	RAR_RETNULL_ON_ARGS();
-	
+
 	RAR_GET_PROPERTY(tmp, "crc");
-	
+
 	RETURN_STRINGL(Z_STRVAL_P(tmp), Z_STRLEN_P(tmp), 1);
 }
 /* }}} */
@@ -447,9 +447,9 @@ PHP_METHOD(rarentry, getAttr)
 	zval *entry_obj = getThis();
 
 	RAR_RETNULL_ON_ARGS();
-	
+
 	RAR_GET_PROPERTY(tmp, "attr");
-	
+
 	RETURN_LONG(Z_LVAL_P(tmp));
 }
 /* }}} */
@@ -462,9 +462,9 @@ PHP_METHOD(rarentry, getVersion)
 	zval *entry_obj = getThis();
 
 	RAR_RETNULL_ON_ARGS();
-	
+
 	RAR_GET_PROPERTY(tmp, "version");
-	
+
 	RETURN_LONG(Z_LVAL_P(tmp));
 }
 /* }}} */
@@ -477,9 +477,9 @@ PHP_METHOD(rarentry, getMethod)
 	zval *entry_obj = getThis();
 
 	RAR_RETNULL_ON_ARGS();
-	
+
 	RAR_GET_PROPERTY(tmp, "method");
-	
+
 	RETURN_LONG(Z_LVAL_P(tmp));
 }
 /* }}} */
@@ -497,7 +497,7 @@ PHP_METHOD(rarentry, getStream)
 	int					password_len; /* ignored */
 	rar_cb_user_data	cb_udata = {NULL};
 
-	
+
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|s!",
 			&password, &password_len) == FAILURE ) {
 		return;
@@ -517,7 +517,7 @@ PHP_METHOD(rarentry, getStream)
 	/* doesn't matter that cb_udata is stack allocated, it will be copied */
 	stream = php_stream_rar_open(rar->extract_open_data->ArcName,
 		Z_LVAL_P(position), &cb_udata, "r" STREAMS_CC TSRMLS_CC);
-	
+
 	if (stream != NULL) {
 		php_stream_to_zval(stream, return_value);
 	}
@@ -536,11 +536,11 @@ PHP_METHOD(rarentry, isDirectory)
 	int is_dir;
 
 	RAR_RETNULL_ON_ARGS();
-	
+
 	RAR_GET_PROPERTY(tmp, "flags");
 	flags = Z_LVAL_P(tmp);
 	is_dir = ((flags & LHD_WINDOWMASK) == LHD_DIRECTORY);
-	
+
 	RETURN_BOOL(is_dir);
 }
 /* }}} */
@@ -555,11 +555,11 @@ PHP_METHOD(rarentry, isEncrypted)
 	int is_encrypted;
 
 	RAR_RETNULL_ON_ARGS();
-	
+
 	RAR_GET_PROPERTY(tmp, "flags");
 	flags = Z_LVAL_P(tmp);
 	is_encrypted = (flags & 0x04);
-	
+
 	RETURN_BOOL(is_encrypted);
 }
 /* }}} */
@@ -581,7 +581,7 @@ PHP_METHOD(rarentry, __toString)
 	const char	format[] = "RarEntry for %s \"%s\" (%s)";
 
 	RAR_RETNULL_ON_ARGS();
-	
+
 	RAR_GET_PROPERTY(flags_zval, "flags");
 	flags = Z_LVAL_P(flags_zval);
 	is_dir = ((flags & 0xE0) == 0xE0);
@@ -599,7 +599,7 @@ PHP_METHOD(rarentry, __toString)
 	snprintf(restring, restring_len, format, is_dir?"directory":"file",
 		name, crc);
 	restring[restring_len - 1] = '\0'; /* just to be safe */
-	
+
 	RETURN_STRING(restring, 0);
 }
 /* }}} */
@@ -667,7 +667,7 @@ void minit_rarentry(TSRMLS_D)
 	REG_RAR_PROPERTY("version", "RAR version needed to extract entry");
 	REG_RAR_PROPERTY("method", "Identifier for packing method");
 	REG_RAR_PROPERTY("flags", "Entry header flags");
-	
+
 	REG_RAR_CLASS_CONST_LONG("HOST_MSDOS",	HOST_MSDOS);
 	REG_RAR_CLASS_CONST_LONG("HOST_OS2",	HOST_OS2);
 	REG_RAR_CLASS_CONST_LONG("HOST_WIN32",	HOST_WIN32);

@@ -155,11 +155,11 @@ void _rar_utf_to_wide(const char *src, wchar_t *dest, size_t dest_size) /* {{{ *
 void _rar_destroy_userdata(rar_cb_user_data *udata) /* {{{ */
 {
 	assert(udata != NULL);
-	
+
 	if (udata->password != NULL) {
 		efree(udata->password);
 	}
-	
+
 	if (udata->callable != NULL)
 		zval_ptr_dtor(&udata->callable);
 
@@ -180,7 +180,7 @@ int _rar_find_file(struct RAROpenArchiveDataEx *open_data, /* IN */
 	size_t utf_file_name_len = strlen(utf_file_name);
 	int ret;
 
-	file_name = ecalloc(utf_file_name_len + 1, sizeof *file_name); 
+	file_name = ecalloc(utf_file_name_len + 1, sizeof *file_name);
 	_rar_utf_to_wide(utf_file_name, file_name, utf_file_name_len + 1);
 	ret = _rar_find_file_w(open_data, file_name, cb_udata, arc_handle, found,
 		header_data);
@@ -231,7 +231,7 @@ int _rar_find_file_w(struct RAROpenArchiveDataEx *open_data, /* IN */
 		goto cleanup;
 	}
 	RARSetCallback(*arc_handle, _rar_unrar_callback, (LPARAM) cb_udata);
-	
+
 	while ((result = RARReadHeaderEx(*arc_handle, used_header_data)) == 0) {
 #if WCHAR_MAX > 0xffff
 			_rar_fix_wide(used_header_data->FileNameW, NM);
@@ -292,7 +292,7 @@ int _rar_find_file_p(struct RAROpenArchiveDataEx *open_data, /* IN */
 		goto cleanup;
 	}
 	RARSetCallback(*arc_handle, _rar_unrar_callback, (LPARAM) cb_udata);
-	
+
 	while ((result = RARReadHeaderEx(*arc_handle, used_header_data)) == 0) {
 		/* skip entries that were split before with incrementing current pos */
 		if ((used_header_data->Flags & 0x01U) || (curpos++ != position)) {
@@ -321,7 +321,7 @@ cleanup:
 }
 
 /* An unRAR callback.
- * Processes requests for passwords and missing volumes 
+ * Processes requests for passwords and missing volumes
  * If there is (userland) volume find callback specified, try to use that
  * callback to retrieve the name of the missing volume. Otherwise, or if
  * the volume find callback returns null, cancel the operation. */
@@ -329,7 +329,7 @@ int CALLBACK _rar_unrar_callback(UINT msg, LPARAM UserData, LPARAM P1, LPARAM P2
 {
 	rar_cb_user_data *userdata = (rar_cb_user_data*)  UserData;
 	TSRMLS_FETCH();
-	
+
 	if (msg == UCM_NEEDPASSWORD) {
 		/* user data is the password or null if none */
 		char *password = userdata->password;
@@ -451,7 +451,7 @@ static int _rar_unrar_volume_user_callback(char* dst_buffer,
 	fci->retval_ptr_ptr = &retval_ptr;
 	fci->params = &params;
 	fci->param_count = 1;
-	
+
 	if (zend_call_function(fci, cache TSRMLS_CC) != SUCCESS ||
 			fci->retval_ptr_ptr == NULL ||
 			*fci->retval_ptr_ptr == NULL) {
@@ -459,7 +459,7 @@ static int _rar_unrar_volume_user_callback(char* dst_buffer,
 			"Failure to call volume find callback");
 		goto cleanup;
 	}
-	
+
 	assert(*fci->retval_ptr_ptr == retval_ptr);
 	if (Z_TYPE_P(retval_ptr) == IS_NULL) {
 		/* let return -1 */
@@ -698,7 +698,7 @@ ZEND_MODULE_STARTUP_D(rar)
 		ZEND_MODULE_GLOBALS_DTOR_N(rar)); */
 
 	php_register_url_stream_wrapper("rar", &php_stream_rar_wrapper TSRMLS_CC);
-	
+
 	REGISTER_LONG_CONSTANT("RAR_HOST_MSDOS",	HOST_MSDOS,	CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("RAR_HOST_OS2",		HOST_OS2,	CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("RAR_HOST_WIN32",	HOST_WIN32,	CONST_CS | CONST_PERSISTENT);
