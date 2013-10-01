@@ -20,7 +20,8 @@ if (PHP_RAR != "no") {
 		volume.cpp find.cpp \
 		unpack.cpp cmddata.cpp dll.cpp \
 		filestr.cpp recvol.cpp rs.cpp \
-		scantree.cpp extractchunk.cpp log.cpp", "rar");
+		scantree.cpp extractchunk.cpp log.cpp \
+		secpassword.cpp ", "rar");
 	
 	AC_DEFINE("HAVE_RAR", 1, "Rar support");
 }
