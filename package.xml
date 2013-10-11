@@ -369,7 +369,7 @@ For the other changes, see the changelog for version 2.0.0RC1.
     <api>beta</api>
    </stability>
    <date>2010-01-17</date>
-   <license uri="http://www.php.net/license">PHP License</license>
+   <license>PHP License and UnRar license</license>
    <notes>Changes in respect to release 1.0.0:
 PHP SUPPORT:
 - Support for PHP 4.3 dropped. PHP 5.2.x or 5.3.x is required.
