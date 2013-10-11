@@ -290,6 +290,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file name="config.m4" role="src" />
     <file name="config.w32" role="src" />
     <file name="CREDITS" role="doc" />
+    <file name="LICENSE" role="doc" />
     <file name="README" role="doc" />
     <file name="example.php" role="doc" />
     <file name="php_rar.h" role="src" />
@@ -368,7 +369,7 @@ For the other changes, see the changelog for version 2.0.0RC1.
     <api>beta</api>
    </stability>
    <date>2010-01-17</date>
-   <license uri="http://www.php.net/license">PHP License</license>
+   <license>PHP License and UnRar license</license>
    <notes>Changes in respect to release 1.0.0:
 PHP SUPPORT:
 - Support for PHP 4.3 dropped. PHP 5.2.x or 5.3.x is required.
