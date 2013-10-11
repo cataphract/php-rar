@@ -1195,10 +1195,10 @@ static php_stream *php_stream_rar_dir_opener(php_stream_wrapper *wrapper,
 		return NULL;
 	}
 
-	/* mode must be exactly "r" */
-	if (strncmp(mode, "r", sizeof("r")) != 0) {
+	/* mode must be "r" or "rb", which, for BC reasons, are treated identically */
+	if (mode[0] != 'r' || (mode[1] != '\0' && mode[1] != 'b') || strlen(mode) > 2) {
 		php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
-			"Only the \"r\" open mode is permitted, given %s", mode);
+			"Only the \"r\" and \"rb\" open modes are permitted, given %s", mode);
 		return NULL;
 	}
 
