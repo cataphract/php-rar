@@ -70,11 +70,7 @@ void _rar_handle_ext_error(const char *format TSRMLS_DC, ...) /* {{{ */
 	va_list arg;
 	char *message;
 
-#ifdef ZTS
-	va_start(arg, TSRMLS_C);
-#else
 	va_start(arg, format);
-#endif
 	vspprintf(&message, 0, format, arg);
 	va_end(arg);
 

@@ -99,13 +99,6 @@ typedef struct rar {
 	int							allow_broken;
 } rar_file_t;
 
-/* Misc */
-#ifdef ZTS
-# define RAR_TSRMLS_TC	, void ***
-#else
-# define RAR_TSRMLS_TC
-#endif
-
 #define RAR_RETNULL_ON_ARGS() \
 	if (zend_parse_parameters_none() == FAILURE) { \
 		RETURN_NULL(); \
@@ -134,8 +127,8 @@ typedef struct _rar_contents_cache {
 	int			hits;
 	int			misses;
 	/* args: cache key, cache key size, cached object) */
-	void (*put)(const char *, uint, zval * RAR_TSRMLS_TC);
-	zval *(*get)(const char *, uint RAR_TSRMLS_TC);
+	void (*put)(const char *, uint, zval *);
+	zval *(*get)(const char *, uint);
 } rar_contents_cache;
 
 /* Module globals, currently used for dir wrappers cache */
