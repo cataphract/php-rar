@@ -63,9 +63,13 @@ Warning: RarArchive::isBroken(): Volume %smulti_broken.part2.rar was not found i
 bool(true)
 
 * broken file; as first call; don't allow broken; kill warning
+
+Warning: RarArchive::isBroken(): Failure to call volume find callback in %s on line %d
 bool(true)
 
 * broken file; as first call; don't allow broken; kill warning; non OOP
+
+Warning: rar_broken_is(): Failure to call volume find callback in %s on line %d
 bool(true)
 
 * broken file; as second call; don't allow broken

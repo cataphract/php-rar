@@ -160,8 +160,13 @@ void _rar_destroy_userdata(rar_cb_user_data *udata) /* {{{ */
 		efree(udata->password);
 	}
 
-	if (udata->callable != NULL)
-		zval_ptr_dtor(&udata->callable);
+	if (udata->callable != NULL) {
+        int refcount = Z_REFCOUNT_P(udata->callable);
+		zval_ptr_dtor(udata->callable);
+		if (refcount == 1) {
+            efree(udata->callable);
+		}
+	}
 
 	udata->password = NULL;
 	udata->callable = NULL;
@@ -403,7 +408,8 @@ PHP_FUNCTION(rar_wrapper_cache_stats) /* {{{ */
 	len = spprintf(&result, 0, "%u/%u (hits/misses)",
 		RAR_G(contents_cache).hits, RAR_G(contents_cache).misses);
 
-	RETURN_STRINGL(result, len, 0);
+	RETVAL_STRINGL(result, len);
+	efree(result);
 }
 /* }}} */
 /* }}} */
@@ -440,32 +446,33 @@ static int _rar_unrar_volume_user_callback(char* dst_buffer,
 										   zend_fcall_info_cache *cache
 										   TSRMLS_DC) /* {{{ */
 {
-	zval *failed_vol,
-		 *retval_ptr = NULL,
-		 **params;
+	zval failed_vol, retval_ptr, *params;
+	zval reference;
 	int  ret = -1;
-
-	MAKE_STD_ZVAL(failed_vol);
-	ZVAL_STRING(failed_vol, dst_buffer, 1);
-	params = &failed_vol;
-	fci->retval_ptr_ptr = &retval_ptr;
-	fci->params = &params;
+	ZVAL_STRING(&failed_vol, dst_buffer);
+	ZVAL_NULL(&retval_ptr);
+	ZVAL_NEW_REF(&reference, &failed_vol);
+	if (Z_REFCOUNTED(failed_vol)) {
+		Z_ADDREF(failed_vol);
+	}
+	params = &reference;
+	fci->retval = &retval_ptr;
+	fci->params = params;
 	fci->param_count = 1;
 
 	if (zend_call_function(fci, cache TSRMLS_CC) != SUCCESS ||
-			fci->retval_ptr_ptr == NULL ||
-			*fci->retval_ptr_ptr == NULL) {
+			Z_TYPE(retval_ptr) == IS_NULL || EG(exception)) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,
 			"Failure to call volume find callback");
 		goto cleanup;
 	}
 
-	assert(*fci->retval_ptr_ptr == retval_ptr);
-	if (Z_TYPE_P(retval_ptr) == IS_NULL) {
+	assert(fci->retval == &retval_ptr);
+	if (Z_TYPE(retval_ptr) == IS_NULL) {
 		/* let return -1 */
 	}
-	else if (Z_TYPE_P(retval_ptr) == IS_STRING) {
-		char *filename = Z_STRVAL_P(retval_ptr);
+	else if (Z_TYPE(retval_ptr) == IS_STRING) {
+		char *filename = Z_STRVAL(retval_ptr);
 		char resolved_path[MAXPATHLEN];
 		size_t resolved_len;
 
@@ -499,9 +506,9 @@ static int _rar_unrar_volume_user_callback(char* dst_buffer,
 	}
 
 cleanup:
+	zval_ptr_dtor(&reference);
 	zval_ptr_dtor(&failed_vol);
-	if (retval_ptr != NULL)
-		zval_ptr_dtor(&retval_ptr);
+	zval_ptr_dtor(&retval_ptr);
 	return ret;
 }
 /* }}} */
@@ -615,7 +622,7 @@ static zend_function_entry rar_functions[] = {
 /* {{{ Globals' related activities */
 ZEND_DECLARE_MODULE_GLOBALS(rar);
 
-static int _rar_array_apply_remove_first(void *pDest TSRMLS_DC)
+static int _rar_array_apply_remove_first(zval* pDest TSRMLS_DC)
 {
 	return (ZEND_HASH_APPLY_STOP | ZEND_HASH_APPLY_REMOVE);
 }
@@ -633,21 +640,27 @@ static void _rar_contents_cache_put(const char *key,
 		zend_hash_apply(cc->data, _rar_array_apply_remove_first TSRMLS_CC);
 		assert(zend_hash_num_elements(cc->data) == cur_size - 1);
 	}
-	zval_add_ref(&zv);
-	zend_hash_update(cc->data, key, key_len, &zv, sizeof(zv), NULL);
+	zval_add_ref(zv);
+
+	zval key_str;
+	ZVAL_STRING(&key_str, key);
+	zend_hash_update(cc->data, Z_STR(key_str), zv);
+	zval_ptr_dtor(&key_str);
 }
 
 static zval *_rar_contents_cache_get(const char *key,
 									 uint key_len TSRMLS_DC)
 {
 	rar_contents_cache *cc = &RAR_G(contents_cache);
-	zval **element = NULL;
-	zend_hash_find(cc->data, key, key_len, (void **) &element);
+	zval key_str;
+	ZVAL_STRING(&key_str, key);
+	zval *element = zend_hash_find(cc->data, Z_STR(key_str));
+	zval_ptr_dtor(&key_str);
 
 	if (element != NULL) {
 		cc->hits++;
 		zval_add_ref(element);
-		return *element;
+		return element;
 	}
 	else {
 		cc->misses++;

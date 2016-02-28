@@ -49,7 +49,7 @@
 extern zend_module_entry rar_module_entry;
 #define phpext_rar_ptr &rar_module_entry
 
-#define PHP_RAR_VERSION "3.0.2"
+#define PHP_RAR_VERSION "4.0.3"
 
 #ifdef PHP_WIN32
 #define PHP_RAR_API __declspec(dllexport)
@@ -88,7 +88,7 @@ typedef struct _rar_cb_user_data {
 } rar_cb_user_data;
 
 typedef struct rar {
-	zend_object_handle			id;
+	zend_object			*id;
 	struct _rar_entries			*entries;
 	struct RAROpenArchiveDataEx	*list_open_data;
 	struct RAROpenArchiveDataEx	*extract_open_data;
