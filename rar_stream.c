@@ -1127,6 +1127,7 @@ static php_stream *php_stream_rar_dir_opener(php_stream_wrapper *wrapper,
 	rar_file_t *rar;
 	php_rar_dir_stream_data_P self = NULL;
 	php_stream *stream = NULL;
+	ZVAL_NULL(volume_cb);
 
 	/* {{{ preliminaries */
 	if (options & STREAM_OPEN_PERSISTENT) {
