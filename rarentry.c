@@ -162,18 +162,20 @@ static int _rar_decl_priv_prop_null(zend_class_entry *ce, const char *name,
 static zval *_rar_entry_get_property(zval *entry_obj, char *name, int namelen TSRMLS_DC) /* {{{ */
 {
 	zval *tmp, rv;
+#if PHP_VERSION_ID < 70100
 	zend_class_entry *orig_scope = EG(scope);
-
 	EG(scope) = rar_class_entry_ptr;
-
 	tmp = zend_read_property(Z_OBJCE_P(entry_obj), entry_obj, name, namelen, 1 TSRMLS_CC, &rv);
+#else
+	tmp = zend_read_property(rar_class_entry_ptr, entry_obj, name, namelen, 1, &rv);
+#endif
 	if (tmp == NULL) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,
 			"Bug: unable to find property '%s'. Please report.", name);
 	}
-
+#if PHP_VERSION_ID < 70100
 	EG(scope) = orig_scope;
-
+#endif
 	return tmp;
 }
 /* }}} */
