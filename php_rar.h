@@ -49,7 +49,7 @@
 extern zend_module_entry rar_module_entry;
 #define phpext_rar_ptr &rar_module_entry
 
-#define PHP_RAR_VERSION "3.0.2"
+#define PHP_RAR_VERSION "4.0.0"
 
 #ifdef PHP_WIN32
 #define PHP_RAR_API __declspec(dllexport)
