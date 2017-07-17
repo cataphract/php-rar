@@ -266,15 +266,15 @@ static mode_t _rar_convert_file_attrs(unsigned os_attrs,
 			break;
 
 		default:
-			if ((flags & LHD_WINDOWMASK) == LHD_DIRECTORY)
+			if (flags & RHDF_DIRECTORY)
 				ret = S_IFDIR;
 			else
 				ret = S_IFREG;
 
 			ret |= 0777;
 			ret &= ~mask;
-      break;
-  }
+			break;
+	}
 
 	return ret;
 }
@@ -798,7 +798,7 @@ static int _rar_get_archive_and_fragment(php_stream_wrapper *wrapper,
 		wchar_t *ptr;
 		for (ptr = *fragment; *ptr != L'\0'; ptr++) {
 			if (*ptr == L'\\' || *ptr == L'/')
-				*ptr = PATHDIVIDERW[0];
+				*ptr = SPATHDIVIDER[0];
 		}
 	}
 
@@ -1225,7 +1225,7 @@ static php_stream *php_stream_rar_dir_opener(php_stream_wrapper *wrapper,
 
 	/* Remove the ending in the path separator */
 	if (fragment_len > 0 &&
-			self->directory[fragment_len - 1] == PATHDIVIDERW[0]) {
+			self->directory[fragment_len - 1] == SPATHDIVIDER[0]) {
 		self->directory[fragment_len - 1] = L'\0';
 		self->dir_size = fragment_len;
 	}
@@ -1239,8 +1239,8 @@ static php_stream *php_stream_rar_dir_opener(php_stream_wrapper *wrapper,
 		 * to the archive, which I'll assume occurs in all good archives */
 		_rar_entry_search_advance(
 			self->state, self->directory, self->dir_size, 0);
-		if (!self->state->found || ((self->state->header->Flags &
-				LHD_WINDOWMASK) != LHD_DIRECTORY)) {
+		if (!self->state->found || !(self->state->header->Flags &
+				RHDF_DIRECTORY)) {
 			const char *message;
 			char *mb_entry = _rar_wide_to_utf_with_alloc(self->directory,
 				(size_t) self->dir_size - 1);

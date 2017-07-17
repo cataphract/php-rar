@@ -295,7 +295,8 @@ int _rar_find_file_p(struct RAROpenArchiveDataEx *open_data, /* IN */
 
 	while ((result = RARReadHeaderEx(*arc_handle, used_header_data)) == 0) {
 		/* skip entries that were split before with incrementing current pos */
-		if ((used_header_data->Flags & 0x01U) || (curpos++ != position)) {
+		if ((used_header_data->Flags & RHDF_SPLITBEFORE) ||
+				(curpos++ != position)) {
 			process_result = RARProcessFile(*arc_handle, RAR_SKIP, NULL, NULL);
 		} else {
 			*found = TRUE;

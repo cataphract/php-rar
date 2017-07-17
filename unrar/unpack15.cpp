@@ -39,12 +39,8 @@ static unsigned int PosHf4[]={0,0,0,0,0,0,0,0,0,255,0,0,0};
 
 void Unpack::Unpack15(bool Solid,bool SuspendAfterInit)
 {
-  if (Suspended)
-    UnpPtr=WrPtr;
-  else
-  {
     UnpInitData(Solid);
-    OldUnpInitData(Solid);
+  UnpInitData15(Solid);
     UnpReadBuf();
     if (!Solid)
     {
@@ -54,7 +50,6 @@ void Unpack::Unpack15(bool Solid,bool SuspendAfterInit)
     else
       UnpPtr=WrPtr;
     --DestUnpSize;
-  }
 
   if (SuspendAfterInit)
    Suspended = true;
@@ -67,16 +62,12 @@ void Unpack::Unpack15(bool Solid,bool SuspendAfterInit)
 
   while (DestUnpSize>=0)
   {
-    UnpPtr&=MAXWINMASK;
+    UnpPtr&=MaxWinMask;
 
-    if (InAddr>ReadTop-30 && !UnpReadBuf())
+    if (Inp.InAddr>ReadTop-30 && !UnpReadBuf())
       break;
-    if (((WrPtr-UnpPtr) & MAXWINMASK)<270 && WrPtr!=UnpPtr)
-    {
-      OldUnpWriteBuf();
-      if (Suspended)
-        return;
-    }
+    if (((WrPtr-UnpPtr) & MaxWinMask)<270 && WrPtr!=UnpPtr)
+      UnpWriteBuf20();
     if (StMode)
     {
       HuffDecode();
@@ -120,23 +111,7 @@ void Unpack::Unpack15(bool Solid,bool SuspendAfterInit)
       }
     }
   }
-  OldUnpWriteBuf();
-}
-
-
-void Unpack::OldUnpWriteBuf()
-{
-  if (UnpPtr!=WrPtr)
-    UnpSomeRead=true;
-  if (UnpPtr<WrPtr)
-  {
-    UnpIO->UnpWrite(&Window[WrPtr],-(int)WrPtr & MAXWINMASK);
-    UnpIO->UnpWrite(Window,UnpPtr);
-    UnpAllBuf=true;
-  }
-  else
-    UnpIO->UnpWrite(&Window[WrPtr],UnpPtr-WrPtr);
-  WrPtr=UnpPtr;
+  UnpWriteBuf20();
 }
 
 
@@ -159,13 +134,13 @@ void Unpack::ShortLZ()
   int DistancePlace;
   NumHuf=0;
 
-  unsigned int BitField=fgetbits();
+  unsigned int BitField=Inp.fgetbits();
   if (LCount==2)
   {
-    faddbits(1);
+    Inp.faddbits(1);
     if (BitField >= 0x8000)
     {
-      OldCopyString((unsigned int)LastDist,LastLength);
+      CopyString15((unsigned int)LastDist,LastLength);
       return;
     }
     BitField <<= 1;
@@ -182,14 +157,14 @@ void Unpack::ShortLZ()
     for (Length=0;;Length++)
       if (((BitField^ShortXor1[Length]) & (~(0xff>>GetShortLen1(Length))))==0)
         break;
-    faddbits(GetShortLen1(Length));
+    Inp.faddbits(GetShortLen1(Length));
   }
   else
   {
     for (Length=0;;Length++)
       if (((BitField^ShortXor2[Length]) & (~(0xff>>GetShortLen2(Length))))==0)
         break;
-    faddbits(GetShortLen2(Length));
+    Inp.faddbits(GetShortLen2(Length));
   }
 
   if (Length >= 9)
@@ -197,25 +172,25 @@ void Unpack::ShortLZ()
     if (Length == 9)
     {
       LCount++;
-      OldCopyString((unsigned int)LastDist,LastLength);
+      CopyString15((unsigned int)LastDist,LastLength);
       return;
     }
     if (Length == 14)
     {
       LCount=0;
-      Length=DecodeNum(fgetbits(),STARTL2,DecL2,PosL2)+5;
-      Distance=(fgetbits()>>1) | 0x8000;
-      faddbits(15);
+      Length=DecodeNum(Inp.fgetbits(),STARTL2,DecL2,PosL2)+5;
+      Distance=(Inp.fgetbits()>>1) | 0x8000;
+      Inp.faddbits(15);
       LastLength=Length;
       LastDist=Distance;
-      OldCopyString(Distance,Length);
+      CopyString15(Distance,Length);
       return;
     }
 
     LCount=0;
     SaveLength=Length;
     Distance=OldDist[(OldDistPtr-(Length-9)) & 3];
-    Length=DecodeNum(fgetbits(),STARTL1,DecL1,PosL1)+2;
+    Length=DecodeNum(Inp.fgetbits(),STARTL1,DecL1,PosL1)+2;
     if (Length==0x101 && SaveLength==10)
     {
       Buf60 ^= 1;
@@ -230,7 +205,7 @@ void Unpack::ShortLZ()
     OldDistPtr = OldDistPtr & 3;
     LastLength=Length;
     LastDist=Distance;
-    OldCopyString(Distance,Length);
+    CopyString15(Distance,Length);
     return;
   }
 
@@ -238,7 +213,7 @@ void Unpack::ShortLZ()
   AvrLn1 += Length;
   AvrLn1 -= AvrLn1 >> 4;
 
-  DistancePlace=DecodeNum(fgetbits(),STARTHF2,DecHf2,PosHf2) & 0xff;
+  DistancePlace=DecodeNum(Inp.fgetbits(),STARTHF2,DecHf2,PosHf2) & 0xff;
   Distance=ChSetA[DistancePlace];
   if (--DistancePlace != -1)
   {
@@ -251,7 +226,7 @@ void Unpack::ShortLZ()
   OldDistPtr = OldDistPtr & 3;
   LastLength=Length;
   LastDist=Distance;
-  OldCopyString(Distance,Length);
+  CopyString15(Distance,Length);
 }
 
 
@@ -271,7 +246,7 @@ void Unpack::LongLZ()
   }
   OldAvr2=AvrLn2;
 
-  unsigned int BitField=fgetbits();
+  unsigned int BitField=Inp.fgetbits();
   if (AvrLn2 >= 122)
     Length=DecodeNum(BitField,STARTL2,DecL2,PosL2);
   else
@@ -281,19 +256,19 @@ void Unpack::LongLZ()
       if (BitField < 0x100)
       {
         Length=BitField;
-        faddbits(16);
+        Inp.faddbits(16);
       }
       else
       {
         for (Length=0;((BitField<<Length)&0x8000)==0;Length++)
           ;
-        faddbits(Length+1);
+        Inp.faddbits(Length+1);
       }
 
   AvrLn2 += Length;
   AvrLn2 -= AvrLn2 >> 5;
 
-  BitField=fgetbits();
+  BitField=Inp.fgetbits();
   if (AvrPlcB > 0x28ff)
     DistancePlace=DecodeNum(BitField,STARTHF2,DecHf2,PosHf2);
   else
@@ -317,8 +292,8 @@ void Unpack::LongLZ()
   ChSetB[DistancePlace]=ChSetB[NewDistancePlace];
   ChSetB[NewDistancePlace]=Distance;
 
-  Distance=((Distance & 0xff00) | (fgetbits() >> 8)) >> 1;
-  faddbits(7);
+  Distance=((Distance & 0xff00) | (Inp.fgetbits() >> 8)) >> 1;
+  Inp.faddbits(7);
 
   OldAvr3=AvrLn3;
   if (Length!=1 && Length!=4)
@@ -343,7 +318,7 @@ void Unpack::LongLZ()
   OldDistPtr = OldDistPtr & 3;
   LastLength=Length;
   LastDist=Distance;
-  OldCopyString(Distance,Length);
+  CopyString15(Distance,Length);
 }
 
 
@@ -354,7 +329,7 @@ void Unpack::HuffDecode()
   unsigned int Distance;
   int BytePlace;
 
-  unsigned int BitField=fgetbits();
+  unsigned int BitField=Inp.fgetbits();
 
   if (AvrPlc > 0x75ff)
     BytePlace=DecodeNum(BitField,STARTHF4,DecHf4,PosHf4);
@@ -376,8 +351,8 @@ void Unpack::HuffDecode()
       BytePlace=0x100;
     if (--BytePlace==-1)
     {
-      BitField=fgetbits();
-      faddbits(1);
+      BitField=Inp.fgetbits();
+      Inp.faddbits(1);
       if (BitField & 0x8000)
       {
         NumHuf=StMode=0;
@@ -386,11 +361,11 @@ void Unpack::HuffDecode()
       else
       {
         Length = (BitField & 0x4000) ? 4 : 3;
-        faddbits(1);
-        Distance=DecodeNum(fgetbits(),STARTHF2,DecHf2,PosHf2);
-        Distance = (Distance << 5) | (fgetbits() >> 11);
-        faddbits(5);
-        OldCopyString(Distance,Length);
+        Inp.faddbits(1);
+        Distance=DecodeNum(Inp.fgetbits(),STARTHF2,DecHf2,PosHf2);
+        Distance = (Distance << 5) | (Inp.fgetbits() >> 11);
+        Inp.faddbits(5);
+        CopyString15(Distance,Length);
         return;
       }
     }
@@ -428,7 +403,7 @@ void Unpack::HuffDecode()
 void Unpack::GetFlagsBuf()
 {
   unsigned int Flags,NewFlagsPlace;
-  unsigned int FlagsPlace=DecodeNum(fgetbits(),STARTHF2,DecHf2,PosHf2);
+  unsigned int FlagsPlace=DecodeNum(Inp.fgetbits(),STARTHF2,DecHf2,PosHf2);
 
   while (1)
   {
@@ -445,7 +420,7 @@ void Unpack::GetFlagsBuf()
 }
 
 
-void Unpack::OldUnpInitData(int Solid)
+void Unpack::UnpInitData15(int Solid)
 {
   if (!Solid)
   {
@@ -489,13 +464,13 @@ void Unpack::CorrHuff(ushort *CharSet,byte *NumToPlace)
 }
 
 
-void Unpack::OldCopyString(unsigned int Distance,unsigned int Length)
+void Unpack::CopyString15(uint Distance,uint Length)
 {
   DestUnpSize-=Length;
   while (Length--)
   {
-    Window[UnpPtr]=Window[(UnpPtr-Distance) & MAXWINMASK];
-    UnpPtr=(UnpPtr+1) & MAXWINMASK;
+    Window[UnpPtr]=Window[(UnpPtr-Distance) & MaxWinMask];
+    UnpPtr=(UnpPtr+1) & MaxWinMask;
   }
 }
 
@@ -505,6 +480,6 @@ uint Unpack::DecodeNum(uint Num,uint StartPos,uint *DecTab,uint *PosTab)
   int I;
   for (Num&=0xfff0,I=0;DecTab[I]<=Num;I++)
     StartPos++;
-  faddbits(StartPos);
+  Inp.faddbits(StartPos);
   return(((Num-(I ? DecTab[I-1]:0))>>(16-StartPos))+PosTab[StartPos]);
 }

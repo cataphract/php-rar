@@ -270,7 +270,7 @@ static void rararch_ce_destroy_object(ze_rararch_object *object,
 	zend_objects_destroy_object((zend_object*) object, handle TSRMLS_CC);
 
 	if (rar->arch_handle != NULL) {
-		RARCloseArchive(rar->arch_handle);
+		RARCloseArchive(rar->arch_handle); // XXX: shouldn't this be in free?
 	}
 }
 /* }}} */

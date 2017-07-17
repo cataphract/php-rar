@@ -539,7 +539,7 @@ PHP_METHOD(rarentry, isDirectory)
 
 	RAR_GET_PROPERTY(tmp, "flags");
 	flags = Z_LVAL_P(tmp);
-	is_dir = ((flags & LHD_WINDOWMASK) == LHD_DIRECTORY);
+	is_dir = (flags & RHDF_DIRECTORY) != 0;
 
 	RETURN_BOOL(is_dir);
 }
@@ -558,7 +558,7 @@ PHP_METHOD(rarentry, isEncrypted)
 
 	RAR_GET_PROPERTY(tmp, "flags");
 	flags = Z_LVAL_P(tmp);
-	is_encrypted = (flags & 0x04);
+	is_encrypted = (flags & RHDF_ENCRYPTED) != 0;
 
 	RETURN_BOOL(is_encrypted);
 }
@@ -584,7 +584,7 @@ PHP_METHOD(rarentry, __toString)
 
 	RAR_GET_PROPERTY(flags_zval, "flags");
 	flags = Z_LVAL_P(flags_zval);
-	is_dir = ((flags & 0xE0) == 0xE0);
+	is_dir = flags & RHDF_DIRECTORY;
 
 	RAR_GET_PROPERTY(name_zval, "name");
 	name = Z_STRVAL_P(name_zval);

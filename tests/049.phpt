@@ -5,9 +5,9 @@ RarArchive::open() volume callback long return (case MAXPATHLEN > NM)
 if(!extension_loaded("rar")) die("skip");
 if (!defined("PHP_MAXPATHLEN"))
 	define("PHP_MAXPATHLEN", RAR_MAXPATHLEN);
-if (!(PHP_MAXPATHLEN > 1024))
-	die("skip test is for systems where MAXPATHLEN > 1024");
-$rp = dirname(__FILE__) . "/" . str_repeat("a", 1024);
+if (!(PHP_MAXPATHLEN > 2048))
+	die("skip test is for systems where MAXPATHLEN > 2048");
+$rp = dirname(__FILE__) . "/" . str_repeat("a", 2048);
 if (strlen(dirname(__FILE__) > PHP_MAXPATHLEN - 1))
 	die("skip current directory is too deep.");
 --FILE--
@@ -17,8 +17,8 @@ if (!defined("PHP_MAXPATHLEN"))
 
 chdir(dirname(__FILE__));
 $fn = dirname(__FILE__) . '/multi_broken.part1.rar';
-	
-function testA($vol) { if ($vol[0] != 'a') return str_repeat("a", 1024); }
+
+function testA($vol) { if ($vol[0] != 'a') return str_repeat("a", 2048); }
 $rar = RarArchive::open($fn, null, 'testA');
 $rar->getEntries();
 

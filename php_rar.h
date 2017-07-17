@@ -66,6 +66,7 @@ extern zend_module_entry rar_module_entry;
 /* #include "unrar/rar.hpp */
 /* only these includes are necessary anyway: */
 #include "unrar/raros.hpp"
+#include "unrar/rartypes.hpp"
 /* no need to reinclude windows.h or new.h */
 #define LEAN_RAR_INCLUDES
 #include "unrar/os.hpp"
@@ -76,8 +77,6 @@ enum HOST_SYSTEM {
   HOST_MSDOS=0,HOST_OS2=1,HOST_WIN32=2,HOST_UNIX=3,HOST_MACOS=4,
   HOST_BEOS=5,HOST_MAX
 };
-#define  LHD_WINDOWMASK     0x00e0U
-#define  LHD_DIRECTORY      0x00e0U
 
 /* maximum comment size if 64KB */
 #define RAR_MAX_COMMENT_SIZE 65536

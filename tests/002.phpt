@@ -24,7 +24,7 @@ array(2) {
   [0]=>
   object(RarEntry)#%d (%d) {
     ["rarfile%sprivate%s=>
-    object(RarArchive)#%s (%s) {
+    object(RarArchive)#%d (%d) {
     }
     ["position%sprivate%s=>
     int(0)
@@ -47,12 +47,12 @@ array(2) {
     ["method%sprivate%s=>
     int(51)
     ["flags%sprivate%s=>
-    int(32800)
+    int(0)
   }
   [1]=>
   object(RarEntry)#%d (%d) {
     ["rarfile%sprivate%s=>
-    object(RarArchive)#%d (0) {
+    object(RarArchive)#%d (%d) {
     }
     ["position%sprivate%s=>
     int(1)
@@ -75,7 +75,7 @@ array(2) {
     ["method%sprivate%s=>
     int(51)
     ["flags%sprivate%s=>
-    int(32800)
+    int(0)
   }
 }
 array(2) {
@@ -105,7 +105,7 @@ array(2) {
     ["method%sprivate%s=>
     int(53)
     ["flags%sprivate%s=>
-    int(36992)
+    int(0)
   }
   [1]=>
   object(RarEntry)#%d (%d) {
@@ -133,7 +133,7 @@ array(2) {
     ["method%sprivate%s=>
     int(53)
     ["flags%sprivate%s=>
-    int(37008)
+    int(16)
   }
 }
 

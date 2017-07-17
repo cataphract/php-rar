@@ -350,19 +350,19 @@ int _rar_list_files(rar_file_t *rar TSRMLS_DC) /* {{{ */
 			break;
 
 		if (first_file_check) {
-			if (entry.Flags & 0x01U) /* LHD_SPLIT_BEFORE */
+			if (entry.Flags & RHDF_SPLITBEFORE)
 				continue;
 			else
 				first_file_check = FALSE;
 		}
 
 		/* reset packed size if not split before */
-		if ((entry.Flags & 0x01U) == 0)
+		if ((entry.Flags & RHDF_SPLITBEFORE) == 0)
 			packed_size = 0UL;
 
 		/* we would exceed size of ulong. cap at ulong_max
-		  * equivalent to packed_size + entry.PackSize > ULONG_MAX,
-		  * but without overflowing */
+		 * equivalent to packed_size + entry.PackSize > ULONG_MAX,
+		 * but without overflowing */
 		if (ULONG_MAX - packed_size < entry.PackSize)
 			packed_size = ULONG_MAX;
 		else {
@@ -376,7 +376,7 @@ int _rar_list_files(rar_file_t *rar TSRMLS_DC) /* {{{ */
 			}
 		}
 
-		if (entry.Flags & 0x02U) /* LHD_SPLIT_AFTER; do not commit */
+		if (entry.Flags & RHDF_SPLITAFTER) /* do not commit */
 			continue;
 
 		/* commit the entry */
@@ -423,7 +423,7 @@ static void _rar_nav_get_depth_and_length(wchar_t *filenamew, const size_t file_
 	for (i = 0; i < file_size; i++) {
 		if (filenamew[i] == L'\0')
 			break;
-		if (filenamew[i] == PATHDIVIDERW[0])
+		if (filenamew[i] == SPATHDIVIDER[0])
 			depth++;
 	}
 
@@ -435,7 +435,7 @@ static void _rar_nav_get_depth_and_length(wchar_t *filenamew, const size_t file_
 		filenamew[i] = L'\0';
 	}
 
-	if ((i >= 1) && (filenamew[i-1] == PATHDIVIDERW[0])) {
+	if ((i >= 1) && (filenamew[i-1] == SPATHDIVIDER[0])) {
 		/* entry name ended in path divider. shouldn't happen */
 		i--;
 		filenamew[i] = L'\0';
@@ -456,7 +456,7 @@ static int _rar_nav_get_depth(const wchar_t *filenamew, const size_t file_size) 
 	for (i = 0; i < file_size; i++) {
 		if (filenamew[i] == L'\0')
 			break;
-		if (filenamew[i] == PATHDIVIDERW[0])
+		if (filenamew[i] == SPATHDIVIDER[0])
 			depth++;
 	}
 	assert(i < file_size);
@@ -517,7 +517,7 @@ static int _rar_nav_directory_match(const wchar_t *dir, const size_t dir_len,
 		if (wmemcmp(dir, entry, dir_len) != 0)
 			return FALSE;
 		/* directory name does not follow path sep or path sep ends the name */
-		if (entry[dir_len] != PATHDIVIDERW[0] || entry_len == dir_len + 1)
+		if (entry[dir_len] != SPATHDIVIDER[0] || entry_len == dir_len + 1)
 			return FALSE;
 		/* assert(entry_len > dir_len + 1) */
 		entry_rem = &entry[dir_len + 1];
@@ -528,7 +528,7 @@ static int _rar_nav_directory_match(const wchar_t *dir, const size_t dir_len,
 		entry_rem_len = entry_len;
 	}
 
-	chr = wmemchr(entry_rem, PATHDIVIDERW[0], entry_rem_len);
+	chr = wmemchr(entry_rem, SPATHDIVIDER[0], entry_rem_len);
 	/* must have no / after the directory */
 	return (chr == NULL);
 }
