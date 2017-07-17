@@ -340,7 +340,7 @@ int _rar_list_files(rar_file_t *rar TSRMLS_DC) /* {{{ */
 	ents->last_accessed = NULL;
 
 	while (result == 0) {
-		struct RARHeaderDataEx entry;
+		struct RARHeaderDataEx entry = {0};
 		result = RARReadHeaderEx(rar->arch_handle, &entry);
 		/* value of 2nd argument is irrelevant in RAR_OM_LIST_[SPLIT] mode */
 		if (result == 0) {
