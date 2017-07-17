@@ -283,7 +283,6 @@ static mode_t _rar_convert_file_attrs(unsigned os_attrs,
 static void _rar_time_convert(unsigned low, unsigned high, time_t *to) /* {{{ */
 {
 	time_t default_ = (time_t) 0;
-	struct tm time_s = {0};
 
 	if (high == 0U && low == 0U) {
 		*to = default_;
