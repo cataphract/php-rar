@@ -39,3 +39,4 @@
 /.settings
 /pecl-rar.*
 /rar.la
+*.autosave
