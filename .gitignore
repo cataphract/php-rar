@@ -6,6 +6,7 @@
 /tests/*.log
 /tests/*.php
 /tests/*.out
+/tests/*.mem
 /run-tests.php
 /modules
 /missing

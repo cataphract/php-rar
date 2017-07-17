@@ -268,10 +268,6 @@ static void rararch_ce_destroy_object(ze_rararch_object *object,
 
 	/* not really relevant, calls destr. zend func. ce->destructor if it exists */
 	zend_objects_destroy_object((zend_object*) object, handle TSRMLS_CC);
-
-	if (rar->arch_handle != NULL) {
-		RARCloseArchive(rar->arch_handle); // XXX: shouldn't this be in free?
-	}
 }
 /* }}} */
 
@@ -281,6 +277,10 @@ static void rararch_ce_free_object_storage(ze_rararch_object *object TSRMLS_DC) 
 
 	/* may be NULL if the user did new RarArchive() */
 	if (rar != NULL) {
+		if (rar->arch_handle != NULL) {
+			RARCloseArchive(rar->arch_handle);
+		}
+
 		_rar_destroy_userdata(&rar->cb_userdata);
 
 		_rar_delete_entries(rar TSRMLS_CC);
