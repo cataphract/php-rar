@@ -1,7 +1,7 @@
 #define RARVER_MAJOR     5
-#define RARVER_MINOR    20
-#define RARVER_BETA      1
+#define RARVER_MINOR    50
+#define RARVER_BETA      5
 #define RARVER_PATCH     1
-#define RARVER_DAY       6
-#define RARVER_MONTH    10
-#define RARVER_YEAR   2014
+#define RARVER_DAY       2
+#define RARVER_MONTH     7
+#define RARVER_YEAR   2017

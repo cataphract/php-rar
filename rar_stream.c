@@ -280,33 +280,23 @@ static mode_t _rar_convert_file_attrs(unsigned os_attrs,
 }
 /* }}} */
 
-/* If from is not set, sets to to default and returns SUCCESS.
- * If from is set, converts it to a time_t. In case of failure returns FAILURE.
- * In case of success, copies the result to to and returns SUCCESS. */
-static int _rar_time_convert(RARTime *from, time_t *to) /* {{{ */
+static void _rar_time_convert(unsigned low, unsigned high, time_t *to) /* {{{ */
 {
 	time_t default_ = (time_t) 0;
-	time_t retval;
 	struct tm time_s = {0};
 
-	if (from->Year == 0U) {
+	if (high == 0U && low == 0U) {
 		*to = default_;
-		return SUCCESS;
+		return;
 	}
 
-	time_s.tm_sec  = from->Second;
-	time_s.tm_min  = from->Minute;
-	time_s.tm_hour = from->Hour;
-	time_s.tm_mday = from->Day;
-	time_s.tm_mon  = from->Month - 1; /* starts at 0 in time_t */
-	time_s.tm_year = from->Year - 1900;
+	/* 11644473600000000000 - number of ns between 01-01-1601 and 01-01-1970. */
+	uint64 ushift=INT32TO64(0xA1997B0B,0x4C6A0000);
 
-	if ((retval = mktime(&time_s)) == -1)
-		return FAILURE;
-	else {
-		*to = retval;
-		return SUCCESS;
-	}
+	/* value is in 10^-7 seconds since 01-01-1601 */
+	/* convert to nanoseconds, shift to 01-01-1970 and convert to seconds */
+	*to = (time_t) ((INT32TO64(high, low) * 100 - ushift) / 1000000000);
+	return;
 }
 /* }}} */
 
@@ -340,10 +330,11 @@ static int _rar_stat_from_header(struct RARHeaderDataEx *header,
 	}
 
 
-	_rar_time_convert(&header->atime, &ssb->sb.st_atime);
-	_rar_time_convert(&header->ctime, &ssb->sb.st_ctime);
+	_rar_time_convert(header->AtimeLow, header->AtimeHigh, &ssb->sb.st_atime);
+	_rar_time_convert(header->CtimeLow, header->CtimeHigh, &ssb->sb.st_ctime);
 
-	if (header->mtime.Year == 0) { /* high precision mod time undefined */
+	if (header->MtimeLow == 0 && header->MtimeHigh == 0) {
+		/* high precision mod time undefined */
 		struct tm time_s = {0};
 		time_t time;
 		unsigned dos_time = header->FileTime;
@@ -358,8 +349,10 @@ static int _rar_stat_from_header(struct RARHeaderDataEx *header,
 			return FAILURE;
 		ssb->sb.st_mtime = time;
 	}
-	else
-		_rar_time_convert(&header->mtime, &ssb->sb.st_mtime);
+	else {
+		_rar_time_convert(header->MtimeLow, header->MtimeHigh,
+			&ssb->sb.st_mtime);
+	}
 
 #ifdef HAVE_ST_BLKSIZE
 	ssb->sb.st_blksize = 0;

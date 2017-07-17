@@ -36,7 +36,7 @@ object(RarEntry)#%d (%d) {
   ["attr%sprivate%s=>
   int(33261)
   ["version%sprivate%s=>
-  int(50)
+  int(200)
   ["method%sprivate%s=>
   int(51)
   ["flags%sprivate%s=>

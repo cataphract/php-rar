@@ -181,17 +181,6 @@ int PASCAL RARReadHeader(HANDLE hArcData,struct RARHeaderData *D)
   return Code;
 }
 
-// added by me
-static void _copyTime(RarTime origTime, RarLocalTime *dest)
-{
-	if (origTime.IsSet()) {
-		origTime.GetLocal(dest);
-	} else {
-		RarLocalTime emptyTime = {0};
-		*dest = emptyTime;
-	}
-}
-
 int PASCAL RARReadHeaderEx(HANDLE hArcData,struct RARHeaderDataEx *D)
 {
   DataSet *Data=(DataSet *)hArcData;

@@ -54,9 +54,9 @@ Array
     [gid] => 0
     [rdev] => 0
     [size] => 0
-    [atime] => 1272938643
-    [mtime] => 1272938643
-    [ctime] => 1272813170
+    [atime] => 1272935043
+    [mtime] => 1272935043
+    [ctime] => 1272809570
     [blksize] => %s
     [blocks] => %s
 )

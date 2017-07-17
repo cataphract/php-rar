@@ -2,7 +2,7 @@
 
 File::File()
 {
-  hFile=BAD_HANDLE;
+  hFile=FILE_BAD_HANDLE;
   *FileName=0;
   NewFile=false;
   LastWrite=false;
@@ -22,7 +22,7 @@ File::File()
 
 File::~File()
 {
-  if (hFile!=BAD_HANDLE && !SkipClose)
+  if (hFile!=FILE_BAD_HANDLE && !SkipClose)
     if (NewFile)
       Delete();
     else
@@ -59,7 +59,7 @@ bool File::Open(const wchar *Name,uint Mode)
   hNewFile=CreateFile(Name,Access,ShareMode,NULL,OPEN_EXISTING,Flags,NULL);
 
   DWORD LastError;
-  if (hNewFile==BAD_HANDLE)
+  if (hNewFile==FILE_BAD_HANDLE)
   {
     LastError=GetLastError();
 
@@ -84,9 +84,9 @@ bool File::Open(const wchar *Name,uint Mode)
         LastError=ERROR_FILE_NOT_FOUND;
     }
   }
-
-  if (hNewFile==BAD_HANDLE && LastError==ERROR_FILE_NOT_FOUND)
+  if (hNewFile==FILE_BAD_HANDLE && LastError==ERROR_FILE_NOT_FOUND)
     ErrorType=FILE_NOTFOUND;
+
 #else
   int flags=UpdateMode ? O_RDWR:(WriteMode ? O_WRONLY:O_RDONLY);
 #ifdef O_BINARY
@@ -112,7 +112,7 @@ bool File::Open(const wchar *Name,uint Mode)
   }
 #endif
   if (handle==-1)
-    hNewFile=BAD_HANDLE;
+    hNewFile=FILE_BAD_HANDLE;
   else
   {
 #ifdef FILE_USE_OPEN
@@ -121,13 +121,13 @@ bool File::Open(const wchar *Name,uint Mode)
     hNewFile=fdopen(handle,UpdateMode ? UPDATEBINARY:READBINARY);
 #endif
   }
-  if (hNewFile==BAD_HANDLE && errno==ENOENT)
+  if (hNewFile==FILE_BAD_HANDLE && errno==ENOENT)
     ErrorType=FILE_NOTFOUND;
 #endif
   NewFile=false;
   HandleType=FILE_HANDLENORMAL;
   SkipClose=false;
-  bool Success=hNewFile!=BAD_HANDLE;
+  bool Success=hNewFile!=FILE_BAD_HANDLE;
   if (Success)
   {
     hFile=hNewFile;
@@ -137,7 +137,7 @@ bool File::Open(const wchar *Name,uint Mode)
 }
 
 
-#if !defined(SHELL_EXT) && !defined(SFX_MODULE)
+#if !defined(SFX_MODULE)
 void File::TOpen(const wchar *Name)
 {
   if (!WOpen(Name))
@@ -174,11 +174,11 @@ bool File::Create(const wchar *Name,uint Mode)
   bool Special=*LastChar=='.' || *LastChar==' ';
   
   if (Special)
-    hFile=BAD_HANDLE;
+    hFile=FILE_BAD_HANDLE;
   else
     hFile=CreateFile(Name,Access,ShareMode,NULL,CREATE_ALWAYS,0,NULL);
 
-  if (hFile==BAD_HANDLE)
+  if (hFile==FILE_BAD_HANDLE)
   {
     wchar LongName[NM];
     if (GetWinLongPath(Name,LongName,ASIZE(LongName)))
@@ -189,7 +189,7 @@ bool File::Create(const wchar *Name,uint Mode)
   char NameA[NM];
   WideToChar(Name,NameA,ASIZE(NameA));
 #ifdef FILE_USE_OPEN
-  hFile=open(NameA,(O_CREAT|O_TRUNC) | (WriteMode ? O_WRONLY : O_RDWR));
+  hFile=open(NameA,(O_CREAT|O_TRUNC) | (WriteMode ? O_WRONLY : O_RDWR),0666);
 #else
   hFile=fopen(NameA,WriteMode ? WRITEBINARY:CREATEBINARY);
 #endif
@@ -198,11 +198,11 @@ bool File::Create(const wchar *Name,uint Mode)
   HandleType=FILE_HANDLENORMAL;
   SkipClose=false;
   wcsncpyz(FileName,Name,ASIZE(FileName));
-  return hFile!=BAD_HANDLE;
+  return hFile!=FILE_BAD_HANDLE;
 }
 
 
-#if !defined(SHELL_EXT) && !defined(SFX_MODULE)
+#if !defined(SFX_MODULE)
 void File::TCreate(const wchar *Name,uint Mode)
 {
   if (!WCreate(Name,Mode))
@@ -224,7 +224,7 @@ bool File::Close()
 {
   bool Success=true;
 
-  if (hFile!=BAD_HANDLE)
+  if (hFile!=FILE_BAD_HANDLE)
   {
     if (!SkipClose)
     {
@@ -241,7 +241,7 @@ bool File::Close()
 #endif
 #endif
     }
-    hFile=BAD_HANDLE;
+    hFile=FILE_BAD_HANDLE;
   }
   HandleType=FILE_HANDLENORMAL;
   if (!Success && AllowExceptions)
@@ -254,7 +254,7 @@ bool File::Delete()
 {
   if (HandleType!=FILE_HANDLENORMAL)
     return false;
-  if (hFile!=BAD_HANDLE)
+  if (hFile!=FILE_BAD_HANDLE)
     Close();
   if (!AllowDelete)
     return false;
@@ -277,17 +277,17 @@ bool File::Rename(const wchar *NewName)
 }
 
 
-void File::Write(const void *Data,size_t Size)
+bool File::Write(const void *Data,size_t Size)
 {
   if (Size==0)
-    return;
+    return true;
   if (HandleType==FILE_HANDLESTD)
   {
 #ifdef _WIN_ALL
     hFile=GetStdHandle(STD_OUTPUT_HANDLE);
 #else
     // Cannot use the standard stdout here, because it already has wide orientation.
-    if (hFile==BAD_HANDLE)
+    if (hFile==FILE_BAD_HANDLE)
     {
 #ifdef FILE_USE_OPEN
       hFile=dup(STDOUT_FILENO); // Open new stdout stream.
@@ -297,9 +297,10 @@ void File::Write(const void *Data,size_t Size)
     }
 #endif
   }
+  bool Success;
   while (1)
   {
-    bool Success=false;
+    Success=false;
 #ifdef _WIN_ALL
     DWORD Written=0;
     if (HandleType!=FILE_HANDLENORMAL)
@@ -348,6 +349,7 @@ void File::Write(const void *Data,size_t Size)
     break;
   }
   LastWrite=true;
+  return Success; // It can return false only if AllowExceptions is disabled.
 }
 
 
@@ -465,7 +467,7 @@ void File::Seek(int64 Offset,int Method)
 
 bool File::RawSeek(int64 Offset,int Method)
 {
-  if (hFile==BAD_HANDLE)
+  if (hFile==FILE_BAD_HANDLE)
     return true;
   if (Offset<0 && Method!=SEEK_SET)
   {
@@ -480,7 +482,7 @@ bool File::RawSeek(int64 Offset,int Method)
 #else
   LastWrite=false;
 #ifdef FILE_USE_OPEN
-  if (lseek64(hFile,Offset,Method)==-1)
+  if (lseek(hFile,(off_t)Offset,Method)==-1)
     return false;
 #elif defined(_LARGEFILE_SOURCE) && !defined(_OSF_SOURCE) && !defined(__VMS)
   if (fseeko(hFile,Offset,Method)!=0)
@@ -496,7 +498,7 @@ bool File::RawSeek(int64 Offset,int Method)
 
 int64 File::Tell()
 {
-  if (hFile==BAD_HANDLE)
+  if (hFile==FILE_BAD_HANDLE)
     if (AllowExceptions)
       ErrHandler.SeekError(FileName);
     else
@@ -512,7 +514,7 @@ int64 File::Tell()
   return INT32TO64(HighDist,LowDist);
 #else
 #ifdef FILE_USE_OPEN
-  return lseek64(hFile,0,SEEK_CUR);
+  return lseek(hFile,0,SEEK_CUR);
 #elif defined(_LARGEFILE_SOURCE) && !defined(_OSF_SOURCE)
   return ftello(hFile);
 #else
@@ -535,7 +537,7 @@ void File::Prealloc(int64 Size)
 #if defined(_UNIX) && defined(USE_FALLOCATE)
   // fallocate is rather new call. Only latest kernels support it.
   // So we are not using it by default yet.
-  int fd = GetFD(hFile);
+  int fd = GetFD();
   if (fd >= 0)
     fallocate(fd, 0, 0, Size);
 #endif
@@ -561,7 +563,20 @@ bool File::Truncate()
 #ifdef _WIN_ALL
   return SetEndOfFile(hFile)==TRUE;
 #else
-  return false;
+  return ftruncate(GetFD(),(off_t)Tell())==0;
+#endif
+}
+
+
+void File::Flush()
+{
+#ifdef _WIN_ALL
+  FlushFileBuffers(hFile);
+#else
+#ifndef FILE_USE_OPEN
+  fflush(hFile);
+#endif
+  fsync(GetFD());
 #endif
 }
 
@@ -580,11 +595,11 @@ void File::SetOpenFileTime(RarTime *ftm,RarTime *ftc,RarTime *fta)
   bool sa=fta!=NULL && fta->IsSet();
   FILETIME fm,fc,fa;
   if (sm)
-    ftm->GetWin32(&fm);
+    ftm->GetWinFT(&fm);
   if (sc)
-    ftc->GetWin32(&fc);
+    ftc->GetWinFT(&fc);
   if (sa)
-    fta->GetWin32(&fa);
+    fta->GetWinFT(&fa);
   SetFileTime(hFile,sc ? &fc:NULL,sa ? &fa:NULL,sm ? &fm:NULL);
 #endif
 }
@@ -592,6 +607,12 @@ void File::SetOpenFileTime(RarTime *ftm,RarTime *ftc,RarTime *fta)
 
 void File::SetCloseFileTime(RarTime *ftm,RarTime *fta)
 {
+// Android APP_PLATFORM := android-14 does not support futimens and futimes.
+// Newer platforms support futimens, but fail on Android 4.2.
+// We have to use utime for Android.
+// Also we noticed futimens fail to set timestamps on NTFS partition
+// mounted to virtual Linux x86 machine, but utimensat worked correctly.
+// So we set timestamps for already closed files in Unix.
 #ifdef _UNIX
   SetCloseFileTimeByName(FileName,ftm,fta);
 #endif
@@ -605,18 +626,28 @@ void File::SetCloseFileTimeByName(const wchar *Name,RarTime *ftm,RarTime *fta)
   bool seta=fta!=NULL && fta->IsSet();
   if (setm || seta)
   {
+    char NameA[NM];
+    WideToChar(Name,NameA,ASIZE(NameA));
+
+#ifdef UNIX_TIME_NS
+    timespec times[2];
+    times[0].tv_sec=seta ? fta->GetUnix() : 0;
+    times[0].tv_nsec=seta ? long(fta->GetUnixNS()%1000000000) : UTIME_NOW;
+    times[1].tv_sec=setm ? ftm->GetUnix() : 0;
+    times[1].tv_nsec=setm ? long(ftm->GetUnixNS()%1000000000) : UTIME_NOW;
+    utimensat(AT_FDCWD,NameA,times,0);
+#else
     utimbuf ut;
     if (setm)
       ut.modtime=ftm->GetUnix();
     else
-      ut.modtime=fta->GetUnix();
+      ut.modtime=fta->GetUnix(); // Need to set something, cannot left it 0.
     if (seta)
       ut.actime=fta->GetUnix();
     else
-      ut.actime=ut.modtime;
-    char NameA[NM];
-    WideToChar(Name,NameA,ASIZE(NameA));
+      ut.actime=ut.modtime; // Need to set something, cannot left it 0.
     utime(NameA,&ut);
+#endif
   }
 #endif
 }
@@ -627,12 +658,12 @@ void File::GetOpenFileTime(RarTime *ft)
 #ifdef _WIN_ALL
   FILETIME FileTime;
   GetFileTime(hFile,NULL,NULL,&FileTime);
-  *ft=FileTime;
+  ft->SetWinFT(&FileTime);
 #endif
 #if defined(_UNIX) || defined(_EMX)
   struct stat st;
   fstat(GetFD(),&st);
-  *ft=st.st_mtime;
+  ft->SetUnix(st.st_mtime);
 #endif
 }
 
@@ -647,7 +678,7 @@ int64 File::FileLength()
 
 bool File::IsDevice()
 {
-  if (hFile==BAD_HANDLE)
+  if (hFile==FILE_BAD_HANDLE)
     return false;
 #ifdef _WIN_ALL
   uint Type=GetFileType(hFile);
