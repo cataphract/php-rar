@@ -30,7 +30,7 @@ object(RarEntry)#%d (%d) {
   ["host_os%sprivate%s=>
   int(3)
   ["file_time%sprivate%s=>
-  string(19) "2017-06-29 15:56:04"
+  string(19) "%s"
   ["crc%sprivate%s=>
   string(8) "83c9a6b7"
   ["attr%sprivate%s=>

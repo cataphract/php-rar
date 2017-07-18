@@ -410,7 +410,9 @@ PHP_METHOD(rarentry, getHostOs)
 /* }}} */
 
 /* {{{ proto string RarEntry::getFileTime()
-   Return modification time of the entry */
+   Return modification time of the entry.
+   Due to the way the unrar library returns this time, this is in the
+   system's timezone. */
 PHP_METHOD(rarentry, getFileTime)
 {
 	zval *tmp;
