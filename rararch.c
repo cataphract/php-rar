@@ -73,8 +73,6 @@ static zend_object_handlers rararch_object_handlers;
 
 /* {{{ Function prototypes for functions with internal linkage */
 static zend_object_value rararch_ce_create_object(zend_class_entry *class_type TSRMLS_DC);
-static void rararch_ce_destroy_object(ze_rararch_object *object,
-									  zend_object_handle handle TSRMLS_DC);
 static void rararch_ce_free_object_storage(ze_rararch_object *object TSRMLS_DC);
 /* }}} */
 
@@ -249,25 +247,11 @@ static zend_object_value rararch_ce_create_object(zend_class_entry *class_type T
 	object_properties_init((zend_object*)zobj, class_type);
 #endif
 	zov.handle = zend_objects_store_put(zobj,
-		(zend_objects_store_dtor_t) rararch_ce_destroy_object,
+		(zend_objects_store_dtor_t) zend_objects_destroy_object,
 		(zend_objects_free_object_storage_t) rararch_ce_free_object_storage,
 		NULL TSRMLS_CC);
 	zov.handlers = &rararch_object_handlers;
 	return zov;
-}
-/* }}} */
-
-static void rararch_ce_destroy_object(ze_rararch_object *object,
-									  zend_object_handle handle TSRMLS_DC) /* {{{ */
-{
-	rar_file_t *rar = object->rar_file;
-
-	/* can safely assume rar != NULL here. This function is not called
-	 * if object construction fails */
-	assert(rar != NULL);
-
-	/* not really relevant, calls destr. zend func. ce->destructor if it exists */
-	zend_objects_destroy_object((zend_object*) object, handle TSRMLS_CC);
 }
 /* }}} */
 
