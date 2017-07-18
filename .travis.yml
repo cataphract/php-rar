@@ -7,6 +7,7 @@ env:
   - PHP_VERSION=5.4.45 ZTS=yes
   - PHP_VERSION=5.5.37 ZTS=yes
   - PHP_VERSION=5.6.30 ZTS=yes
+  - PHP_VERSION=5.6.30 ZTS=no
 
 cache:
   directories:
