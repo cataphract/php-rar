@@ -65,8 +65,8 @@ bool CmdExtract::ExtractCurrentFileChunkInit(Archive &Arc,
 
   if (Arc.FileHead.Encrypted)
   {
-	if (!ExtrDllGetPassword())
-	{
+    if (!ExtrDllGetPassword())
+    {
       ErrHandler.SetErrorCode(RARX_WARNING);
       Cmd->DllError=ERAR_MISSING_PASSWORD;
       return false;
@@ -97,10 +97,9 @@ bool CmdExtract::ExtractCurrentFileChunkInit(Archive &Arc,
 
   byte PswCheck[SIZE_PSWCHECK];
   DataIO.SetEncryption(false,Arc.FileHead.CryptMethod,&FilePassword,
-         Arc.FileHead.SaltSet ? Arc.FileHead.Salt:NULL,
-         Arc.FileHead.InitV,Arc.FileHead.Lg2Count,
-         PswCheck,Arc.FileHead.HashKey);
-  bool WrongPassword=false;
+     Arc.FileHead.SaltSet ? Arc.FileHead.Salt:NULL,
+     Arc.FileHead.InitV,Arc.FileHead.Lg2Count,
+     Arc.FileHead.HashKey,PswCheck);
 
   // If header is damaged, we cannot rely on password check value,
   // because it can be damaged too.
@@ -109,7 +108,6 @@ bool CmdExtract::ExtractCurrentFileChunkInit(Archive &Arc,
       !Arc.BrokenHeader)
   {
     ErrHandler.SetErrorCode(RARX_BADPWD);
-    WrongPassword=true;
   }
   DataIO.CurUnpRead=0;
   DataIO.CurUnpWrite=0;
