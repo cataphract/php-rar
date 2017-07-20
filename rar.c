@@ -160,8 +160,14 @@ void _rar_destroy_userdata(rar_cb_user_data *udata) /* {{{ */
 		efree(udata->password);
 	}
 
-	if (udata->callable != NULL)
+	if (udata->callable != NULL) {
+#if PHP_MAJOR_VERSION < 7
 		zval_ptr_dtor(&udata->callable);
+#else
+		zval_ptr_dtor(udata->callable);
+		efree(udata->callable);
+#endif
+	}
 
 	udata->password = NULL;
 	udata->callable = NULL;
@@ -404,7 +410,7 @@ PHP_FUNCTION(rar_wrapper_cache_stats) /* {{{ */
 	len = spprintf(&result, 0, "%u/%u (hits/misses)",
 		RAR_G(contents_cache).hits, RAR_G(contents_cache).misses);
 
-	RETURN_STRINGL(result, len, 0);
+	RAR_RETURN_STRINGL(result, len, 0);
 }
 /* }}} */
 /* }}} */
@@ -441,27 +447,50 @@ static int _rar_unrar_volume_user_callback(char* dst_buffer,
 										   zend_fcall_info_cache *cache
 										   TSRMLS_DC) /* {{{ */
 {
+#if PHP_MAJOR_VERSION < 7
 	zval *failed_vol,
 		 *retval_ptr = NULL,
 		 **params;
+#else
+	zval failed_vol,
+		 retval,
+		 *params,
+		 *const retval_ptr = &retval;
+#endif
 	int  ret = -1;
 
+#if PHP_MAJOR_VERSION < 7
 	MAKE_STD_ZVAL(failed_vol);
-	ZVAL_STRING(failed_vol, dst_buffer, 1);
+	RAR_ZVAL_STRING(failed_vol, dst_buffer, 1);
 	params = &failed_vol;
 	fci->retval_ptr_ptr = &retval_ptr;
 	fci->params = &params;
+#else
+	ZVAL_STRING(&failed_vol, dst_buffer);
+	ZVAL_NULL(&retval);
+	params = &failed_vol;
+	fci->retval = &retval;
+	fci->params = params;
+#endif
 	fci->param_count = 1;
 
+#if PHP_MAJOR_VERSION < 7
 	if (zend_call_function(fci, cache TSRMLS_CC) != SUCCESS ||
 			fci->retval_ptr_ptr == NULL ||
 			*fci->retval_ptr_ptr == NULL) {
+#else
+	if (zend_call_function(fci, cache TSRMLS_CC) != SUCCESS || EG(exception)) {
+#endif
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,
 			"Failure to call volume find callback");
 		goto cleanup;
 	}
 
+#if PHP_MAJOR_VERSION < 7
 	assert(*fci->retval_ptr_ptr == retval_ptr);
+#else
+	assert(fci->retval == &retval);
+#endif
 	if (Z_TYPE_P(retval_ptr) == IS_NULL) {
 		/* let return -1 */
 	}
@@ -500,9 +529,15 @@ static int _rar_unrar_volume_user_callback(char* dst_buffer,
 	}
 
 cleanup:
+#if PHP_MAJOR_VERSION < 7
 	zval_ptr_dtor(&failed_vol);
-	if (retval_ptr != NULL)
+	if (retval_ptr != NULL) {
 		zval_ptr_dtor(&retval_ptr);
+	}
+#else
+	zval_ptr_dtor(&failed_vol);
+	zval_ptr_dtor(&retval);
+#endif
 	return ret;
 }
 /* }}} */
@@ -616,12 +651,15 @@ static zend_function_entry rar_functions[] = {
 /* {{{ Globals' related activities */
 ZEND_DECLARE_MODULE_GLOBALS(rar);
 
+#if PHP_MAJOR_VERSION < 7
 static int _rar_array_apply_remove_first(void *pDest TSRMLS_DC)
+#else
+static int _rar_array_apply_remove_first(zval *pDest TSRMLS_DC)
+#endif
 {
 	return (ZEND_HASH_APPLY_STOP | ZEND_HASH_APPLY_REMOVE);
 }
 
-/* caller should increment zval refcount before calling this */
 static void _rar_contents_cache_put(const char *key,
 									uint key_len,
 									zval *zv TSRMLS_DC)
@@ -634,21 +672,38 @@ static void _rar_contents_cache_put(const char *key,
 		zend_hash_apply(cc->data, _rar_array_apply_remove_first TSRMLS_CC);
 		assert(zend_hash_num_elements(cc->data) == cur_size - 1);
 	}
-	zval_add_ref(&zv);
+	rar_zval_add_ref(&zv);
+#if PHP_MAJOR_VERSION < 7
+	assert(Z_REFCOUNT_P(zv) > 1);
+	SEPARATE_ZVAL(&zv); /* ensure we store a heap allocated copy */
 	zend_hash_update(cc->data, key, key_len, &zv, sizeof(zv), NULL);
+#else
+	zend_hash_str_update(cc->data, key, key_len, zv);
+#endif
 }
 
 static zval *_rar_contents_cache_get(const char *key,
-									 uint key_len TSRMLS_DC)
+									 uint key_len,
+									 zval *rv TSRMLS_DC)
 {
 	rar_contents_cache *cc = &RAR_G(contents_cache);
-	zval **element = NULL;
-	zend_hash_find(cc->data, key, key_len, (void **) &element);
+	zval *element = NULL;
+#if PHP_MAJOR_VERSION < 7
+	zval **element_p = NULL;
+	zend_hash_find(cc->data, key, key_len, (void **) &element_p);
+	if (element_p) {
+		element = *element_p;
+	}
+#else
+	element = zend_hash_str_find(cc->data, key, key_len);
+#endif
 
 	if (element != NULL) {
 		cc->hits++;
-		zval_add_ref(element);
-		return *element;
+		INIT_ZVAL(*rv);
+		ZVAL_COPY_VALUE(rv, element);
+		zval_copy_ctor(rv);
+		return rv;
 	}
 	else {
 		cc->misses++;

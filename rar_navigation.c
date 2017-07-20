@@ -73,6 +73,9 @@ static void _rar_nav_get_depth_and_length(wchar_t *filenamew, const size_t file_
 										  int *depth_out, size_t *wlen_out TSRMLS_DC);
 static int _rar_nav_get_depth(const wchar_t *filenamew, const size_t file_size);
 static int _rar_nav_compare_entries(const void *op1, const void *op2 TSRMLS_DC);
+#if PHP_MAJOR_VERSION >= 7
+static void _rar_nav_swap_entries(void *op1, void *op2);
+#endif
 static int _rar_nav_compare_entries_std(const void *op1, const void *op2);
 static inline int _rar_nav_compare_values(const wchar_t *str1, const int depth1,
 								   const wchar_t *str2, const int depth2,
@@ -113,9 +116,15 @@ void _rar_entry_search_start(rar_file_t *rar,
 			sizeof rar->entries->entries_array_s[0]);
 		memcpy(rar->entries->entries_array_s, rar->entries->entries_array,
 			rar->entries->num_entries * sizeof rar->entries->entries_array[0]);
+#if PHP_MAJOR_VERSION < 7
 		zend_qsort(rar->entries->entries_array_s, rar->entries->num_entries,
 			sizeof *rar->entries->entries_array_s, _rar_nav_compare_entries
 			TSRMLS_CC);
+#else
+		zend_qsort(rar->entries->entries_array_s, rar->entries->num_entries,
+			sizeof *rar->entries->entries_array_s, _rar_nav_compare_entries,
+			_rar_nav_swap_entries);
+#endif
 	}
 }
 /* }}} */
@@ -137,7 +146,11 @@ void _rar_entry_search_seek(rar_find_output *state, size_t pos)
 /* {{{ _rar_entry_search_end */
 void _rar_entry_search_end(rar_find_output *state)
 {
-	efree(state);
+	if (state) {
+		/* may not have been initialized due to error conditions
+		 * in rararch_it_get_iterator that jumped out of the function */
+		efree(state);
+	}
 }
 /* }}} */
 
@@ -475,6 +488,21 @@ static int _rar_nav_compare_entries(const void *op1, const void *op2 TSRMLS_DC) 
 		sizeof(a->entry.FileNameW) / sizeof(a->entry.FileNameW[0]) /*1024*/);
 }
 /* }}} */
+
+#if PHP_MAJOR_VERSION >= 7
+static void _rar_nav_swap_entries(void *op1, void *op2) /* {{{ */
+{
+	/* just swaps two pointer values */
+	struct _rar_unique_entry **a = op1,
+							 **b = op2,
+							 *tmp;
+	tmp = *a;
+	*a = *b;
+	*b = tmp;
+
+}
+/* }}} */
+#endif
 
 static int _rar_nav_compare_entries_std(const void *op1, const void *op2) /* {{{ */
 {

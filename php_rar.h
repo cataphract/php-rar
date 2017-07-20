@@ -46,6 +46,8 @@
 #ifndef PHP_RAR_H
 #define PHP_RAR_H
 
+#include <php.h>
+
 extern zend_module_entry rar_module_entry;
 #define phpext_rar_ptr &rar_module_entry
 
@@ -81,13 +83,70 @@ enum HOST_SYSTEM {
 /* maximum comment size if 64KB */
 #define RAR_MAX_COMMENT_SIZE 65536
 
+/* PHP 7+ abstraction */
+#if PHP_MAJOR_VERSION >= 7
+typedef zend_object* rar_obj_ref;
+
+#define rar_zval_add_ref(ppzv) zval_add_ref(*ppzv)
+
+#define ZVAL_ALLOC_DUP(dst, src) \
+	do { \
+		dst = (zval*) emalloc(sizeof(zval)); \
+		ZVAL_DUP(dst, src); \
+	} while (0)
+
+#define RAR_RETURN_STRINGL(s, l, duplicate) \
+	do { \
+		RETVAL_STRINGL(s, l); \
+		if (duplicate == 0) { \
+			efree(s); \
+		} \
+		return; \
+	} while (0)
+
+#define RAR_ZVAL_STRING(z, s, duplicate) \
+	do { \
+		ZVAL_STRING(z, s); \
+		if (duplicate == 0) { \
+			efree(s); \
+		} \
+	} while (0)
+
+typedef size_t zpp_s_size_t;
+
+#define MAKE_STD_ZVAL(zv_p) \
+	do { \
+		(zv_p) = emalloc(sizeof(zval)); \
+		ZVAL_NULL(zv_p); \
+	} while (0)
+#define INIT_ZVAL(zv) ZVAL_UNDEF(&zv)
+
+#define ZEND_ACC_FINAL_CLASS ZEND_ACC_FINAL
+
+#else /* PHP 5.x */
+typedef zend_object_handle rar_obj_ref;
+
+#define rar_zval_add_ref zval_add_ref
+#define ZVAL_ALLOC_DUP(dst, src) \
+	do { \
+		zval *z_src = src; \
+		dst = z_src; \
+		zval_add_ref(&dst); \
+		SEPARATE_ZVAL(&dst); \
+	} while (0)
+#define RAR_ZVAL_STRING ZVAL_STRING
+#define RAR_RETURN_STRINGL(s, l, duplicate) RETURN_STRINGL(s, l, duplicate)
+typedef int zpp_s_size_t;
+#define zend_hash_str_del zend_hash_del
+#endif
+
 typedef struct _rar_cb_user_data {
 	char					*password;	/* can be NULL */
 	zval					*callable;  /* can be NULL */
 } rar_cb_user_data;
 
 typedef struct rar {
-	zend_object_handle			id;
+	rar_obj_ref					obj_ref;
 	struct _rar_entries			*entries;
 	struct RAROpenArchiveDataEx	*list_open_data;
 	struct RAROpenArchiveDataEx	*extract_open_data;
@@ -99,7 +158,7 @@ typedef struct rar {
 } rar_file_t;
 
 /* Misc */
-#ifdef ZTS
+#if defined(ZTS) && PHP_MAJOR_VERSION < 7
 # define RAR_TSRMLS_TC	, void ***
 #else
 # define RAR_TSRMLS_TC
@@ -134,7 +193,7 @@ typedef struct _rar_contents_cache {
 	int			misses;
 	/* args: cache key, cache key size, cached object) */
 	void (*put)(const char *, uint, zval * RAR_TSRMLS_TC);
-	zval *(*get)(const char *, uint RAR_TSRMLS_TC);
+	zval *(*get)(const char *, uint, zval * RAR_TSRMLS_TC);
 } rar_contents_cache;
 
 /* Module globals, currently used for dir wrappers cache */
@@ -169,6 +228,15 @@ ZEND_EXTERN_MODULE_GLOBALS(rar);
 #endif
 
 /* Other compatibility quirks */
+/* PHP 5.3 doesn't have ZVAL_COPY_VALUE */
+#if !defined(ZEND_COPY_VALUE) && PHP_MAJOR_VERSION == 5
+#define ZVAL_COPY_VALUE(z, v)					\
+	do {										\
+		(z)->value = (v)->value;				\
+		Z_TYPE_P(z) = Z_TYPE_P(v);				\
+	} while (0)
+#endif
+
 #if !defined(HAVE_STRNLEN) || !HAVE_STRNLEN
 size_t _rar_strnlen(const char *s, size_t maxlen);
 # define strnlen _rar_strnlen

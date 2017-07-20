@@ -34,18 +34,29 @@ function install_php {
 }
 
 function build_ext {
-  local readonly prefix=$1
+  local readonly prefix=$1 coverage=$2
   "$prefix"/bin/phpize
+  if [[ $coverage = 'yes' ]]; then
+    export CPPFLAGS="$CPPFLAGS --coverage"
+  fi
   ./configure --with-php-config="$prefix/bin/php-config"
   make -j $JOBS
 }
 
 function do_tests {
   local readonly prefix=$1
+  local found_leaks= dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  echo "--suppressions=$dir/valgrind.supp" | tee ~/.valgrindrc
   TEST_PHP_EXECUTABLE="$prefix/bin/php" REPORT_EXIT_STATUS=1 \
     "$prefix/bin/php" "$prefix"/lib/php/build/run-tests.php \
     -q -d extension=modules/rar.so --set-timeout 300 --show-diff \
     $RUN_TESTS_FLAGS tests
+  found_leaks=$(find tests -name '*.mem' | wc -l)
+  if [[ $found_leaks -gt 0 ]]; then
+    echo "Found $found_leaks leaks. Failing."
+    find tests -name "*.mem" -print -exec cat {} \;
+    return 1
+  fi
 }
 
 # public functions below
@@ -64,7 +75,7 @@ function build {
   set -e
   set -o pipefail
   if [[ ! -f modules/rar.so ]]; then
-    build_ext "$(prefix $1 $2)"
+    build_ext "$(prefix $1 $2)" "$3"
   fi
 }
 

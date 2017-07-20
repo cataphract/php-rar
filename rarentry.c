@@ -41,23 +41,20 @@ extern "C" {
 zend_class_entry *rar_class_entry_ptr;
 /* }}} */
 
-/* {{{ Globals with internal linkage */
-static zend_object_handlers rarentry_object_handlers;
-/* }}} */
-
 /* {{{ Function prototypes for functions with internal linkage */
 static int _rar_decl_priv_prop_null(zend_class_entry *ce, const char *name,
 									 int name_length, char *doc_comment,
 									 int doc_comment_len TSRMLS_DC);
 static zval *_rar_entry_get_property(zval *entry_obj, char *name, int namelen TSRMLS_DC);
 static void _rar_dos_date_to_text(int dos_time, char *date_string);
-static zend_object_value rarentry_ce_create_object(zend_class_entry *class_type TSRMLS_DC);
 /* }}} */
 
 /* {{{ Functions with external linkage */
 /* should be passed the last entry that corresponds to a given file
  * only that one has the correct CRC. Still, it may have a wrong packedSize */
-void _rar_entry_to_zval(zval *parent, /* zval to RarArchive object, will have its refcount increased */
+/* parent is zval to RarArchive object. The object (not the zval, in PHP 5.x)
+ * will have its refcount increased */
+void _rar_entry_to_zval(zval *parent,
 						struct RARHeaderDataEx *entry,
 						unsigned long packed_size,
 						size_t position,
@@ -68,10 +65,18 @@ void _rar_entry_to_zval(zval *parent, /* zval to RarArchive object, will have it
 	char *filename;
 	int  filename_size, filename_len;
 	long unp_size; /* zval stores PHP ints as long, so use that here */
+	zval *parent_copy = parent;
+#if PHP_MAJOR_VERSION < 7
+	/* allocate zval on the heap */
+	zval_addref_p(parent_copy);
+	SEPARATE_ZVAL(&parent_copy);
+	/* set refcount to 0; zend_update_property will increase it */
+	Z_DELREF_P(parent_copy);
+#endif
 
 	object_init_ex(object, rar_class_entry_ptr);
 	zend_update_property(rar_class_entry_ptr, object, "rarfile",
-		sizeof("rararch") - 1, parent TSRMLS_CC);
+		sizeof("rararch") - 1, parent_copy TSRMLS_CC);
 
 #if ULONG_MAX > 0xffffffffUL
 	unp_size = ((long) entry->UnpSize) + (((long) entry->UnpSizeHigh) << 32);
@@ -152,28 +157,55 @@ static int _rar_decl_priv_prop_null(zend_class_entry *ce, const char *name,
 									 int name_length, char *doc_comment,
 									 int doc_comment_len TSRMLS_DC) /* {{{ */
 {
+#if PHP_MAJOR_VERSION < 7
 	zval *property;
 	ALLOC_PERMANENT_ZVAL(property);
 	INIT_ZVAL(*property);
 	return zend_declare_property_ex(ce, name, name_length, property,
 		ZEND_ACC_PRIVATE, doc_comment, doc_comment_len TSRMLS_CC);
+#else
+	zval property;
+	zend_string *name_str,
+				*doc_str;
+	int ret;
+
+	ZVAL_NULL(&property);
+	name_str = zend_string_init(name, (size_t) name_length, 1);
+	doc_str = zend_string_init(doc_comment, (size_t) doc_comment_len, 1);
+	ret = zend_declare_property_ex(ce, name_str, &property, ZEND_ACC_PRIVATE,
+								   doc_str);
+	zend_string_release(name_str);
+	zend_string_release(doc_str);
+	return ret;
+#endif
 }
 /* }}} */
 
 static zval *_rar_entry_get_property(zval *entry_obj, char *name, int namelen TSRMLS_DC) /* {{{ */
 {
 	zval *tmp;
+#if PHP_MAJOR_VERSION >= 7
+	zval zv;
+#endif
+#if PHP_VERSION_ID < 70100
 	zend_class_entry *orig_scope = EG(scope);
 
 	EG(scope) = rar_class_entry_ptr;
+#endif
 
+#if PHP_MAJOR_VERSION < 7
 	tmp = zend_read_property(Z_OBJCE_P(entry_obj), entry_obj, name, namelen, 1 TSRMLS_CC);
+#else
+	tmp = zend_read_property(Z_OBJCE_P(entry_obj), entry_obj, name, namelen, 1, &zv);
+#endif
 	if (tmp == NULL) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,
 			"Bug: unable to find property '%s'. Please report.", name);
 	}
 
+#if PHP_VERSION_ID < 70100
 	EG(scope) = orig_scope;
+#endif
 
 	return tmp;
 }
@@ -192,29 +224,6 @@ static void _rar_dos_date_to_text(int dos_time, char *date_string) /* {{{ */
 	sprintf(date_string, "%u-%02u-%02u %02u:%02u:%02u", year, month, day, hour, minute, second);
 }
 /* }}} */
-
-static zend_object_value rarentry_ce_create_object(zend_class_entry *class_type TSRMLS_DC) /* {{{ */
-{
-	zend_object_value	zov;
-	zend_object			*zobj;
-
-	zobj = emalloc(sizeof *zobj);
-	zend_object_std_init(zobj, class_type TSRMLS_CC);
-
-#if PHP_VERSION_ID < 50399
-	zend_hash_copy(zobj->properties, &(class_type->default_properties),
-		(copy_ctor_func_t) zval_add_ref, NULL, sizeof(zval*));
-#else
-	object_properties_init(zobj, class_type);
-#endif
-	zov.handle = zend_objects_store_put(zobj,
-		(zend_objects_store_dtor_t) zend_objects_destroy_object,
-		(zend_objects_free_object_storage_t) zend_objects_free_object_storage,
-		NULL TSRMLS_CC);
-	zov.handlers = &rarentry_object_handlers;
-	return zov;
-}
-/* }}} */
 /* }}} */
 
 /* {{{ Methods */
@@ -226,7 +235,7 @@ PHP_METHOD(rarentry, extract)
 	char					*dir,
 							*filepath = NULL,
 							*password = NULL;
-	int						dir_len,
+	zpp_s_size_t			dir_len,
 							filepath_len = 0,
 							password_len = 0;
 	char					*considered_path;
@@ -360,7 +369,7 @@ PHP_METHOD(rarentry, getName)
 
 	RAR_GET_PROPERTY(tmp, "name");
 
-	RETURN_STRINGL(Z_STRVAL_P(tmp), Z_STRLEN_P(tmp), 1);
+	RAR_RETURN_STRINGL(Z_STRVAL_P(tmp), Z_STRLEN_P(tmp), 1);
 }
 /* }}} */
 
@@ -422,7 +431,7 @@ PHP_METHOD(rarentry, getFileTime)
 
 	RAR_GET_PROPERTY(tmp, "file_time");
 
-	RETURN_STRINGL(Z_STRVAL_P(tmp), Z_STRLEN_P(tmp), 1);
+	RAR_RETURN_STRINGL(Z_STRVAL_P(tmp), Z_STRLEN_P(tmp), 1);
 }
 /* }}} */
 
@@ -437,7 +446,7 @@ PHP_METHOD(rarentry, getCrc)
 
 	RAR_GET_PROPERTY(tmp, "crc");
 
-	RETURN_STRINGL(Z_STRVAL_P(tmp), Z_STRLEN_P(tmp), 1);
+	RAR_RETURN_STRINGL(Z_STRVAL_P(tmp), Z_STRLEN_P(tmp), 1);
 }
 /* }}} */
 
@@ -496,7 +505,7 @@ PHP_METHOD(rarentry, getStream)
 	zval				*entry_obj = getThis();
 	php_stream			*stream = NULL;
 	char				*password = NULL;
-	int					password_len; /* ignored */
+	zpp_s_size_t		password_len; /* ignored */
 	rar_cb_user_data	cb_udata = {NULL};
 
 
@@ -579,7 +588,7 @@ PHP_METHOD(rarentry, __toString)
 	char		*name,
 				*crc;
 	char		*restring;
-	int			restring_len;
+	int			restring_size;
 	const char	format[] = "RarEntry for %s \"%s\" (%s)";
 
 	RAR_RETNULL_ON_ARGS();
@@ -595,14 +604,14 @@ PHP_METHOD(rarentry, __toString)
 	crc = Z_STRVAL_P(crc_zval);
 
 	/* 2 is size of %s, 8 is size of crc */
-	restring_len = (sizeof(format)-1) - 2 * 3 + (sizeof("directory")-1) +
+	restring_size = (sizeof(format)-1) - 2 * 3 + (sizeof("directory")-1) +
 		strlen(name) + 8 + 1;
-	restring = emalloc(restring_len);
-	snprintf(restring, restring_len, format, is_dir?"directory":"file",
+	restring = emalloc(restring_size);
+	snprintf(restring, restring_size, format, is_dir?"directory":"file",
 		name, crc);
-	restring[restring_len - 1] = '\0'; /* just to be safe */
+	restring[restring_size - 1] = '\0'; /* just to be safe */
 
-	RETURN_STRING(restring, 0);
+	RAR_RETURN_STRINGL(restring, strlen(restring), 0);
 }
 /* }}} */
 /* }}} */
@@ -647,15 +656,10 @@ void minit_rarentry(TSRMLS_D)
 {
 	zend_class_entry ce;
 
-	memcpy(&rarentry_object_handlers, zend_get_std_object_handlers(),
-		sizeof rarentry_object_handlers);
-
 	INIT_CLASS_ENTRY(ce, "RarEntry", php_rar_class_functions);
 	rar_class_entry_ptr = zend_register_internal_class(&ce TSRMLS_CC);
 	rar_class_entry_ptr->ce_flags |= ZEND_ACC_FINAL_CLASS;
 	rar_class_entry_ptr->clone = NULL;
-	/* Custom creation currently not really needed, but you never know... */
-	rar_class_entry_ptr->create_object = &rarentry_ce_create_object;
 
 	REG_RAR_PROPERTY("rarfile", "Associated RAR archive");
 	REG_RAR_PROPERTY("position", "Position inside the RAR archive");
