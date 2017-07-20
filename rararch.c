@@ -1158,6 +1158,7 @@ void minit_rararch(TSRMLS_D)
 	rararch_object_handlers.write_dimension = rararch_write_dimension;
 	rararch_object_handlers.has_dimension   = rararch_has_dimension;
 	rararch_object_handlers.unset_dimension = rararch_unset_dimension;
+	rararch_object_handlers.clone_obj = NULL;
 #if PHP_MAJOR_VERSION >= 7
 	rararch_object_handlers.free_obj = rararch_ce_free_object_storage;
 	rararch_object_handlers.offset = XtOffsetOf(ze_rararch_object, parent);
