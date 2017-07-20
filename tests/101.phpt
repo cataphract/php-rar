@@ -41,6 +41,12 @@ object(RarEntry)#%d (%d) {
   int(51)
   ["flags%sprivate%s=>
   int(5)
+  ["redir_type%sprivate%s=>
+  int(0)
+  ["redir_to_directory%sprivate%s=>
+  NULL
+  ["redir_target%sprivate%s=>
+  NULL
 }
 (unpacked) MD5: c07ce36ec260848f47fe8ac1408f938f
 Done.

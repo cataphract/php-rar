@@ -79,6 +79,12 @@ object(RarEntry)#%d (%d) {
   int(53)
   ["flags%sprivate%s=>
   int(16)
+  ["redir_type%sprivate%s=>
+  int(0)
+  ["redir_to_directory%sprivate%s=>
+  NULL
+  ["redir_target%sprivate%s=>
+  NULL
 }
 bool(true)
 Done

@@ -63,7 +63,8 @@ void _rar_entry_to_zval(zval *parent,
 	char tmp_s [MAX_LENGTH_OF_LONG + 1];
 	char time[50];
 	char *filename;
-	int  filename_size, filename_len;
+	int  filename_size,
+		 filename_len;
 	long unp_size; /* zval stores PHP ints as long, so use that here */
 	zval *parent_copy = parent;
 #if PHP_MAJOR_VERSION < 7
@@ -89,7 +90,7 @@ void _rar_entry_to_zval(zval *parent,
 		unp_size = (long) entry->UnpSize;
 #endif
 
-	filename_size = sizeof(entry->FileNameW) * sizeof(wchar_t);
+	filename_size = sizeof(entry->FileNameW) * 4;
 	filename = (char*) emalloc(filename_size);
 
 	if (packed_size > (unsigned long) LONG_MAX)
@@ -128,6 +129,28 @@ void _rar_entry_to_zval(zval *parent,
 		sizeof("method") - 1, entry->Method TSRMLS_CC);
 	zend_update_property_long(rar_class_entry_ptr, object, "flags",
 		sizeof("flags") - 1, entry->Flags TSRMLS_CC);
+
+	zend_update_property_long(rar_class_entry_ptr, object, "redir_type",
+		sizeof("redir_type") - 1, entry->RedirType TSRMLS_CC);
+
+	if (entry->RedirName) {
+		char *redir_target = NULL;
+		size_t redir_target_size;
+
+		zend_update_property_long(rar_class_entry_ptr, object,
+			"redir_to_directory", sizeof("redir_to_directory") - 1,
+			!!entry->DirTarget TSRMLS_CC);
+
+		redir_target_size = entry->RedirNameSize * 4;
+		redir_target =  emalloc(redir_target_size);
+		assert(redir_target_size > 0);
+		_rar_wide_to_utf(entry->RedirName, redir_target, redir_target_size);
+
+		zend_update_property_string(rar_class_entry_ptr, object, "redir_target",
+			sizeof("redir_target") - 1, redir_target TSRMLS_CC);
+
+		efree(redir_target);
+	}
 
 	efree(filename);
 }
@@ -575,6 +598,60 @@ PHP_METHOD(rarentry, isEncrypted)
 }
 /* }}} */
 
+/* {{{ proto int RarEntry::getRedirType()
+   Returns the redirection type, or NULL if there's none */
+PHP_METHOD(rarentry, getRedirType)
+{
+	zval *tmp;
+	zval *entry_obj = getThis();
+
+	RAR_RETNULL_ON_ARGS();
+
+	RAR_GET_PROPERTY(tmp, "redir_type");
+	if (Z_TYPE_P(tmp) != IS_LONG) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "bad redir type stored");
+		RETURN_FALSE;
+	}
+
+	if (Z_LVAL_P(tmp) == FSREDIR_NONE) {
+		RETURN_NULL();
+	}
+
+	RETURN_LONG(Z_LVAL_P(tmp));
+}
+/* }}} */
+
+/* {{{ proto bool RarEntry::isRedirectToDirectory()
+   Returns true if there is redirection and the target is a directory,
+   null if there is no redirection, false otherwise */
+PHP_METHOD(rarentry, isRedirectToDirectory)
+{
+	zval *tmp;
+	zval *entry_obj = getThis();
+
+	RAR_RETNULL_ON_ARGS();
+
+	RAR_GET_PROPERTY(tmp, "redir_to_directory");
+
+	RETURN_ZVAL(tmp, 1, 0);
+}
+/* }}} */
+
+/* {{{ proto bool RarEntry::getRedirTarget()
+   Returns the redirection target, encoded as UTF-8, or NULL */
+PHP_METHOD(rarentry, getRedirTarget)
+{
+	zval *tmp;
+	zval *entry_obj = getThis();
+
+	RAR_RETNULL_ON_ARGS();
+
+	RAR_GET_PROPERTY(tmp, "redir_target");
+
+	RETURN_ZVAL(tmp, 1, 0);
+}
+/* }}} */
+
 /* {{{ proto string RarEntry::__toString()
    Return string representation for entry */
 PHP_METHOD(rarentry, __toString)
@@ -647,6 +724,9 @@ static zend_function_entry php_rar_class_functions[] = {
 	PHP_ME(rarentry,		getStream,			arginfo_rarentry_getstream,	ZEND_ACC_PUBLIC)
 	PHP_ME(rarentry,		isDirectory,		arginfo_rar_void,	ZEND_ACC_PUBLIC)
 	PHP_ME(rarentry,		isEncrypted,		arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getRedirType,		arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		isRedirectToDirectory,	arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		getRedirTarget,	arginfo_rar_void,	ZEND_ACC_PUBLIC)
 	PHP_ME(rarentry,		__toString,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
 	PHP_ME_MAPPING(__construct,	rar_bogus_ctor,	arginfo_rar_void,	ZEND_ACC_PRIVATE | ZEND_ACC_CTOR)
 	{NULL, NULL, NULL}
@@ -673,6 +753,9 @@ void minit_rarentry(TSRMLS_D)
 	REG_RAR_PROPERTY("version", "RAR version needed to extract entry");
 	REG_RAR_PROPERTY("method", "Identifier for packing method");
 	REG_RAR_PROPERTY("flags", "Entry header flags");
+	REG_RAR_PROPERTY("redir_type", "The type of redirection or NULL");
+	REG_RAR_PROPERTY("redir_to_directory", "Whether the redirection target is a directory");
+	REG_RAR_PROPERTY("redir_target", "Target of the redirectory");
 
 	REG_RAR_CLASS_CONST_LONG("HOST_MSDOS",	HOST_MSDOS);
 	REG_RAR_CLASS_CONST_LONG("HOST_OS2",	HOST_OS2);
@@ -680,6 +763,12 @@ void minit_rarentry(TSRMLS_D)
 	REG_RAR_CLASS_CONST_LONG("HOST_UNIX",	HOST_UNIX);
 	REG_RAR_CLASS_CONST_LONG("HOST_MACOS",	HOST_MACOS);
 	REG_RAR_CLASS_CONST_LONG("HOST_BEOS",	HOST_BEOS);
+
+	REG_RAR_CLASS_CONST_LONG("FSREDIR_UNIXSYMLINK",	FSREDIR_UNIXSYMLINK);
+	REG_RAR_CLASS_CONST_LONG("FSREDIR_WINSYMLINK",	FSREDIR_WINSYMLINK);
+	REG_RAR_CLASS_CONST_LONG("FSREDIR_JUNCTION",	FSREDIR_JUNCTION);
+	REG_RAR_CLASS_CONST_LONG("FSREDIR_HARDLINK",	FSREDIR_HARDLINK);
+	REG_RAR_CLASS_CONST_LONG("FSREDIR_FILECOPY",	FSREDIR_FILECOPY);
 
 	/* see WinNT.h */
 	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_WIN_READONLY",				0x00001L);

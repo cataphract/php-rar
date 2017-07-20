@@ -46,6 +46,12 @@ object(RarEntry)#%d (%d) {
   int(51)
   ["flags%sprivate%s=>
   int(0)
+  ["redir_type%sprivate%s=>
+  int(0)
+  ["redir_to_directory%sprivate%s=>
+  NULL
+  ["redir_target%sprivate%s=>
+  NULL
 }
 object(RarEntry)#%d (%d) {
   ["rarfile%sprivate%s=>
@@ -73,6 +79,12 @@ object(RarEntry)#%d (%d) {
   int(53)
   ["flags%sprivate%s=>
   int(16)
+  ["redir_type%sprivate%s=>
+  int(0)
+  ["redir_to_directory%sprivate%s=>
+  NULL
+  ["redir_target%sprivate%s=>
+  NULL
 }
 
 Warning: rar_open(): Failed to open %s: ERAR_EOPEN (file open error) in %s on line %d

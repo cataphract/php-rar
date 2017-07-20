@@ -48,6 +48,12 @@ array(2) {
     int(51)
     ["flags%sprivate%s=>
     int(0)
+    ["redir_type%sprivate]=>
+    int(0)
+    ["redir_to_directory%sprivate]=>
+    NULL
+    ["redir_target%sprivate]=>
+    NULL
   }
   [1]=>
   object(RarEntry)#%d (%d) {
@@ -76,6 +82,12 @@ array(2) {
     int(51)
     ["flags%sprivate%s=>
     int(0)
+    ["redir_type%sprivate]=>
+    int(0)
+    ["redir_to_directory%sprivate]=>
+    NULL
+    ["redir_target%sprivate]=>
+    NULL
   }
 }
 array(2) {
@@ -106,6 +118,12 @@ array(2) {
     int(53)
     ["flags%sprivate%s=>
     int(0)
+    ["redir_type%sprivate]=>
+    int(0)
+    ["redir_to_directory%sprivate]=>
+    NULL
+    ["redir_target%sprivate]=>
+    NULL
   }
   [1]=>
   object(RarEntry)#%d (%d) {
@@ -134,6 +152,12 @@ array(2) {
     int(53)
     ["flags%sprivate%s=>
     int(16)
+    ["redir_type%sprivate]=>
+    int(0)
+    ["redir_to_directory%sprivate]=>
+    NULL
+    ["redir_target%sprivate]=>
+    NULL
   }
 }
 
