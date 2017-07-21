@@ -40,3 +40,4 @@
 /pecl-rar.*
 /rar.la
 *.autosave
+/unrar/.libs
