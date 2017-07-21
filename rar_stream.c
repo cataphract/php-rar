@@ -282,7 +282,10 @@ static mode_t _rar_convert_file_attrs(unsigned os_attrs,
 
 static void _rar_time_convert(unsigned low, unsigned high, time_t *to) /* {{{ */
 {
-	time_t default_ = (time_t) 0;
+	time_t default_ = (time_t) 0,
+		   local_time;
+	struct tm tm = {0};
+	TSRMLS_FETCH();
 
 	if (high == 0U && low == 0U) {
 		*to = default_;
@@ -294,8 +297,23 @@ static void _rar_time_convert(unsigned low, unsigned high, time_t *to) /* {{{ */
 
 	/* value is in 10^-7 seconds since 01-01-1601 */
 	/* convert to nanoseconds, shift to 01-01-1970 and convert to seconds */
-	*to = (time_t) ((INT32TO64(high, low) * 100 - ushift) / 1000000000);
-	return;
+	local_time = (time_t) ((INT32TO64(high, low) * 100 - ushift) / 1000000000);
+
+	/* now we have the time in... I don't know what. It gives UTC - tz offset */
+	/* we need to try and convert it to UTC */
+	/* abuse gmtime, which is supposed to work with UTC */
+#ifndef PHP_WIN32
+	if (gmtime_r(&local_time, &tm) == NULL) {
+#else
+	if (gmtime_s(&tm, &local_time) != 0) {
+#endif
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,
+			"Could not convert time to UTC, using local time");
+		*to = local_time;
+	}
+
+	tm.tm_isdst = -1;
+	*to = local_time + (local_time - mktime(&tm));
 }
 /* }}} */
 
@@ -327,7 +345,6 @@ static int _rar_stat_from_header(struct RARHeaderDataEx *header,
 		else
 			ssb->sb.st_size = (long) (unsigned long) (int64) unp_size;
 	}
-
 
 	_rar_time_convert(header->AtimeLow, header->AtimeHigh, &ssb->sb.st_atime);
 	_rar_time_convert(header->CtimeLow, header->CtimeHigh, &ssb->sb.st_ctime);

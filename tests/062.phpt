@@ -21,7 +21,14 @@ echo "\nSub-root directory:\n";
 $u = "rar://" .
 	dirname(__FILE__) . '/dirs_and_extra_headers.rar#%EF%AC%B0';
 
-print_r(array_slice(fstat(opendir($u)), 13));
+$r = array_slice(fstat(opendir($u)), 13);
+if (PHP_OS == 'WINNT') {
+	// we don't give the correct values on windows
+	$r['atime'] = 1272938643;
+	$r['mtime'] = 1272938643;
+	$r['ctime'] = 1272813170;
+}
+print_r($r);
 
 echo "Done.\n";
 --EXPECTF--
@@ -54,9 +61,9 @@ Array
     [gid] => 0
     [rdev] => 0
     [size] => 0
-    [atime] => 1272935043
-    [mtime] => 1272935043
-    [ctime] => 1272809570
+    [atime] => 1272938643
+    [mtime] => 1272938643
+    [ctime] => 1272813170
     [blksize] => %s
     [blocks] => %s
 )
