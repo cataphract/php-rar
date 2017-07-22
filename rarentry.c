@@ -137,7 +137,7 @@ void _rar_entry_to_zval(zval *parent,
 		char *redir_target = NULL;
 		size_t redir_target_size;
 
-		zend_update_property_long(rar_class_entry_ptr, object,
+		zend_update_property_bool(rar_class_entry_ptr, object,
 			"redir_to_directory", sizeof("redir_to_directory") - 1,
 			!!entry->DirTarget TSRMLS_CC);
 

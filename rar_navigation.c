@@ -313,6 +313,9 @@ void _rar_delete_entries(rar_file_t *rar TSRMLS_DC)
 		if (rar->entries->entries_array != NULL) {
 			size_t i;
 			for (i = 0; i < rar->entries->num_entries; i++) {
+				if (rar->entries->entries_array[i]->entry.RedirName != NULL) {
+					efree(rar->entries->entries_array[i]->entry.RedirName);
+				}
 				efree(rar->entries->entries_array[i]);
 			}
 			efree(rar->entries->entries_array);
@@ -353,7 +356,11 @@ int _rar_list_files(rar_file_t *rar TSRMLS_DC) /* {{{ */
 	ents->last_accessed = NULL;
 
 	while (result == 0) {
+		struct _rar_unique_entry *ue;
 		struct RARHeaderDataEx entry = {0};
+		wchar_t redir_name[1024] = L"";
+		entry.RedirName = redir_name;
+		entry.RedirNameSize = sizeof(redir_name) / sizeof(redir_name[0]);
 		result = RARReadHeaderEx(rar->arch_handle, &entry);
 		/* value of 2nd argument is irrelevant in RAR_OM_LIST_[SPLIT] mode */
 		if (result == 0) {
@@ -401,16 +408,22 @@ int _rar_list_files(rar_file_t *rar TSRMLS_DC) /* {{{ */
 		}
 		assert(capacity > ents->num_entries);
 
-		ents->entries_array[ents->num_entries] =
+		ents->entries_array[ents->num_entries] = ue =
 			emalloc(sizeof *ents->entries_array[0]);
-		memcpy(&ents->entries_array[ents->num_entries]->entry, &entry,
-			sizeof ents->entries_array[0]->entry);
-		ents->entries_array[ents->num_entries]->id = ents->num_entries;
-		ents->entries_array[ents->num_entries]->packed_size = packed_size;
+		memcpy(&ue->entry, &entry, sizeof ents->entries_array[0]->entry);
+		ue->id = ents->num_entries;
+		ue->packed_size = packed_size;
 		_rar_nav_get_depth_and_length(entry.FileNameW,
 			sizeof(entry.FileNameW) / sizeof(entry.FileNameW[0]), /* = 1024 */
-			&ents->entries_array[ents->num_entries]->depth,
-			&ents->entries_array[ents->num_entries]->name_wlen TSRMLS_CC);
+			&ue->depth, &ue->name_wlen TSRMLS_CC);
+		if (redir_name[0] != L'\0') {
+			size_t size = (wcslen(redir_name) + 1) * sizeof(redir_name[0]);
+			ue->entry.RedirName = emalloc(size);
+			memcpy(ue->entry.RedirName, redir_name, size);
+		} else {
+			ue->entry.RedirName = NULL;
+			ue->entry.RedirNameSize = 0;
+		}
 		ents->num_entries++;
 	}
 
