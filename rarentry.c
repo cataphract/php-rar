@@ -46,7 +46,7 @@ static int _rar_decl_priv_prop_null(zend_class_entry *ce, const char *name,
 									 int name_length, char *doc_comment,
 									 int doc_comment_len TSRMLS_DC);
 static zval *_rar_entry_get_property(zval *entry_obj, char *name, int namelen TSRMLS_DC);
-static void _rar_dos_date_to_text(int dos_time, char *date_string);
+static void _rar_dos_date_to_text(unsigned dos_time, char *date_string);
 /* }}} */
 
 /* {{{ Functions with external linkage */
@@ -234,17 +234,22 @@ static zval *_rar_entry_get_property(zval *entry_obj, char *name, int namelen TS
 }
 /* }}} */
 
-static void _rar_dos_date_to_text(int dos_time, char *date_string) /* {{{ */
+static void _rar_dos_date_to_text(unsigned dos_time, char *date_string) /* {{{ */
 {
-	int second, minute, hour, day, month, year;
-	/* following lines were taken from timefn.cpp */
-	second = (dos_time & 0x1f)*2;
-	minute = (dos_time>>5) & 0x3f;
-	hour   = (dos_time>>11) & 0x1f;
-	day    = (dos_time>>16) & 0x1f;
-	month  = (dos_time>>21) & 0x0f;
-	year   = (dos_time>>25)+1980;
-	sprintf(date_string, "%u-%02u-%02u %02u:%02u:%02u", year, month, day, hour, minute, second);
+	time_t time = 0;
+	struct tm tm = {0};
+	int res;
+
+	res = rar_dos_time_convert(dos_time, &time) != FAILURE &&
+		php_gmtime_r(&time, &tm) != NULL;
+
+	if (!res) {
+		sprintf(date_string, "%s", "time conversion failure");
+	}
+
+	sprintf(date_string, "%u-%02u-%02u %02u:%02u:%02u",
+		tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min,
+		tm.tm_sec);
 }
 /* }}} */
 /* }}} */

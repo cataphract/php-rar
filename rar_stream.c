@@ -41,7 +41,6 @@ extern "C" {
 #include <wchar.h>
 
 #include "php_rar.h"
-#include "unrar/rartypes.hpp"
 
 #include <php_streams.h>
 #include <ext/standard/url.h>
@@ -280,43 +279,6 @@ static mode_t _rar_convert_file_attrs(unsigned os_attrs,
 }
 /* }}} */
 
-static void _rar_time_convert(unsigned low, unsigned high, time_t *to) /* {{{ */
-{
-	time_t default_ = (time_t) 0,
-		   local_time;
-	struct tm tm = {0};
-	TSRMLS_FETCH();
-
-	if (high == 0U && low == 0U) {
-		*to = default_;
-		return;
-	}
-
-	/* 11644473600000000000 - number of ns between 01-01-1601 and 01-01-1970. */
-	uint64 ushift=INT32TO64(0xA1997B0B,0x4C6A0000);
-
-	/* value is in 10^-7 seconds since 01-01-1601 */
-	/* convert to nanoseconds, shift to 01-01-1970 and convert to seconds */
-	local_time = (time_t) ((INT32TO64(high, low) * 100 - ushift) / 1000000000);
-
-	/* now we have the time in... I don't know what. It gives UTC - tz offset */
-	/* we need to try and convert it to UTC */
-	/* abuse gmtime, which is supposed to work with UTC */
-#ifndef PHP_WIN32
-	if (gmtime_r(&local_time, &tm) == NULL) {
-#else
-	if (gmtime_s(&tm, &local_time) != 0) {
-#endif
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,
-			"Could not convert time to UTC, using local time");
-		*to = local_time;
-	}
-
-	tm.tm_isdst = -1;
-	*to = local_time + (local_time - mktime(&tm));
-}
-/* }}} */
-
 static int _rar_stat_from_header(struct RARHeaderDataEx *header,
 								 php_stream_statbuf *ssb) /* {{{ */
 {
@@ -346,27 +308,19 @@ static int _rar_stat_from_header(struct RARHeaderDataEx *header,
 			ssb->sb.st_size = (long) (unsigned long) (int64) unp_size;
 	}
 
-	_rar_time_convert(header->AtimeLow, header->AtimeHigh, &ssb->sb.st_atime);
-	_rar_time_convert(header->CtimeLow, header->CtimeHigh, &ssb->sb.st_ctime);
+	rar_time_convert(header->AtimeLow, header->AtimeHigh, &ssb->sb.st_atime);
+	rar_time_convert(header->CtimeLow, header->CtimeHigh, &ssb->sb.st_ctime);
 
 	if (header->MtimeLow == 0 && header->MtimeHigh == 0) {
 		/* high precision mod time undefined */
-		struct tm time_s = {0};
 		time_t time;
-		unsigned dos_time = header->FileTime;
-
-		time_s.tm_sec  = (dos_time & 0x1f)*2;
-		time_s.tm_min  = (dos_time>>5) & 0x3f;
-		time_s.tm_hour = (dos_time>>11) & 0x1f;
-		time_s.tm_mday = (dos_time>>16) & 0x1f;
-		time_s.tm_mon  = ((dos_time>>21) & 0x0f) - 1;
-		time_s.tm_year = (dos_time>>25) + 80;
-		if ((time = mktime(&time_s)) == -1)
+		if (rar_dos_time_convert(header->FileTime, &time) == FAILURE) {
 			return FAILURE;
+		}
 		ssb->sb.st_mtime = time;
 	}
 	else {
-		_rar_time_convert(header->MtimeLow, header->MtimeHigh,
+		rar_time_convert(header->MtimeLow, header->MtimeHigh,
 			&ssb->sb.st_mtime);
 	}
 

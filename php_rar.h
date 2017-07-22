@@ -362,6 +362,12 @@ php_stream *php_stream_rar_open(char *arc_name,
 								STREAMS_DC TSRMLS_DC);
 extern php_stream_wrapper php_stream_rar_wrapper;
 
+/* rar_time.c */
+void rar_time_convert(unsigned low, unsigned high, time_t *to);
+int rar_dos_time_convert(unsigned dos_time, time_t *to);
+#ifdef PHP_WIN32
+#define timegm _mkgmtime
+#endif
 #endif	/* PHP_RAR_H */
 
 

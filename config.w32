@@ -4,7 +4,7 @@
 ARG_ENABLE("rar", "Rar support", "no");
 
 if (PHP_RAR != "no") {
-	EXTENSION("rar", "rar.c rar_error.c rararch.c rarentry.c rar_stream.c rar_navigation.c", PHP_RAR_SHARED, "/DRARDLL /DSILENT /EHsc /D_WSTDIO_DEFINED");
+	EXTENSION("rar", "rar.c rar_error.c rararch.c rarentry.c rar_stream.c rar_navigation.c rar_time.c", PHP_RAR_SHARED, "/DRARDLL /DSILENT /EHsc /D_WSTDIO_DEFINED");
 	ADD_SOURCES(configure_module_dirname + "/unrar",
 		"sha256.cpp qopen.cpp \
 		blake2s.cpp recvol.cpp \
