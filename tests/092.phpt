@@ -54,7 +54,7 @@ Warning: rar_allow_broken_set() expects exactly 2 parameters, 1 given in %s on l
 Warning: RarArchive::getEntries(): ERAR_EOPEN (file open error) in %s on line %d
 bool(false)
 
-Warning: count(): ERAR_EOPEN (file open error) in %s on line %d
+Warning: %s(): ERAR_EOPEN (file open error) in %s on line %d
 int(0)
 
 * broken file; do not allow broken (explicit)
@@ -62,7 +62,7 @@ int(0)
 Warning: RarArchive::getEntries(): ERAR_EOPEN (file open error) in %s on line %d
 bool(false)
 
-Warning: count(): ERAR_EOPEN (file open error) in %s on line %d
+Warning: %s(): ERAR_EOPEN (file open error) in %s on line %d
 int(0)
 
 * broken file; allow broken

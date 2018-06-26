@@ -48,12 +48,12 @@ Count: 13
 
 * Closed file test (1):
 
-Warning: count(): The archive is already closed in %s on line %d
+Warning: %s(): The archive is already closed in %s on line %d
 int(0)
 
 * Closed file test (2):
 
-Warning: count(): The archive is already closed in %s on line %d
+Warning: %s(): The archive is already closed in %s on line %d
 int(0)
 
 * Closed file test (3, exceptions):
