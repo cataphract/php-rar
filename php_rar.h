@@ -25,8 +25,6 @@
   +----------------------------------------------------------------------+
 */
 
-/* $Id$ */
-
 /* TODO: metadata block reading */
 /* TODO: correct support for symlinks inside RAR files. This includes:
  * - Respecting PHP_STREAM_URL_STAT_LINK in the url_stater
