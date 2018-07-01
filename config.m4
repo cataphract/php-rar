@@ -1,4 +1,3 @@
-dnl $Id$
 dnl config.m4 for extension rar
 
 PHP_ARG_ENABLE(rar, whether to enable rar support,
