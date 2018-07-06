@@ -509,9 +509,8 @@ php_stream *php_stream_rar_open(char *arc_name,
 	else {
 		/* no need to allocate a buffer bigger than the file uncomp size */
 		size_t buffer_size = (size_t)
-			MIN((uint64) RAR_CHUNK_BUFFER_SIZE,
-			INT32TO64(self->header_data.UnpSizeHigh,
-			self->header_data.UnpSize));
+			INT32TO64(self->header_data.UnpSizeHigh, self->header_data.UnpSize);
+
 		int process_result = RARProcessFileChunkInit(self->rar_handle);
 
 		if (_rar_handle_error(process_result TSRMLS_CC) == FAILURE) {
