@@ -252,7 +252,7 @@ void minit_rarerror(TSRMLS_D) /* {{{ */
 	rarexception_ce_ptr->ce_flags |= ZEND_ACC_FINAL;
 	zend_declare_property_bool(rarexception_ce_ptr, "usingExceptions",
 		sizeof("usingExceptions") -1, 0L /* FALSE */,
-		ZEND_ACC_PRIVATE | ZEND_ACC_STATIC TSRMLS_CC);
+		ZEND_ACC_STATIC TSRMLS_CC);
 }
 /* }}} */
 
