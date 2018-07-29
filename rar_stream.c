@@ -293,7 +293,7 @@ static int _rar_stat_from_header(struct RARHeaderDataEx *header,
 	 * SUBHEAD_TYPE_UOWNER), but it is not exposed in unRAR */
 	ssb->sb.st_uid = 0;
 	ssb->sb.st_gid = 0;
-#ifdef HAVE_ST_RDEV
+#if defined(HAVE_ST_RDEV) || defined(HAVE_STRUCT_STAT_ST_RDEV)
 	ssb->sb.st_rdev = 0;
 #endif
 	/* never mind signedness, we'll never get sizes big enough for that to
@@ -324,7 +324,7 @@ static int _rar_stat_from_header(struct RARHeaderDataEx *header,
 			&ssb->sb.st_mtime);
 	}
 
-#ifdef HAVE_ST_BLKSIZE
+#if defined(HAVE_ST_BLKSIZE) || defined(HAVE_STRUCT_STAT_ST_BLKSIZE)
 	ssb->sb.st_blksize = 0;
 #endif
 #ifdef HAVE_ST_BLOCKS
