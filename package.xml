@@ -26,7 +26,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
  <date>2016-01-17</date>
  <time>01:00:00</time>
  <version>
-  <release>4.0.3</release>
+  <release>4.0.4</release>
   <api>4.0.0</api>
  </version>
 
@@ -36,7 +36,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
  </stability>
 
  <license uri="http://www.php.net/license">PHP License</license>
- <notes>PHP7+ suppoted since now</notes>
+ <notes>PHP7.3 support</notes>
  <contents>
   <dir name="/">
    <dir name="tests">
@@ -317,6 +317,18 @@ http://pear.php.net/dtd/package-2.0.xsd">
  <extsrcrelease />
 
  <changelog>
+  <release>
+   <version>
+    <release>4.0.4</release>
+    <api>4.0.0</api>
+   </version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api>
+   </stability>
+   <date>2018-08-12</date>
+   <notes>PHP7.3 support</notes>
+  </release>
   <release>
    <version>
     <release>4.0.3</release>
