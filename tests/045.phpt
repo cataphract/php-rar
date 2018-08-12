@@ -66,6 +66,8 @@ Given callback that takes more arguments:
 
 Warning: array_walk() expects at least %d parameters, 1 given in %s on line %d
 
+Warning: RarArchive::getEntries(): Failure to call volume find callback in %s on line %d
+
 Warning: RarArchive::getEntries(): ERAR_EOPEN (file open error) in %s on line %d
 
 Given callback that takes another kind of arguments:

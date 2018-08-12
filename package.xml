@@ -23,11 +23,11 @@ http://pear.php.net/dtd/package-2.0.xsd">
   <active>no</active>
  </developer>
 
- <date>2013-10-11</date>
- <time>13:00:00</time>
+ <date>2016-01-17</date>
+ <time>01:00:00</time>
  <version>
-  <release>3.0.2</release>
-  <api>3.0.0</api>
+  <release>4.0.4</release>
+  <api>4.0.0</api>
  </version>
 
  <stability>
@@ -36,9 +36,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
  </stability>
 
  <license uri="http://www.php.net/license">PHP License</license>
- <notes>- Fixed build with PHP 5.5.
-- Upgraded bundled unrar to version 4.2.4.
- </notes>
+ <notes>PHP7.3 support</notes>
  <contents>
   <dir name="/">
    <dir name="tests">
@@ -306,7 +304,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
  <dependencies>
   <required>
    <php>
-    <min>5.2.0</min>
+    <min>7.0.0</min>
    </php>
    <pearinstaller>
     <min>1.4.0</min>
@@ -317,8 +315,32 @@ http://pear.php.net/dtd/package-2.0.xsd">
  <providesextension>rar</providesextension>
 
  <extsrcrelease />
- 
+
  <changelog>
+  <release>
+   <version>
+    <release>4.0.4</release>
+    <api>4.0.0</api>
+   </version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api>
+   </stability>
+   <date>2018-08-12</date>
+   <notes>PHP7.3 support</notes>
+  </release>
+  <release>
+   <version>
+    <release>4.0.3</release>
+    <api>4.0.0</api>
+   </version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api>
+   </stability>
+   <date>2016-01-17</date>
+   <notes>PHP 7 support</notes>
+  </release>
   <release>
    <version>
     <release>3.0.1</release>
@@ -406,7 +428,7 @@ Other changes:
 - A lot of refactoring and compilation as C, not C++.
    </notes>
   </release>
-  
+
   <release>
    <version>
     <release>1.0.0</release>
@@ -441,7 +463,7 @@ Other changes:
 - Fixed PHP4 compatibility.
    </notes>
   </release>
-  
+
   <release>
    <version>
     <release>0.3.0</release>

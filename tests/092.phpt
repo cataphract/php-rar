@@ -51,25 +51,33 @@ Warning: rar_allow_broken_set() expects exactly 2 parameters, 1 given in %s on l
 
 * broken file; do not allow broken (default)
 
+Warning: RarArchive::getEntries(): Failure to call volume find callback in %s on line %d
+
 Warning: RarArchive::getEntries(): ERAR_EOPEN (file open error) in %s on line %d
 bool(false)
 
-Warning: count(): ERAR_EOPEN (file open error) in %s on line %d
+Warning: %s(): ERAR_EOPEN (file open error) in %s on line %d
 int(0)
 
 * broken file; do not allow broken (explicit)
 
+Warning: RarArchive::getEntries(): Failure to call volume find callback in %s on line %d
+
 Warning: RarArchive::getEntries(): ERAR_EOPEN (file open error) in %s on line %d
 bool(false)
 
-Warning: count(): ERAR_EOPEN (file open error) in %s on line %d
+Warning: %s(): ERAR_EOPEN (file open error) in %s on line %d
 int(0)
 
 * broken file; allow broken
+
+Warning: RarArchive::getEntries(): Failure to call volume find callback in %s on line %d
 RarEntry for file "file1.txt" (52b28202)
 int(1)
 
 * broken file; allow broken; non OOP
+
+Warning: RarArchive::getEntries(): Failure to call volume find callback in %s on line %d
 RarEntry for file "file1.txt" (52b28202)
 int(1)
 

@@ -49,7 +49,7 @@
 extern zend_module_entry rar_module_entry;
 #define phpext_rar_ptr &rar_module_entry
 
-#define PHP_RAR_VERSION "3.0.2"
+#define PHP_RAR_VERSION "4.0.4"
 
 #ifdef PHP_WIN32
 #define PHP_RAR_API __declspec(dllexport)
@@ -88,7 +88,7 @@ typedef struct _rar_cb_user_data {
 } rar_cb_user_data;
 
 typedef struct rar {
-	zend_object_handle			id;
+	zend_object			*id;
 	struct _rar_entries			*entries;
 	struct RAROpenArchiveDataEx	*list_open_data;
 	struct RAROpenArchiveDataEx	*extract_open_data;
@@ -98,13 +98,6 @@ typedef struct rar {
 	rar_cb_user_data			cb_userdata;
 	int							allow_broken;
 } rar_file_t;
-
-/* Misc */
-#ifdef ZTS
-# define RAR_TSRMLS_TC	, void ***
-#else
-# define RAR_TSRMLS_TC
-#endif
 
 #define RAR_RETNULL_ON_ARGS() \
 	if (zend_parse_parameters_none() == FAILURE) { \
@@ -134,8 +127,8 @@ typedef struct _rar_contents_cache {
 	int			hits;
 	int			misses;
 	/* args: cache key, cache key size, cached object) */
-	void (*put)(const char *, uint, zval * RAR_TSRMLS_TC);
-	zval *(*get)(const char *, uint RAR_TSRMLS_TC);
+	void (*put)(const char *, uint, zval *);
+	zval *(*get)(const char *, uint);
 } rar_contents_cache;
 
 /* Module globals, currently used for dir wrappers cache */
@@ -146,7 +139,10 @@ ZEND_END_MODULE_GLOBALS(rar)
 ZEND_EXTERN_MODULE_GLOBALS(rar);
 
 #ifdef ZTS
-# define RAR_G(v) TSRMG(rar_globals_id, zend_rar_globals *, v)
+#if defined(COMPILE_DL_RAR)
+ZEND_TSRMLS_CACHE_EXTERN();
+#endif
+# define RAR_G(v) ZEND_TSRMG(rar_globals_id, zend_rar_globals *, v)
 #else
 # define RAR_G(v) (rar_globals.v)
 #endif

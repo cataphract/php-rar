@@ -95,6 +95,14 @@ size_t _rar_entry_count(rar_file_t *rar) {
 }
 /* }}} */
 
+void _rar_nav_swap_entries(void* op1, void* op2) {
+	void **a = (void**)op1;
+	void **b = (void**)op2;
+	void *temp = *a;
+	*a = *b;
+	*b = temp;
+}
+
 /* {{{ _rar_entry_search_start */
 void _rar_entry_search_start(rar_file_t *rar,
 							 unsigned mode,
@@ -113,9 +121,14 @@ void _rar_entry_search_start(rar_file_t *rar,
 			sizeof rar->entries->entries_array_s[0]);
 		memcpy(rar->entries->entries_array_s, rar->entries->entries_array,
 			rar->entries->num_entries * sizeof rar->entries->entries_array[0]);
-		zend_qsort(rar->entries->entries_array_s, rar->entries->num_entries,
-			sizeof *rar->entries->entries_array_s, _rar_nav_compare_entries
-			TSRMLS_CC);
+
+		zend_qsort(
+			rar->entries->entries_array_s, 
+			rar->entries->num_entries,
+			sizeof *rar->entries->entries_array_s, 
+			_rar_nav_compare_entries,
+			_rar_nav_swap_entries
+		);
 	}
 }
 /* }}} */

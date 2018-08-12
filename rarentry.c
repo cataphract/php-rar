@@ -41,17 +41,13 @@ extern "C" {
 zend_class_entry *rar_class_entry_ptr;
 /* }}} */
 
-/* {{{ Globals with internal linkage */
-static zend_object_handlers rarentry_object_handlers;
-/* }}} */
-
 /* {{{ Function prototypes for functions with internal linkage */
 static int _rar_decl_priv_prop_null(zend_class_entry *ce, const char *name,
 									 int name_length, char *doc_comment,
 									 int doc_comment_len TSRMLS_DC);
 static zval *_rar_entry_get_property(zval *entry_obj, char *name, int namelen TSRMLS_DC);
 static void _rar_dos_date_to_text(int dos_time, char *date_string);
-static zend_object_value rarentry_ce_create_object(zend_class_entry *class_type TSRMLS_DC);
+
 /* }}} */
 
 /* {{{ Functions with external linkage */
@@ -70,8 +66,9 @@ void _rar_entry_to_zval(zval *parent, /* zval to RarArchive object, will have it
 	long unp_size; /* zval stores PHP ints as long, so use that here */
 
 	object_init_ex(object, rar_class_entry_ptr);
-	zend_update_property(rar_class_entry_ptr, object, "rarfile",
-		sizeof("rararch") - 1, parent TSRMLS_CC);
+    object_properties_init(Z_OBJ_P(object), rar_class_entry_ptr);
+
+	zend_update_property(rar_class_entry_ptr, object, "rarfile", sizeof("rararch") - 1, parent TSRMLS_CC);
 
 #if ULONG_MAX > 0xffffffffUL
 	unp_size = ((long) entry->UnpSize) + (((long) entry->UnpSizeHigh) << 32);
@@ -142,7 +139,7 @@ void _rar_entry_to_zval(zval *parent, /* zval to RarArchive object, will have it
 
 #define REG_RAR_CLASS_CONST_LONG(const_name, value) \
 	zend_declare_class_constant_long(rar_class_entry_ptr, const_name, \
-		sizeof(const_name) - 1, (long) value TSRMLS_CC)
+		sizeof(const_name) - 1, (zend_long) value TSRMLS_CC)
 
 #define REG_RAR_PROPERTY(name, comment) \
 	_rar_decl_priv_prop_null(rar_class_entry_ptr, name, sizeof(name) -1, \
@@ -152,29 +149,34 @@ static int _rar_decl_priv_prop_null(zend_class_entry *ce, const char *name,
 									 int name_length, char *doc_comment,
 									 int doc_comment_len TSRMLS_DC) /* {{{ */
 {
-	zval *property;
-	ALLOC_PERMANENT_ZVAL(property);
-	INIT_ZVAL(*property);
-	return zend_declare_property_ex(ce, name, name_length, property,
-		ZEND_ACC_PRIVATE, doc_comment, doc_comment_len TSRMLS_CC);
+	zval property;
+	ZVAL_NULL(&property);
+	zend_string *name_string = zend_string_init(name, name_length, ce->type & ZEND_INTERNAL_CLASS);
+	zend_string *comment_string = zend_string_init(doc_comment, doc_comment_len, ce->type & ZEND_INTERNAL_CLASS);
+	int result = zend_declare_property_ex(ce, name_string, &property, ZEND_ACC_PRIVATE, comment_string);
+	zend_string_release(name_string);
+	zend_string_release(comment_string);
+	return result;
 }
 /* }}} */
 
 static zval *_rar_entry_get_property(zval *entry_obj, char *name, int namelen TSRMLS_DC) /* {{{ */
 {
-	zval *tmp;
+	zval *tmp, rv;
+#if PHP_VERSION_ID < 70100
 	zend_class_entry *orig_scope = EG(scope);
-
 	EG(scope) = rar_class_entry_ptr;
-
-	tmp = zend_read_property(Z_OBJCE_P(entry_obj), entry_obj, name, namelen, 1 TSRMLS_CC);
+	tmp = zend_read_property(Z_OBJCE_P(entry_obj), entry_obj, name, namelen, 1 TSRMLS_CC, &rv);
+#else
+	tmp = zend_read_property(rar_class_entry_ptr, entry_obj, name, namelen, 1, &rv);
+#endif
 	if (tmp == NULL) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,
 			"Bug: unable to find property '%s'. Please report.", name);
 	}
-
+#if PHP_VERSION_ID < 70100
 	EG(scope) = orig_scope;
-
+#endif
 	return tmp;
 }
 /* }}} */
@@ -193,27 +195,6 @@ static void _rar_dos_date_to_text(int dos_time, char *date_string) /* {{{ */
 }
 /* }}} */
 
-static zend_object_value rarentry_ce_create_object(zend_class_entry *class_type TSRMLS_DC) /* {{{ */
-{
-	zend_object_value	zov;
-	zend_object			*zobj;
-
-	zobj = emalloc(sizeof *zobj);
-	zend_object_std_init(zobj, class_type TSRMLS_CC);
-
-#if PHP_VERSION_ID < 50399
-	zend_hash_copy(zobj->properties, &(class_type->default_properties),
-		(copy_ctor_func_t) zval_add_ref, NULL, sizeof(zval*));
-#else
-	object_properties_init(zobj, class_type);
-#endif
-	zov.handle = zend_objects_store_put(zobj,
-		(zend_objects_store_dtor_t) zend_objects_destroy_object,
-		(zend_objects_free_object_storage_t) zend_objects_free_object_storage,
-		NULL TSRMLS_CC);
-	zov.handlers = &rarentry_object_handlers;
-	return zov;
-}
 /* }}} */
 /* }}} */
 
@@ -360,7 +341,7 @@ PHP_METHOD(rarentry, getName)
 
 	RAR_GET_PROPERTY(tmp, "name");
 
-	RETURN_STRINGL(Z_STRVAL_P(tmp), Z_STRLEN_P(tmp), 1);
+	RETURN_STRINGL(Z_STRVAL_P(tmp), Z_STRLEN_P(tmp));
 }
 /* }}} */
 
@@ -420,7 +401,7 @@ PHP_METHOD(rarentry, getFileTime)
 
 	RAR_GET_PROPERTY(tmp, "file_time");
 
-	RETURN_STRINGL(Z_STRVAL_P(tmp), Z_STRLEN_P(tmp), 1);
+	RETURN_STRINGL(Z_STRVAL_P(tmp), Z_STRLEN_P(tmp));
 }
 /* }}} */
 
@@ -435,7 +416,7 @@ PHP_METHOD(rarentry, getCrc)
 
 	RAR_GET_PROPERTY(tmp, "crc");
 
-	RETURN_STRINGL(Z_STRVAL_P(tmp), Z_STRLEN_P(tmp), 1);
+	RETURN_STRINGL(Z_STRVAL_P(tmp), Z_STRLEN_P(tmp));
 }
 /* }}} */
 
@@ -600,7 +581,9 @@ PHP_METHOD(rarentry, __toString)
 		name, crc);
 	restring[restring_len - 1] = '\0'; /* just to be safe */
 
-	RETURN_STRING(restring, 0);
+	RETVAL_STRING(restring); 
+	efree(restring);
+	return;
 }
 /* }}} */
 /* }}} */
@@ -645,15 +628,11 @@ void minit_rarentry(TSRMLS_D)
 {
 	zend_class_entry ce;
 
-	memcpy(&rarentry_object_handlers, zend_get_std_object_handlers(),
-		sizeof rarentry_object_handlers);
-
 	INIT_CLASS_ENTRY(ce, "RarEntry", php_rar_class_functions);
 	rar_class_entry_ptr = zend_register_internal_class(&ce TSRMLS_CC);
-	rar_class_entry_ptr->ce_flags |= ZEND_ACC_FINAL_CLASS;
 	rar_class_entry_ptr->clone = NULL;
 	/* Custom creation currently not really needed, but you never know... */
-	rar_class_entry_ptr->create_object = &rarentry_ce_create_object;
+	rar_class_entry_ptr->create_object = zend_objects_new;
 
 	REG_RAR_PROPERTY("rarfile", "Associated RAR archive");
 	REG_RAR_PROPERTY("position", "Position inside the RAR archive");
