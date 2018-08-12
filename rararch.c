@@ -41,14 +41,23 @@ extern "C" {
 
 /* {{{ Type definitions reserved for this translation unit */
 typedef struct _ze_rararch_object {
-    rar_file_t  *rar_file;
+#if PHP_MAJOR_VERSION < 7
 	zend_object	parent;
+	rar_file_t  *rar_file;
+#else
+	rar_file_t  *rar_file;
+	zend_object parent;
+#endif
 } ze_rararch_object;
 
 typedef struct _rararch_iterator {
 	zend_object_iterator	parent;
 	rar_find_output			*state;
+#if PHP_MAJOR_VERSION < 7
 	zval					*value;
+#else
+	zval					value;
+#endif
 	int						empty_iterator; /* iterator should give nothing */
 } rararch_iterator;
 /* }}} */
@@ -99,26 +108,33 @@ static zend_object_iterator_funcs rararch_it_funcs = {
 /* }}} */
 
 /* {{{ Function prototypes for functions with internal linkage */
-static zend_object* rararch_ce_create_object(zend_class_entry *class_type TSRMLS_DC);
-static void rararch_ce_destroy_object(zend_object *object);
-static void rararch_ce_free_object_storage(zend_object *object TSRMLS_DC);
+static inline rar_obj_ref rar_obj_ref_fetch(zval *zv);
+static inline void rar_obj_ref_make_zv(rar_obj_ref zo, zval *zv TSRMLS_DC);
+#if PHP_MAJOR_VERSION >= 7
+static inline ze_rararch_object *rararch_object_fetch(zend_object *zobj);
+
+static ze_rararch_object *rararch_object_from_zv(const zval *zv);
+static zend_object *rararch_ce_create_object(zend_class_entry *ce);
+static void rararch_ce_free_object_storage(zend_object *zobj);
+#else
+#define rararch_object_from_zv zend_object_store_get_object
+static zend_object_value rararch_ce_create_object(zend_class_entry *class_type TSRMLS_DC);
+static void rararch_ce_free_object_storage(ze_rararch_object *object TSRMLS_DC);
+#endif
 /* }}} */
 
 /* {{{ RarArchive handlers */
 static int rararch_handlers_preamble(zval *object, rar_file_t **rar TSRMLS_DC);
 static int rararch_dimensions_preamble(rar_file_t *rar, zval *offset, long *index, int quiet TSRMLS_DC);
 static int rararch_count_elements(zval *object, long *count TSRMLS_DC);
-static zval *rararch_read_dimension(zval *object, zval *offset, int type TSRMLS_DC, zval *rv);
+#if PHP_MAJOR_VERSION < 7
+static zval *rararch_read_dimension(zval *object, zval *offset, int type TSRMLS_DC);
+#else
+static zval *rararch_read_dimension(zval *object, zval *offset, int type, zval *rv);
+#endif
 static void rararch_write_dimension(zval *object, zval *offset, zval *value TSRMLS_DC);
 static int rararch_has_dimension(zval *object, zval *offset, int check_empty TSRMLS_DC);
 /* }}} */
-
-static inline ze_rararch_object* php_ze_rararch_object_fetch_object(zend_object *obj) {
-      return (ze_rararch_object*)((char*)obj - XtOffsetOf(ze_rararch_object, parent));
-}
- 
-#define Z_ZE_RARARCH_OBJECT(zv) php_ze_rararch_object_fetch_object(zv)
-#define Z_ZE_RARARCH_OBJECT_P(zv) Z_ZE_RARARCH_OBJECT(Z_OBJ_P(zv))
 
 /* {{{ Function definitions with external linkage */
 int _rar_get_file_resource(zval *zval_file, rar_file_t **rar_file TSRMLS_DC) /* {{{ */
@@ -159,17 +175,13 @@ int _rar_create_rararch_obj(const char* resolved_path,
 			rar->cb_userdata.password = estrdup(open_password);
 		}
 		if (volume_callback != NULL) {
-			rar->cb_userdata.callable = emalloc(sizeof(zval));
-			ZVAL_NEW_REF(rar->cb_userdata.callable, volume_callback);
-            if (Z_REFCOUNTED_P(volume_callback)) {
-                Z_ADDREF_P(volume_callback);
-            }
+			ZVAL_ALLOC_DUP(rar->cb_userdata.callable, volume_callback);
 		}
 
 		object_init_ex(object, rararch_ce_ptr);
-		zobj = Z_ZE_RARARCH_OBJECT_P(object);
+		zobj = rararch_object_from_zv(object TSRMLS_CC);
 		zobj->rar_file = rar;
-		rar->id = Z_OBJ_P(object);
+		rar->obj_ref = rar_obj_ref_fetch(object);
 
 		RARSetCallback(rar->arch_handle, _rar_unrar_callback,
 			(LPARAM) &rar->cb_userdata);
@@ -206,9 +218,10 @@ void _rar_close_file_resource(rar_file_t *rar) /* {{{ */
  * If silent is FALSE, it checks whether the archive is alredy closed, and if it
  * is, an exception/error is raised and FAILURE is returned
  */
-int _rar_get_file_resource_ex(zval* zval_file, rar_file_t **rar_file, int silent TSRMLS_DC) /* {{{ */
+int _rar_get_file_resource_ex(zval *zval_file, rar_file_t **rar_file, int silent TSRMLS_DC) /* {{{ */
 {
-	ze_rararch_object *zobj = Z_ZE_RARARCH_OBJECT_P(zval_file);
+	ze_rararch_object *zobj;
+	zobj = rararch_object_from_zv(zval_file TSRMLS_CC);
 	if (zobj == NULL) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,
 			"Could not find object in the store. This is a bug, please report it.");
@@ -232,55 +245,137 @@ int _rar_get_file_resource_ex(zval* zval_file, rar_file_t **rar_file, int silent
 static void _rar_raw_entries_to_array(rar_file_t *rar, zval *target TSRMLS_DC) /* {{{ */
 {
 	rar_find_output	*state;
-	zval rararch_obj;
+	zval			rararch_obj;
 
-	/* create zval to point to the RarArchive object) */
-	
-	ZVAL_OBJ(&rararch_obj, rar->id);
-    rararch_obj.value.obj->handlers = &rararch_object_handlers;
-	/* object has a new reference; if not incremented, the object would be
-	 * be destroyed when this new zval we created was destroyed */
+	/* make zval point to the RarArchive object */
+	rar_obj_ref_make_zv(rar->obj_ref, &rararch_obj TSRMLS_CC);
 
 	_rar_entry_search_start(rar, RAR_SEARCH_TRAVERSE, &state TSRMLS_CC);
 	do {
 		_rar_entry_search_advance(state, NULL, 0, 0);
 		if (state->found) {
-			zval entry_obj;
-			_rar_entry_to_zval(&rararch_obj, state->header, state->packed_size,
-				state->position, &entry_obj TSRMLS_CC);
+			zval *entry_obj;
 
-			add_next_index_zval(target, &entry_obj);
+			MAKE_STD_ZVAL(entry_obj);
+			_rar_entry_to_zval(&rararch_obj, state->header, state->packed_size,
+				state->position, entry_obj TSRMLS_CC);
+
+			add_next_index_zval(target, entry_obj);
+#if PHP_MAJOR_VERSION >= 7
+			/* PHP 7 copies the zval (but without increasing the refcount of the
+			 * obj), while 5.x simply copies the pointer. Only for PHP 5.x do we
+			 * keep the allocation) */
+			efree(entry_obj);
+#endif
 		}
 	} while (state->eof == 0);
 	_rar_entry_search_end(state);
 
-	/* it was created with refcount=1 and incremented for each RarEntry object
-	 * created, so we must decrease by one (this will also destroy it if
-	 * there were no entries */
+#if PHP_MAJOR_VERSION < 7
+	zval_dtor(&rararch_obj);
+#else
+	zval_ptr_dtor(&rararch_obj);
+#endif
 }
 /* }}} */
 
-static zend_object* rararch_ce_create_object(zend_class_entry *class_type TSRMLS_DC) /* {{{ */
+#if PHP_MAJOR_VERSION >=7
+static inline rar_obj_ref rar_obj_ref_fetch(zval *zv)
 {
-	ze_rararch_object *zobj = emalloc(sizeof (ze_rararch_object) + zend_object_properties_size(class_type));
+	return Z_OBJ(*zv);
+}
+static inline void rar_obj_ref_make_zv(rar_obj_ref zo, zval *zv TSRMLS_DC)
+{
+	ZVAL_OBJ(zv, zo);
+	zval_addref_p(zv);
+}
+#else
+inline rar_obj_ref rar_obj_ref_fetch(zval *zv)
+{
+	return Z_OBJ_HANDLE_P(zv);
+}
+inline void rar_obj_ref_make_zv(rar_obj_ref zoh, zval *zv TSRMLS_DC)
+{
+	INIT_ZVAL(*zv);
+	Z_TYPE_P(zv) = IS_OBJECT;
+	Z_OBJ_HANDLE_P(zv) = zoh;
+	Z_OBJ_HT_P(zv) = &rararch_object_handlers;
+	/* object has a new reference; if not incremented, the object would be
+	 * be destroyed when this new zval we created was destroyed */
+	zend_objects_store_add_ref_by_handle(zoh TSRMLS_CC);
+}
+#endif
+
+#if PHP_MAJOR_VERSION >=7
+static inline ze_rararch_object *rararch_object_fetch(zend_object *zobj)
+{
+	return (ze_rararch_object *)
+			((char *) zobj - XtOffsetOf(ze_rararch_object, parent));
+}
+static ze_rararch_object *rararch_object_from_zv(const zval *zv)
+{
+	return rararch_object_fetch(Z_OBJ_P(zv));
+}
+#endif
+
+/* {{{ */
+#if PHP_MAJOR_VERSION < 7
+static zend_object_value rararch_ce_create_object(zend_class_entry *class_type TSRMLS_DC)
+{
+	zend_object_value	zov;
+	ze_rararch_object	*zobj;
+
+	zobj = emalloc(sizeof *zobj);
 	/* rararch_ce_free_object_storage will attempt to access it otherwise */
 	zobj->rar_file = NULL;
-	zend_object_std_init(&(zobj->parent), class_type TSRMLS_CC);
-	object_properties_init(&(zobj->parent), class_type TSRMLS_CC);
-	rararch_object_handlers.offset = XtOffsetOf(ze_rararch_object, parent);
-	rararch_object_handlers.dtor_obj = rararch_ce_destroy_object;
-	rararch_object_handlers.free_obj = rararch_ce_free_object_storage;
-	zobj->parent.handlers = &rararch_object_handlers;
-	return &(zobj->parent);
+	zend_object_std_init((zend_object*) zobj, class_type TSRMLS_CC);
+
+#if PHP_VERSION_ID < 50399
+	zend_hash_copy(((zend_object*)zobj)->properties,
+		&(class_type->default_properties),
+		(copy_ctor_func_t) zval_add_ref, NULL, sizeof(zval*));
+#else
+	object_properties_init((zend_object*)zobj, class_type);
+#endif
+	zov.handle = zend_objects_store_put(zobj,
+		(zend_objects_store_dtor_t) zend_objects_destroy_object,
+		(zend_objects_free_object_storage_t) rararch_ce_free_object_storage,
+		NULL TSRMLS_CC);
+	zov.handlers = &rararch_object_handlers;
+	return zov;
 }
+#else
+static zend_object *rararch_ce_create_object(zend_class_entry *ce)
+{
+	ze_rararch_object *zobj =
+		emalloc(sizeof(*zobj) + zend_object_properties_size(ce));
+
+	zobj->rar_file = NULL;
+	zend_object_std_init(&zobj->parent, ce);
+	zobj->parent.handlers = &rararch_object_handlers;
+
+	return &zobj->parent;
+}
+#endif
 /* }}} */
 
-static void rararch_ce_destroy_object(zend_object *object) /* {{{ */
+/* {{{ */
+#if PHP_MAJOR_VERSION < 7
+static void rararch_ce_free_object_storage(ze_rararch_object *object TSRMLS_DC)
 {
-	rar_file_t *rar = Z_ZE_RARARCH_OBJECT(object)->rar_file;
+#else
+static void rararch_ce_free_object_storage(zend_object *zobj)
+{
+	ze_rararch_object *object = rararch_object_fetch(zobj);
+#endif
+	rar_file_t *rar = object->rar_file;
 
 	/* may be NULL if the user did new RarArchive() */
 	if (rar != NULL) {
+		if (rar->arch_handle != NULL) {
+			RARCloseArchive(rar->arch_handle);
+		}
+
 		_rar_destroy_userdata(&rar->cb_userdata);
 
 		_rar_delete_entries(rar TSRMLS_CC);
@@ -292,14 +387,13 @@ static void rararch_ce_destroy_object(zend_object *object) /* {{{ */
 		efree(rar->extract_open_data);
 		efree(rar);
 	}
-	zend_objects_destroy_object(object);
 
-}
-/* }}} */
-
-static void rararch_ce_free_object_storage(zend_object *object TSRMLS_DC) /* {{{ */
-{
-	zend_object_std_dtor(&Z_ZE_RARARCH_OBJECT(object)->parent);
+	/* could call zend_objects_free_object_storage here (not before!), but
+	 * instead I'll mimic its behaviour */
+	zend_object_std_dtor(&object->parent TSRMLS_CC);
+#if PHP_MAJOR_VERSION < 7
+	efree(object);
+#endif
 }
 /* }}} */
 
@@ -367,10 +461,18 @@ static int rararch_dimensions_preamble(rar_file_t *rar,
 	}
 	else if (Z_TYPE_P(offset) == IS_OBJECT) {
 		if (Z_OBJ_HT_P(offset)->get) {
-			/* get handler cannot return NULL */
-			zval *newoffset = Z_OBJ_HT_P(offset)->get(offset, offset TSRMLS_CC);
+			zval *newoffset = NULL;
 			int ret;
+#if PHP_MAJOR_VERSION < 7
+			newoffset = Z_OBJ_HT_P(offset)->get(offset TSRMLS_CC);
+#else
+			zval zv_holder;
+			ZVAL_NULL(&zv_holder);
+			newoffset = Z_OBJ_HT_P(offset)->get(offset, &zv_holder);
+#endif
 
+			/* get handler cannot return NULL */
+			assert(newoffset != NULL);
 			if (Z_TYPE_P(newoffset) == IS_OBJECT) {
 				RAR_DOCREF_IF_UNQUIET(NULL TSRMLS_CC, E_WARNING,
 					"Could not convert object given as dimension index into "
@@ -380,7 +482,11 @@ static int rararch_dimensions_preamble(rar_file_t *rar,
 
 			ret = rararch_dimensions_preamble(rar, newoffset, index, quiet
 				TSRMLS_CC);
+#if PHP_MAJOR_VERSION < 7
+			zval_ptr_dtor(&newoffset);
+#else
 			zval_ptr_dtor(newoffset);
+#endif
 			return ret;
 		}
 		else {
@@ -435,28 +541,45 @@ static int rararch_count_elements(zval *object, long *count TSRMLS_DC)
 /* }}} */
 
 /* {{{ RarArchive read_dimension handler */
-static zval *rararch_read_dimension(zval *object, zval *offset, int type TSRMLS_DC, zval *rv)
+#if PHP_MAJOR_VERSION < 7
+static zval *rararch_read_dimension(zval *object, zval *offset, int type TSRMLS_DC)
+#else
+static zval *rararch_read_dimension(zval *object, zval *offset, int type, zval *rv)
+#endif
 {
 	long					index;
 	rar_file_t				*rar = NULL;
 	struct _rar_find_output	*out;
+	zval					*ret = NULL;
 
 	if (rararch_handlers_preamble(object, &rar TSRMLS_CC) == FAILURE) {
 		return NULL;
 	}
+
 	if (rararch_dimensions_preamble(rar, offset, &index, (type == BP_VAR_IS)
 			TSRMLS_CC) == FAILURE)
 		return NULL;
+
 	if (type == BP_VAR_RW || type == BP_VAR_W || type == BP_VAR_UNSET)
 		php_error_docref(NULL TSRMLS_CC, E_ERROR,
 			"A RarArchive object is not modifiable");
+
 	_rar_entry_search_start(rar, RAR_SEARCH_INDEX, &out TSRMLS_CC);
 	_rar_entry_search_seek(out, (size_t) index);
 	_rar_entry_search_advance(out, NULL, 0, 0);
 	assert(out->found);
-	_rar_entry_to_zval(object, out->header, out->packed_size, out->position, rv TSRMLS_CC);
+#if PHP_MAJOR_VERSION < 7
+	ALLOC_INIT_ZVAL(ret);
+#else
+	ret = rv;
+#endif
+	_rar_entry_to_zval(object, out->header, out->packed_size, out->position,
+		ret TSRMLS_CC);
 	_rar_entry_search_end(out);
-	return rv;
+#if PHP_MAJOR_VERSION < 7
+	Z_DELREF_P(ret); /* set refcount to 0 */
+#endif
+	return ret;
 }
 /* }}} */
 
@@ -504,8 +627,8 @@ PHP_FUNCTION(rar_open)
 	char *filename;
 	char *password = NULL;
 	char resolved_path[MAXPATHLEN];
-	int filename_len;
-	int password_len = 0;
+	zpp_s_size_t filename_len,
+				 password_len; /* both ignored */
 	zval *callable = NULL;
 	int err_code;
 
@@ -526,7 +649,11 @@ PHP_FUNCTION(rar_open)
 	assert(strnlen(resolved_path, MAXPATHLEN) < MAXPATHLEN);
 
 	if (callable != NULL) { /* given volume resolver callback */
+#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION == 2
+		if (!zend_is_callable(callable, IS_CALLABLE_STRICT, NULL)) {
+#else
 		if (!zend_is_callable(callable, IS_CALLABLE_STRICT, NULL TSRMLS_CC)) {
+#endif
 			_rar_handle_ext_error("%s" TSRMLS_CC, "Expected the third "
 				"argument, if provided, to be a valid callback");
 			RETURN_FALSE;
@@ -581,24 +708,20 @@ PHP_FUNCTION(rar_entry_get)
 	zval *file = getThis();
 	char *filename;
 	rar_file_t *rar = NULL;
-	int filename_len;
+	zpp_s_size_t filename_len;
 	wchar_t *filename_c = NULL;
 	rar_find_output *sstate;
 
-	zval filename_val;
-	ZVAL_EMPTY_STRING(&filename_val);
 	if (file == NULL) {
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "OS",
-				&file, rararch_ce_ptr, &Z_STR(filename_val)) == FAILURE) {
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Os",
+				&file, rararch_ce_ptr, &filename, &filename_len) == FAILURE) {
 			return;
 		}
-	} else if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "S", &Z_STR(filename_val)) == FAILURE) {
-		zval_ptr_dtor(&filename_val);
+	}
+	else if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s",
+			&filename, &filename_len) == FAILURE) {
 		return;
 	}
-
-	filename_len = Z_STRLEN(filename_val);
-	filename = Z_STRVAL(filename_val);
 
 	if (_rar_get_file_resource(file, &rar TSRMLS_CC) == FAILURE) {
 		RETURN_FALSE;
@@ -623,7 +746,7 @@ PHP_FUNCTION(rar_entry_get)
 		RETVAL_FALSE;
 	}
 	_rar_entry_search_end(sstate);
-	zval_ptr_dtor(&filename_val);
+
 	efree(filename_c);
 }
 /* }}} */
@@ -669,8 +792,8 @@ PHP_FUNCTION(rar_comment_get)
 
 	if (cmt_state == 1) { /* comment read completely */
 		/* CmtSize - 1 because we don't need the null terminator */
-		RETURN_STRINGL(rar->list_open_data->CmtBuf,
-			rar->list_open_data->CmtSize - 1);
+		RAR_RETURN_STRINGL(rar->list_open_data->CmtBuf,
+			rar->list_open_data->CmtSize - 1, 1);
 	}
 }
 /* }}} */
@@ -776,10 +899,7 @@ PHP_METHOD(rararch, __toString)
 		is_closed?closed:"");
 	restring[restring_size - 1] = '\0'; /* just to be safe */
 
-	RETVAL_STRINGL(restring, (int)restring_size - 1);
-	efree(restring);
-	return;
-	
+	RAR_RETURN_STRINGL(restring, (int) restring_size - 1, 0);
 }
 /* }}} */
 
@@ -822,7 +942,6 @@ static zend_function_entry php_rararch_class_functions[] = {
 /* {{{ Iteration. Very boring stuff indeed. */
 
 
-
 /* {{{ rararch_it_get_iterator */
 static zend_object_iterator *rararch_it_get_iterator(zend_class_entry *ce,
 													 zval *object,
@@ -839,6 +958,23 @@ static zend_object_iterator *rararch_it_get_iterator(zend_class_entry *ce,
 
 	it = emalloc(sizeof *it);
 
+#if PHP_MAJOR_VERSION < 7
+	zval_add_ref(&object);
+	it->parent.data = object;
+	it->value = NULL;
+#else
+	zend_iterator_init((zend_object_iterator *) it);
+	ZVAL_COPY(&it->parent.data, object);
+	ZVAL_UNDEF(&it->value);
+#endif
+
+#if PHP_VERSION_ID < 70300
+	it->parent.funcs = ce->iterator_funcs.funcs;
+#else
+	it->parent.funcs = &rararch_it_funcs
+#endif
+	it->state = NULL;
+
 	res = _rar_get_file_resource_ex(object, &rar, 1 TSRMLS_CC);
 	if (res == FAILURE)
 		php_error_docref(NULL TSRMLS_CC, E_ERROR,
@@ -854,12 +990,8 @@ static zend_object_iterator *rararch_it_get_iterator(zend_class_entry *ce,
 	else
 		it->empty_iterator = 0;
 
-	zend_iterator_init(&it->parent);
-	ZVAL_COPY(&it->parent.data, object);
-	it->parent.funcs = &rararch_it_funcs;
 	_rar_entry_search_start(rar, RAR_SEARCH_TRAVERSE, &it->state TSRMLS_CC);
-	it->value = NULL;
-	return &it->parent;
+	return (zend_object_iterator*) it;
 }
 /* }}} */
 
@@ -867,11 +999,15 @@ static zend_object_iterator *rararch_it_get_iterator(zend_class_entry *ce,
 static void rararch_it_invalidate_current(zend_object_iterator *iter TSRMLS_DC)
 {
 	rararch_iterator *it = (rararch_iterator *) iter;
+#if PHP_MAJOR_VERSION < 7
 	if (it->value != NULL) {
-		zval_ptr_dtor(it->value);
-		efree(it->value);
+		zval_ptr_dtor(&it->value);
 		it->value = NULL;
 	}
+#else
+	zval_ptr_dtor(&it->value);
+	ZVAL_UNDEF(&it->value);
+#endif
 }
 /* }}} */
 
@@ -880,11 +1016,18 @@ static void rararch_it_dtor(zend_object_iterator *iter TSRMLS_DC)
 {
 	rararch_iterator *it = (rararch_iterator *) iter;
 
-	rararch_it_invalidate_current(iter TSRMLS_CC);
+	rararch_it_invalidate_current((zend_object_iterator *) it TSRMLS_CC);
 
-	zval_ptr_dtor(&it->parent.data); /* decrease refcount on zval object */
+#if PHP_MAJOR_VERSION < 7
+	zval_ptr_dtor((zval**) &it->parent.data); /* decrease refcount on zval object */
+#else
+	zval_ptr_dtor(&it->parent.data);
+#endif
 
 	_rar_entry_search_end(it->state);
+#if PHP_MAJOR_VERSION < 7
+	efree(it);
+#endif
 }
 /* }}} */
 
@@ -893,46 +1036,93 @@ static void rararch_it_fetch(rararch_iterator *it TSRMLS_DC)
 {
 	rar_file_t	*rar_file;
 	int			res;
+	zval		*robj;
 
+#if PHP_MAJOR_VERSION < 7
 	assert(it->value == NULL);
+#else
+	assert(Z_TYPE(it->value) == IS_UNDEF);
+#endif
 
 	if (it->empty_iterator) {
-		it->value = emalloc(sizeof(zval));
+#if PHP_MAJOR_VERSION < 7
+		MAKE_STD_ZVAL(it->value);
 		ZVAL_FALSE(it->value);
+#else
+		ZVAL_FALSE(&it->value);
+#endif
 		return;
 	}
 
-	res = _rar_get_file_resource_ex(&(it->parent.data), &rar_file, 1 TSRMLS_CC);
+#if PHP_MAJOR_VERSION < 7
+	robj = it->parent.data;
+#else
+	robj = &it->parent.data;
+#endif
+
+	res = _rar_get_file_resource_ex(robj, &rar_file, 1 TSRMLS_CC);
 	if (res == FAILURE)
 		php_error_docref(NULL TSRMLS_CC, E_ERROR,
 			"Cannot fetch RarArchive object");
 
 	_rar_entry_search_advance(it->state, NULL, 0, 0);
-	it->value = emalloc(sizeof(zval));
-	if (it->state->found) {
-		_rar_entry_to_zval(&(it->parent.data), it->state->header, it->state->packed_size, it->state->position, it->value TSRMLS_CC);
-	} else {
-		ZVAL_FALSE(it->value);	
-	}	
+#if PHP_MAJOR_VERSION < 7
+	MAKE_STD_ZVAL(it->value);
+	if (it->state->found)
+		_rar_entry_to_zval(robj, it->state->header, it->state->packed_size,
+						   it->state->position, it->value TSRMLS_CC);
+	else {
+		ZVAL_FALSE(it->value);
+	}
+#else
+	if (it->state->found)
+		_rar_entry_to_zval(&it->parent.data, it->state->header,
+			it->state->packed_size, it->state->position, &it->value TSRMLS_CC);
+	else {
+		ZVAL_FALSE(&it->value);
+	}
+#endif
 }
 /* }}} */
 
 /* {{{ rararch_it_valid */
 static int rararch_it_valid(zend_object_iterator *iter TSRMLS_DC)
 {
+#if PHP_MAJOR_VERSION < 7
 	zval *value = ((rararch_iterator *) iter)->value;
 	assert(value != NULL);
-	return Z_TYPE_P(value) == IS_FALSE ? FAILURE : SUCCESS;
+	return (Z_TYPE_P(value) != IS_BOOL)?SUCCESS:FAILURE;
+#else
+	zval *value = &((rararch_iterator *) iter)->value;
+	assert(Z_TYPE_P(value) != IS_UNDEF);
+	return Z_TYPE_P(value) != IS_FALSE ? SUCCESS : FAILURE;
+#endif
 }
 /* }}} */
 
 /* {{{ rararch_it_current_data */
-static zval* rararch_it_current_data(zend_object_iterator *iter)
+#if PHP_MAJOR_VERSION < 7
+static void rararch_it_current_data(zend_object_iterator *iter,
+									zval ***data TSRMLS_DC)
 {
-	zval* value = ((rararch_iterator *) iter)->value;
-	assert(value != NULL);
-	return value;
+	zval **value = &(((rararch_iterator *) iter)->value);
+	assert(*value != NULL);
+	*data = value;
 }
+#else
+static zval *rararch_it_current_data(zend_object_iterator *iter)
+{
+	zval *ret;
+#if PHP_MAJOR_VERSION < 7
+	ret = ((rararch_iterator *) iter)->value;
+	assert(ret != NULL);
+#else
+	ret = &((rararch_iterator *) iter)->value;
+	assert(Z_TYPE_P(ret) != IS_UNDEF);
+#endif
+	return ret;
+}
+#endif
 /* }}} */
 
 /* {{{ rararch_it_move_forward */
@@ -940,6 +1130,11 @@ static void rararch_it_move_forward(zend_object_iterator *iter TSRMLS_DC)
 {
 	rararch_iterator *it = (rararch_iterator *) iter;
 	rararch_it_invalidate_current((zend_object_iterator *) it TSRMLS_CC);
+#if PHP_MAJOR_VERSION < 7
+	it->value = NULL;
+#else
+	ZVAL_UNDEF(&it->value);
+#endif
 	rararch_it_fetch(it TSRMLS_CC);
 }
 /* }}} */
@@ -966,11 +1161,17 @@ void minit_rararch(TSRMLS_D)
 	rararch_object_handlers.write_dimension = rararch_write_dimension;
 	rararch_object_handlers.has_dimension   = rararch_has_dimension;
 	rararch_object_handlers.unset_dimension = rararch_unset_dimension;
+	rararch_object_handlers.clone_obj = NULL;
+#if PHP_MAJOR_VERSION >= 7
+	rararch_object_handlers.free_obj = rararch_ce_free_object_storage;
+	rararch_object_handlers.offset = XtOffsetOf(ze_rararch_object, parent);
+#endif
 
 	INIT_CLASS_ENTRY(ce, "RarArchive", php_rararch_class_functions);
 	rararch_ce_ptr = zend_register_internal_class(&ce TSRMLS_CC);
+	rararch_ce_ptr->ce_flags |= ZEND_ACC_FINAL_CLASS;
 	rararch_ce_ptr->clone = NULL;
-	rararch_ce_ptr->create_object = rararch_ce_create_object;
+	rararch_ce_ptr->create_object = &rararch_ce_create_object;
 	rararch_ce_ptr->get_iterator = rararch_it_get_iterator;
 	zend_class_implements(rararch_ce_ptr TSRMLS_CC, 1, zend_ce_traversable);
 }

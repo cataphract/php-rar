@@ -4,26 +4,34 @@
 ARG_ENABLE("rar", "Rar support", "no");
 
 if (PHP_RAR != "no") {
-	EXTENSION("rar", "rar.c rar_error.c rararch.c rarentry.c rar_stream.c rar_navigation.c", PHP_RAR_SHARED, "/DRARDLL /DGUI /DSILENT /EHsc /D_WSTDIO_DEFINED /D ZEND_ENABLE_STATIC_TSRMLS_CACHE=1");
+	EXTENSION("rar", "rar.c rar_error.c rararch.c rarentry.c rar_stream.c rar_navigation.c rar_time.c", PHP_RAR_SHARED, "/DRARDLL /DSILENT /EHsc /D_WSTDIO_DEFINED /D ZEND_ENABLE_STATIC_TSRMLS_CACHE=1");
 	ADD_SOURCES(configure_module_dirname + "/unrar",
-		"rar.cpp strlist.cpp strfn.cpp \
-		pathfn.cpp smallfn.cpp savepos.cpp \
-		global.cpp file.cpp filefn.cpp \
-		filcreat.cpp archive.cpp arcread.cpp \
-		unicode.cpp system.cpp isnt.cpp \
-		crypt.cpp crc.cpp rawread.cpp \
-		encname.cpp resource.cpp match.cpp \
-		timefn.cpp rdwrfn.cpp consio.cpp \
-		options.cpp ulinks.cpp errhnd.cpp \
-		rarvm.cpp rijndael.cpp getbits.cpp \
-		sha1.cpp extinfo.cpp extract.cpp \
-		volume.cpp find.cpp \
-		unpack.cpp cmddata.cpp dll.cpp \
-		filestr.cpp recvol.cpp rs.cpp \
-		scantree.cpp extractchunk.cpp log.cpp \
- +		secpassword.cpp ", "rar");
+		"sha256.cpp qopen.cpp \
+		blake2s.cpp recvol.cpp \
+		headers.cpp match.cpp \
+		find.cpp \
+		resource.cpp \
+		pathfn.cpp \
+		dll.cpp threadpool.cpp volume.cpp \
+		unpack.cpp \
+		extract.cpp errhnd.cpp \
+		crc.cpp rijndael.cpp crypt.cpp \
+		rawread.cpp \
+		rs.cpp smallfn.cpp \
+		isnt.cpp rar.cpp consio.cpp \
+		scantree.cpp archive.cpp strfn.cpp \
+		strlist.cpp \
+		getbits.cpp hash.cpp \
+		filestr.cpp \
+		extinfo.cpp ui.cpp rarvm.cpp \
+		timefn.cpp sha1.cpp \
+		rdwrfn.cpp rs16.cpp cmddata.cpp \
+		extractchunk.cpp system.cpp \
+		unicode.cpp filcreat.cpp \
+		arcread.cpp filefn.cpp \
+		global.cpp list.cpp \
+		encname.cpp file.cpp \
+		secpassword.cpp options.cpp", "rar");
 
 	AC_DEFINE("HAVE_RAR", 1, "Rar support");
 }
-
-

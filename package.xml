@@ -23,8 +23,8 @@ http://pear.php.net/dtd/package-2.0.xsd">
   <active>no</active>
  </developer>
 
- <date>2016-01-17</date>
- <time>01:00:00</time>
+ <date>2018-08-12</date>
+ <time>15:00:00</time>
  <version>
   <release>4.0.4</release>
   <api>4.0.0</api>
@@ -140,6 +140,20 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file role="test" name="097.phpt"/>
     <file role="test" name="098.phpt"/>
     <file role="test" name="099.phpt"/>
+    <file role="test" name="100.phpt"/>
+    <file role="test" name="101.phpt"/>
+    <file role="test" name="102.phpt"/>
+    <file role="test" name="103.phpt"/>
+    <file role="test" name="104.phpt"/>
+    <file role="test" name="105.phpt"/>
+    <file role="test" name="106.phpt"/>
+    <file role="test" name="107.phpt"/>
+    <file role="test" name="108.phpt"/>
+    <file role="test" name="109.phpt"/>
+    <file role="test" name="110.phpt"/>
+    <file role="test" name="111.phpt"/>
+    <file role="test" name="112.phpt"/>
+    <file role="test" name="113.phpt"/>
     <file role="test" name="commented.rar"/>
     <file role="test" name="corrupted.rar"/>
     <file role="test" name="directories.rar"/>
@@ -163,6 +177,9 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file role="test" name="solid.rar"/>
     <file role="test" name="sparsefiles_rar.rar"/>
     <file role="test" name="store_method.rar"/>
+    <file role="test" name="rar5-links.rar"/>
+    <file role="test" name="rar5_multi.part1.rar"/>
+    <file role="test" name="rar5_multi.part2.rar"/>
    </dir> <!-- /tests -->
    <dir name="unrar">
     <file name="acknow.txt" role="doc" />
@@ -171,7 +188,10 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file name="archive.hpp" role="src" />
     <file name="arcread.cpp" role="src" />
     <file name="array.hpp" role="src" />
-    <file name="beosea.cpp" role="src" />
+    <file name="blake2s.cpp" role="src" />
+    <file name="blake2s.hpp" role="src" />
+    <file name="blake2s_sse.cpp" role="src" />
+    <file name="blake2sp.cpp" role="src" />
     <file name="cmddata.cpp" role="src" />
     <file name="cmddata.hpp" role="src" />
     <file name="coder.cpp" role="src" />
@@ -183,6 +203,10 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file name="crc.hpp" role="src" />
     <file name="crypt.cpp" role="src" />
     <file name="crypt.hpp" role="src" />
+    <file name="crypt1.cpp" role="src" />
+    <file name="crypt2.cpp" role="src" />
+    <file name="crypt3.cpp" role="src" />
+    <file name="crypt5.cpp" role="src" />
     <file name="dll.cpp" role="src" />
     <file name="dll.hpp" role="src" />
     <file name="encname.cpp" role="src" />
@@ -208,7 +232,12 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file name="getbits.hpp" role="src" />
     <file name="global.cpp" role="src" />
     <file name="global.hpp" role="src" />
+    <file name="hardlinks.cpp" role="src" />
+    <file name="hash.cpp" role="src" />
+    <file name="hash.hpp" role="src" />
+    <file name="headers.cpp" role="src" />
     <file name="headers.hpp" role="src" />
+    <file name="headers5.hpp" role="src" />
     <file name="isnt.cpp" role="src" />
     <file name="isnt.hpp" role="src" />
     <file name="LICENSE.txt" role="doc" />
@@ -224,9 +253,10 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file name="options.cpp" role="src" />
     <file name="options.hpp" role="src" />
     <file name="os.hpp" role="src" />
-    <file name="os2ea.cpp" role="src" />
     <file name="pathfn.cpp" role="src" />
     <file name="pathfn.hpp" role="src" />
+    <file name="qopen.cpp" role="src" />
+    <file name="qopen.hpp" role="src" />
     <file name="rar.cpp" role="src" />
     <file name="rar.hpp" role="src" />
     <file name="rardefs.hpp" role="src" />
@@ -236,10 +266,31 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file name="rarvm.cpp" role="src" />
     <file name="rarvm.hpp" role="src" />
     <file name="rarvmtbl.cpp" role="src" />
+    <file name="rawint.hpp" role="src" />
     <file name="rawread.cpp" role="src" />
     <file name="rawread.hpp" role="src" />
     <file name="rdwrfn.cpp" role="src" />
     <file name="rdwrfn.hpp" role="src" />
+    <file name="recvol3.cpp" role="src" />
+    <file name="recvol5.cpp" role="src" />
+    <file name="rs16.cpp" role="src" />
+    <file name="rs16.hpp" role="src" />
+    <file name="sha256.cpp" role="src" />
+    <file name="sha256.hpp" role="src" />
+    <file name="threadmisc.cpp" role="src" />
+    <file name="threadpool.cpp" role="src" />
+    <file name="threadpool.hpp" role="src" />
+    <file name="ui.cpp" role="src" />
+    <file name="ui.hpp" role="src" />
+    <file name="uicommon.cpp" role="src" />
+    <file name="uiconsole.cpp" role="src" />
+    <file name="uisilent.cpp" role="src" />
+    <file name="unpack30.cpp" role="src" />
+    <file name="unpack50.cpp" role="src" />
+    <file name="unpack50frag.cpp" role="src" />
+    <file name="unpack50mt.cpp" role="src" />
+    <file name="unpackinline.cpp" role="src" />
+    <file name="win32lnk.cpp" role="src" />
     <file name="README.txt" role="doc" />
     <file name="recvol.cpp" role="src" />
     <file name="recvol.hpp" role="src" />
@@ -249,7 +300,6 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file name="rijndael.hpp" role="src" />
     <file name="rs.cpp" role="src" />
     <file name="rs.hpp" role="src" />
-    <file name="savepos.cpp" role="src" />
     <file name="savepos.hpp" role="src" />
     <file name="scantree.cpp" role="src" />
     <file name="scantree.hpp" role="src" />
@@ -273,7 +323,6 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file name="ulinks.hpp" role="src" />
     <file name="unicode.cpp" role="src" />
     <file name="unicode.hpp" role="src" />
-    <file name="unios2.cpp" role="src" />
     <file name="unpack.cpp" role="src" />
     <file name="unpack.hpp" role="src" />
     <file name="unpack15.cpp" role="src" />
@@ -289,7 +338,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file name="config.w32" role="src" />
     <file name="CREDITS" role="doc" />
     <file name="LICENSE" role="doc" />
-    <file name="README" role="doc" />
+    <file name="README.md" role="doc" />
     <file name="example.php" role="doc" />
     <file name="php_rar.h" role="src" />
     <file name="rar.c" role="src" />
@@ -297,6 +346,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file name="rararch.c" role="src" />
     <file name="rarentry.c" role="src" />
     <file name="rar_error.c" role="src" />
+    <file name="rar_time.c" role="src" />
     <file role="src" name="rar_navigation.c"/>
   </dir> <!-- / -->
  </contents>
@@ -304,7 +354,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
  <dependencies>
   <required>
    <php>
-    <min>7.0.0</min>
+    <min>5.3.0</min>
    </php>
    <pearinstaller>
     <min>1.4.0</min>
@@ -315,7 +365,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
  <providesextension>rar</providesextension>
 
  <extsrcrelease />
-
+ 
  <changelog>
   <release>
    <version>
@@ -341,6 +391,22 @@ http://pear.php.net/dtd/package-2.0.xsd">
    <date>2016-01-17</date>
    <notes>PHP 7 support</notes>
   </release>
+  <release>
+   <version>
+    <release>3.0.2</release>
+    <api>3.0.0</api>
+   </version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api>
+   </stability>
+   <date>2013-10-11</date>
+   <notes>Changes in this version:
+- Fixed build with PHP 5.5.
+- Upgraded bundled unrar to version 4.2.4.
+   </notes>
+  </release>
+
   <release>
    <version>
     <release>3.0.1</release>
@@ -463,7 +529,7 @@ Other changes:
 - Fixed PHP4 compatibility.
    </notes>
   </release>
-
+  
   <release>
    <version>
     <release>0.3.0</release>

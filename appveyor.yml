@@ -1,0 +1,26 @@
+# Based on igbinary's appveyor config.
+
+version: '{branch}.{build}'
+install:
+  - cmd: choco feature enable -n=allowGlobalConfirmation
+  - cmd: cinst wget
+  - cmd: mkdir %APPVEYOR_BUILD_FOLDER%\bin
+
+build_script:
+  - cmd: "%APPVEYOR_BUILD_FOLDER%\\appveyor.bat"
+
+test_script:
+  - cmd: cd C:\projects\php-src
+  - cmd: set NO_INTERACTION=1
+  - cmd: set REPORT_EXIT_STATUS=1
+  - cmd: set TZ=UTC
+  - cmd: 'nmake test TESTS="--show-diff --set-timeout 30 -d extension=C:\projects\php-src\Release_TS\php_rar.dll %APPVEYOR_BUILD_FOLDER%\tests"'
+
+after_test:
+#  - cmd: dir /S C:\projects\php-src\Release_TS
+  - cmd: 'del C:\projects\php-src\Release_TS\php_rar.*'
+
+cache:
+  - C:\ProgramData\chocolatey\lib -> appveyor.yml
+  - C:\projects\php-src
+  - C:\projects\php-sdk

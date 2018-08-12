@@ -29,11 +29,11 @@ $rar = RarArchive::open($fn, null, "A::resolveInstance");
 var_dump($rar);
 
 echo "\nGiven callback that takes more arguments:\n";
-$rar = RarArchive::open($fn, null, 'array_walk');
+$rar = RarArchive::open($fn, null, 'strpos');
 $rar->getEntries();
 
 echo "\nGiven callback that takes another kind of arguments:\n";
-$rar = RarArchive::open($fn, null, 'ksort');
+$rar = RarArchive::open($fn, null, 'array_keys');
 $rar->getEntries();
 
 echo "\nGiven callback that returns another kind of arguments:\n";
@@ -64,7 +64,7 @@ bool(false)
 
 Given callback that takes more arguments:
 
-Warning: array_walk() expects at least %d parameters, 1 given in %s on line %d
+Warning: strpos() expects at least %d parameters, 1 given in %s on line %d
 
 Warning: RarArchive::getEntries(): Failure to call volume find callback in %s on line %d
 
@@ -72,9 +72,7 @@ Warning: RarArchive::getEntries(): ERAR_EOPEN (file open error) in %s on line %d
 
 Given callback that takes another kind of arguments:
 
-Warning: ksort() expects parameter 1 to be array, string given in %s on line %d
-
-Warning: RarArchive::getEntries(): Wrong type returned by volume find callback, expected string or NULL in %s on line %d
+Warning: array_keys() expects parameter 1 to be array, string given in %s on line %d
 
 Warning: RarArchive::getEntries(): ERAR_EOPEN (file open error) in %s on line %d
 

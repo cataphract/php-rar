@@ -46,6 +46,8 @@
 #ifndef PHP_RAR_H
 #define PHP_RAR_H
 
+#include <php.h>
+
 extern zend_module_entry rar_module_entry;
 #define phpext_rar_ptr &rar_module_entry
 
@@ -66,6 +68,7 @@ extern zend_module_entry rar_module_entry;
 /* #include "unrar/rar.hpp */
 /* only these includes are necessary anyway: */
 #include "unrar/raros.hpp"
+#include "unrar/rartypes.hpp"
 /* no need to reinclude windows.h or new.h */
 #define LEAN_RAR_INCLUDES
 #include "unrar/os.hpp"
@@ -76,11 +79,70 @@ enum HOST_SYSTEM {
   HOST_MSDOS=0,HOST_OS2=1,HOST_WIN32=2,HOST_UNIX=3,HOST_MACOS=4,
   HOST_BEOS=5,HOST_MAX
 };
-#define  LHD_WINDOWMASK     0x00e0U
-#define  LHD_DIRECTORY      0x00e0U
+enum FILE_SYSTEM_REDIRECT {
+  FSREDIR_NONE=0, FSREDIR_UNIXSYMLINK, FSREDIR_WINSYMLINK, FSREDIR_JUNCTION,
+  FSREDIR_HARDLINK, FSREDIR_FILECOPY
+};
 
 /* maximum comment size if 64KB */
 #define RAR_MAX_COMMENT_SIZE 65536
+
+/* PHP 7+ abstraction */
+#if PHP_MAJOR_VERSION >= 7
+typedef zend_object* rar_obj_ref;
+
+#define rar_zval_add_ref(ppzv) zval_add_ref(*ppzv)
+
+#define ZVAL_ALLOC_DUP(dst, src) \
+	do { \
+		dst = (zval*) emalloc(sizeof(zval)); \
+		ZVAL_DUP(dst, src); \
+	} while (0)
+
+#define RAR_RETURN_STRINGL(s, l, duplicate) \
+	do { \
+		RETVAL_STRINGL(s, l); \
+		if (duplicate == 0) { \
+			efree(s); \
+		} \
+		return; \
+	} while (0)
+
+#define RAR_ZVAL_STRING(z, s, duplicate) \
+	do { \
+		ZVAL_STRING(z, s); \
+		if (duplicate == 0) { \
+			efree(s); \
+		} \
+	} while (0)
+
+typedef size_t zpp_s_size_t;
+
+#define MAKE_STD_ZVAL(zv_p) \
+	do { \
+		(zv_p) = emalloc(sizeof(zval)); \
+		ZVAL_NULL(zv_p); \
+	} while (0)
+#define INIT_ZVAL(zv) ZVAL_UNDEF(&zv)
+
+#define ZEND_ACC_FINAL_CLASS ZEND_ACC_FINAL
+
+#else /* PHP 5.x */
+typedef zend_object_handle rar_obj_ref;
+
+#define rar_zval_add_ref zval_add_ref
+#define ZVAL_ALLOC_DUP(dst, src) \
+	do { \
+		zval *z_src = src; \
+		dst = z_src; \
+		zval_add_ref(&dst); \
+		SEPARATE_ZVAL(&dst); \
+	} while (0)
+#define RAR_ZVAL_STRING ZVAL_STRING
+#define RAR_RETURN_STRINGL(s, l, duplicate) RETURN_STRINGL(s, l, duplicate)
+typedef int zpp_s_size_t;
+#define zend_hash_str_del zend_hash_del
+#endif
 
 typedef struct _rar_cb_user_data {
 	char					*password;	/* can be NULL */
@@ -88,7 +150,7 @@ typedef struct _rar_cb_user_data {
 } rar_cb_user_data;
 
 typedef struct rar {
-	zend_object			*id;
+	rar_obj_ref					obj_ref;
 	struct _rar_entries			*entries;
 	struct RAROpenArchiveDataEx	*list_open_data;
 	struct RAROpenArchiveDataEx	*extract_open_data;
@@ -98,6 +160,13 @@ typedef struct rar {
 	rar_cb_user_data			cb_userdata;
 	int							allow_broken;
 } rar_file_t;
+
+/* Misc */
+#if defined(ZTS) && PHP_MAJOR_VERSION < 7
+# define RAR_TSRMLS_TC	, void ***
+#else
+# define RAR_TSRMLS_TC
+#endif
 
 #define RAR_RETNULL_ON_ARGS() \
 	if (zend_parse_parameters_none() == FAILURE) { \
@@ -127,8 +196,8 @@ typedef struct _rar_contents_cache {
 	int			hits;
 	int			misses;
 	/* args: cache key, cache key size, cached object) */
-	void (*put)(const char *, uint, zval *);
-	zval *(*get)(const char *, uint);
+	void (*put)(const char *, uint, zval * RAR_TSRMLS_TC);
+	zval *(*get)(const char *, uint, zval * RAR_TSRMLS_TC);
 } rar_contents_cache;
 
 /* Module globals, currently used for dir wrappers cache */
@@ -166,6 +235,15 @@ ZEND_TSRMLS_CACHE_EXTERN();
 #endif
 
 /* Other compatibility quirks */
+/* PHP 5.3 doesn't have ZVAL_COPY_VALUE */
+#if !defined(ZEND_COPY_VALUE) && PHP_MAJOR_VERSION == 5
+#define ZVAL_COPY_VALUE(z, v)					\
+	do {										\
+		(z)->value = (v)->value;				\
+		Z_TYPE_P(z) = Z_TYPE_P(v);				\
+	} while (0)
+#endif
+
 #if !defined(HAVE_STRNLEN) || !HAVE_STRNLEN
 size_t _rar_strnlen(const char *s, size_t maxlen);
 # define strnlen _rar_strnlen
@@ -287,6 +365,12 @@ php_stream *php_stream_rar_open(char *arc_name,
 								STREAMS_DC TSRMLS_DC);
 extern php_stream_wrapper php_stream_rar_wrapper;
 
+/* rar_time.c */
+void rar_time_convert(unsigned low, unsigned high, time_t *to);
+int rar_dos_time_convert(unsigned dos_time, time_t *to);
+#ifdef PHP_WIN32
+#define timegm _mkgmtime
+#endif
 #endif	/* PHP_RAR_H */
 
 

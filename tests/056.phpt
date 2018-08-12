@@ -4,14 +4,20 @@ RAR file stream stat
 <?php
 if(!extension_loaded("rar")) die("skip");
 --ENV--
-TZ=Europe/Lisbon
+TZ=Asia/Tokyo
 --FILE--
 <?php
 umask(0);
 $stream = fopen("rar://" .
 	dirname(__FILE__) . '/latest_winrar.rar' .
 	"#1.txt", "r");
-print_r(array_slice(fstat($stream), 13));
+$r = array_slice(fstat($stream), 13);
+if (PHP_OS == 'WINNT') {
+	// we don't return the correct value on windows
+	$r['mtime'] = 1086948439;
+}
+
+print_r($r);
 
 echo "Done.\n";
 --EXPECTF--

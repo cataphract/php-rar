@@ -73,6 +73,9 @@ static void _rar_nav_get_depth_and_length(wchar_t *filenamew, const size_t file_
 										  int *depth_out, size_t *wlen_out TSRMLS_DC);
 static int _rar_nav_get_depth(const wchar_t *filenamew, const size_t file_size);
 static int _rar_nav_compare_entries(const void *op1, const void *op2 TSRMLS_DC);
+#if PHP_MAJOR_VERSION >= 7
+static void _rar_nav_swap_entries(void *op1, void *op2);
+#endif
 static int _rar_nav_compare_entries_std(const void *op1, const void *op2);
 static inline int _rar_nav_compare_values(const wchar_t *str1, const int depth1,
 								   const wchar_t *str2, const int depth2,
@@ -95,14 +98,6 @@ size_t _rar_entry_count(rar_file_t *rar) {
 }
 /* }}} */
 
-void _rar_nav_swap_entries(void* op1, void* op2) {
-	void **a = (void**)op1;
-	void **b = (void**)op2;
-	void *temp = *a;
-	*a = *b;
-	*b = temp;
-}
-
 /* {{{ _rar_entry_search_start */
 void _rar_entry_search_start(rar_file_t *rar,
 							 unsigned mode,
@@ -121,14 +116,15 @@ void _rar_entry_search_start(rar_file_t *rar,
 			sizeof rar->entries->entries_array_s[0]);
 		memcpy(rar->entries->entries_array_s, rar->entries->entries_array,
 			rar->entries->num_entries * sizeof rar->entries->entries_array[0]);
-
-		zend_qsort(
-			rar->entries->entries_array_s, 
-			rar->entries->num_entries,
-			sizeof *rar->entries->entries_array_s, 
-			_rar_nav_compare_entries,
-			_rar_nav_swap_entries
-		);
+#if PHP_MAJOR_VERSION < 7
+		zend_qsort(rar->entries->entries_array_s, rar->entries->num_entries,
+			sizeof *rar->entries->entries_array_s, _rar_nav_compare_entries
+			TSRMLS_CC);
+#else
+		zend_qsort(rar->entries->entries_array_s, rar->entries->num_entries,
+			sizeof *rar->entries->entries_array_s, _rar_nav_compare_entries,
+			_rar_nav_swap_entries);
+#endif
 	}
 }
 /* }}} */
@@ -150,7 +146,11 @@ void _rar_entry_search_seek(rar_find_output *state, size_t pos)
 /* {{{ _rar_entry_search_end */
 void _rar_entry_search_end(rar_find_output *state)
 {
-	efree(state);
+	if (state) {
+		/* may not have been initialized due to error conditions
+		 * in rararch_it_get_iterator that jumped out of the function */
+		efree(state);
+	}
 }
 /* }}} */
 
@@ -313,6 +313,9 @@ void _rar_delete_entries(rar_file_t *rar TSRMLS_DC)
 		if (rar->entries->entries_array != NULL) {
 			size_t i;
 			for (i = 0; i < rar->entries->num_entries; i++) {
+				if (rar->entries->entries_array[i]->entry.RedirName != NULL) {
+					efree(rar->entries->entries_array[i]->entry.RedirName);
+				}
 				efree(rar->entries->entries_array[i]);
 			}
 			efree(rar->entries->entries_array);
@@ -353,7 +356,11 @@ int _rar_list_files(rar_file_t *rar TSRMLS_DC) /* {{{ */
 	ents->last_accessed = NULL;
 
 	while (result == 0) {
-		struct RARHeaderDataEx entry;
+		struct _rar_unique_entry *ue;
+		struct RARHeaderDataEx entry = {0};
+		wchar_t redir_name[1024] = L"";
+		entry.RedirName = redir_name;
+		entry.RedirNameSize = sizeof(redir_name) / sizeof(redir_name[0]);
 		result = RARReadHeaderEx(rar->arch_handle, &entry);
 		/* value of 2nd argument is irrelevant in RAR_OM_LIST_[SPLIT] mode */
 		if (result == 0) {
@@ -363,19 +370,19 @@ int _rar_list_files(rar_file_t *rar TSRMLS_DC) /* {{{ */
 			break;
 
 		if (first_file_check) {
-			if (entry.Flags & 0x01U) /* LHD_SPLIT_BEFORE */
+			if (entry.Flags & RHDF_SPLITBEFORE)
 				continue;
 			else
 				first_file_check = FALSE;
 		}
 
 		/* reset packed size if not split before */
-		if ((entry.Flags & 0x01U) == 0)
+		if ((entry.Flags & RHDF_SPLITBEFORE) == 0)
 			packed_size = 0UL;
 
 		/* we would exceed size of ulong. cap at ulong_max
-		  * equivalent to packed_size + entry.PackSize > ULONG_MAX,
-		  * but without overflowing */
+		 * equivalent to packed_size + entry.PackSize > ULONG_MAX,
+		 * but without overflowing */
 		if (ULONG_MAX - packed_size < entry.PackSize)
 			packed_size = ULONG_MAX;
 		else {
@@ -389,7 +396,7 @@ int _rar_list_files(rar_file_t *rar TSRMLS_DC) /* {{{ */
 			}
 		}
 
-		if (entry.Flags & 0x02U) /* LHD_SPLIT_AFTER; do not commit */
+		if (entry.Flags & RHDF_SPLITAFTER) /* do not commit */
 			continue;
 
 		/* commit the entry */
@@ -401,16 +408,22 @@ int _rar_list_files(rar_file_t *rar TSRMLS_DC) /* {{{ */
 		}
 		assert(capacity > ents->num_entries);
 
-		ents->entries_array[ents->num_entries] =
+		ents->entries_array[ents->num_entries] = ue =
 			emalloc(sizeof *ents->entries_array[0]);
-		memcpy(&ents->entries_array[ents->num_entries]->entry, &entry,
-			sizeof ents->entries_array[0]->entry);
-		ents->entries_array[ents->num_entries]->id = ents->num_entries;
-		ents->entries_array[ents->num_entries]->packed_size = packed_size;
+		memcpy(&ue->entry, &entry, sizeof ents->entries_array[0]->entry);
+		ue->id = ents->num_entries;
+		ue->packed_size = packed_size;
 		_rar_nav_get_depth_and_length(entry.FileNameW,
 			sizeof(entry.FileNameW) / sizeof(entry.FileNameW[0]), /* = 1024 */
-			&ents->entries_array[ents->num_entries]->depth,
-			&ents->entries_array[ents->num_entries]->name_wlen TSRMLS_CC);
+			&ue->depth, &ue->name_wlen TSRMLS_CC);
+		if (redir_name[0] != L'\0') {
+			size_t size = (wcslen(redir_name) + 1) * sizeof(redir_name[0]);
+			ue->entry.RedirName = emalloc(size);
+			memcpy(ue->entry.RedirName, redir_name, size);
+		} else {
+			ue->entry.RedirName = NULL;
+			ue->entry.RedirNameSize = 0;
+		}
 		ents->num_entries++;
 	}
 
@@ -436,7 +449,7 @@ static void _rar_nav_get_depth_and_length(wchar_t *filenamew, const size_t file_
 	for (i = 0; i < file_size; i++) {
 		if (filenamew[i] == L'\0')
 			break;
-		if (filenamew[i] == PATHDIVIDERW[0])
+		if (filenamew[i] == SPATHDIVIDER[0])
 			depth++;
 	}
 
@@ -448,7 +461,7 @@ static void _rar_nav_get_depth_and_length(wchar_t *filenamew, const size_t file_
 		filenamew[i] = L'\0';
 	}
 
-	if ((i >= 1) && (filenamew[i-1] == PATHDIVIDERW[0])) {
+	if ((i >= 1) && (filenamew[i-1] == SPATHDIVIDER[0])) {
 		/* entry name ended in path divider. shouldn't happen */
 		i--;
 		filenamew[i] = L'\0';
@@ -469,7 +482,7 @@ static int _rar_nav_get_depth(const wchar_t *filenamew, const size_t file_size) 
 	for (i = 0; i < file_size; i++) {
 		if (filenamew[i] == L'\0')
 			break;
-		if (filenamew[i] == PATHDIVIDERW[0])
+		if (filenamew[i] == SPATHDIVIDER[0])
 			depth++;
 	}
 	assert(i < file_size);
@@ -488,6 +501,21 @@ static int _rar_nav_compare_entries(const void *op1, const void *op2 TSRMLS_DC) 
 		sizeof(a->entry.FileNameW) / sizeof(a->entry.FileNameW[0]) /*1024*/);
 }
 /* }}} */
+
+#if PHP_MAJOR_VERSION >= 7
+static void _rar_nav_swap_entries(void *op1, void *op2) /* {{{ */
+{
+	/* just swaps two pointer values */
+	struct _rar_unique_entry **a = op1,
+							 **b = op2,
+							 *tmp;
+	tmp = *a;
+	*a = *b;
+	*b = tmp;
+
+}
+/* }}} */
+#endif
 
 static int _rar_nav_compare_entries_std(const void *op1, const void *op2) /* {{{ */
 {
@@ -530,7 +558,7 @@ static int _rar_nav_directory_match(const wchar_t *dir, const size_t dir_len,
 		if (wmemcmp(dir, entry, dir_len) != 0)
 			return FALSE;
 		/* directory name does not follow path sep or path sep ends the name */
-		if (entry[dir_len] != PATHDIVIDERW[0] || entry_len == dir_len + 1)
+		if (entry[dir_len] != SPATHDIVIDER[0] || entry_len == dir_len + 1)
 			return FALSE;
 		/* assert(entry_len > dir_len + 1) */
 		entry_rem = &entry[dir_len + 1];
@@ -541,7 +569,7 @@ static int _rar_nav_directory_match(const wchar_t *dir, const size_t dir_len,
 		entry_rem_len = entry_len;
 	}
 
-	chr = wmemchr(entry_rem, PATHDIVIDERW[0], entry_rem_len);
+	chr = wmemchr(entry_rem, SPATHDIVIDER[0], entry_rem_len);
 	/* must have no / after the directory */
 	return (chr == NULL);
 }

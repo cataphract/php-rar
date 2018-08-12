@@ -1,0 +1,18 @@
+{
+    "name": "rar",
+    "type": "extension",
+    "license": [
+        "PHP License"
+    ],
+    "authors": [
+        {
+            "name": "Gustavo Lopes",
+            "email": "cataphract@php.net"
+        },
+        {
+            "name": "Antony Dovgal",
+            "email": "tony@daylessday.org"
+        }
+    ],
+    "description": "rar extension"
+}

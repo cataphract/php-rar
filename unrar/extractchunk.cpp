@@ -1,39 +1,35 @@
 #include "rar.hpp"
-
-bool CmdExtract::ExtractCurrentFileChunkInit(CommandData *Cmd,
-                                             Archive &Arc,
+bool CmdExtract::ExtractCurrentFileChunkInit(Archive &Arc,
                                              size_t HeaderSize,
                                              bool &Repeat)
 {
-  char Command = 'T';
+  wchar Command = L'T';
 
-  Cmd->DllError=0;
+  Cmd->DllError = false;
   Repeat = false;
-
-  //turn on checks reserved for the first files extracted from an archive?
   FirstFile = true;
 
-  if (HeaderSize==0) {
+  if (HeaderSize==0)
     if (DataIO.UnpVolume)
     {
 #ifdef NOVOLUME
-      return(false);
+      return false;
 #else
-      if (!MergeArchive(Arc,&DataIO,false,Command)) //command irrelevant
+      if (!MergeArchive(Arc,&DataIO,false,Command))
       {
         ErrHandler.SetErrorCode(RARX_WARNING);
         return false;
       }
-      SignatureFound=false;
 #endif
     }
     else
       return false;
-  }
 
-  int HeadType=Arc.GetHeaderType();
-  if (HeadType!=FILE_HEAD)
+  HEADER_TYPE HeaderType=Arc.GetHeaderType();
+  if (HeaderType!=HEAD_FILE)
+  {
     return false;
+  }
 
   DataIO.SetUnpackToMemory((byte*) this->Buffer, this->BufferSize);
   DataIO.SetSkipUnpCRC(true);
@@ -42,90 +38,85 @@ bool CmdExtract::ExtractCurrentFileChunkInit(CommandData *Cmd,
   //there'll be no operations in the filesystem
   DataIO.SetTestMode(true);
 
-  if ((Arc.NewLhd.Flags & (LHD_SPLIT_BEFORE/*|LHD_SOLID*/)) && FirstFile)
+  if (Arc.FileHead.SplitBefore && FirstFile)
   {
-    char CurVolName[NM];
-    /* are these first two needed? */
-    wcsncpyz(ArcNameW, Arc.FileNameW, ASIZE(ArcNameW));
-    strncpyz(ArcName, Arc.FileName, NM);
-    strncpyz(CurVolName, ArcName, sizeof CurVolName);
+    wchar CurVolName[NM];
+    wcsncpyz(CurVolName,ArcName,ASIZE(CurVolName));
+    VolNameToFirstName(ArcName,ArcName,ASIZE(ArcName),Arc.NewNumbering);
 
-    bool NewNumbering=(Arc.NewMhd.Flags & MHD_NEWNUMBERING)!=0;
-    VolNameToFirstName(ArcName,ArcName,NewNumbering);
-    if (*ArcNameW!=0)
-      VolNameToFirstName(ArcNameW,ArcNameW,NewNumbering);
-
-    if (stricomp(ArcName,CurVolName)!=0 && FileExist(ArcName,ArcNameW))
+    if (wcsicomp(ArcName,CurVolName)!=0 && FileExist(ArcName))
     {
-      *ArcNameW=0;
+      // If first volume name does not match the current name and if such
+      // volume name really exists, let's unpack from this first volume.
+      *ArcName=0;
       Repeat=true;
       ErrHandler.SetErrorCode(RARX_WARNING);
       /* Actually known. The problem is that the file doesn't start on this volume. */
       Cmd->DllError = ERAR_UNKNOWN;
       return false;
     }
-    strcpy(ArcName,CurVolName);
+    wcsncpyz(ArcName,CurVolName,ASIZE(ArcName));
   }
-  DataIO.UnpVolume=(Arc.NewLhd.Flags & LHD_SPLIT_AFTER)!=0;
+
+  DataIO.UnpVolume=Arc.FileHead.SplitAfter;
   DataIO.NextVolumeMissing=false;
 
-  Arc.Seek(Arc.NextBlockPos - Arc.NewLhd.FullPackSize, SEEK_SET);
+  Arc.Seek(Arc.NextBlockPos-Arc.FileHead.PackSize,SEEK_SET);
 
-  if ((Arc.NewLhd.Flags & LHD_PASSWORD)!=0)
+  if (Arc.FileHead.Encrypted)
   {
-    if (!Cmd->Password.IsSet())
+    if (!ExtrDllGetPassword())
     {
-      if (Cmd->Callback!=NULL)
-      {
-        wchar PasswordW[MAXPASSWORD];
-        *PasswordW=0;
-        if (Cmd->Callback(UCM_NEEDPASSWORDW,Cmd->UserData,(LPARAM)PasswordW,ASIZE(PasswordW))==-1)
-          *PasswordW=0;
-        if (*PasswordW==0)
-        {
-          char PasswordA[MAXPASSWORD];
-          *PasswordA=0;
-          if (Cmd->Callback(UCM_NEEDPASSWORD,Cmd->UserData,(LPARAM)PasswordA,ASIZE(PasswordA))==-1)
-            *PasswordA=0;
-          GetWideName(PasswordA,NULL,PasswordW,ASIZE(PasswordW));
-          cleandata(PasswordA,sizeof(PasswordA));
-        }
-        Cmd->Password.Set(PasswordW);
-        cleandata(PasswordW,sizeof(PasswordW));
-      }
-      if (!Cmd->Password.IsSet())
-      {
-        Cmd->DllError = ERAR_MISSING_PASSWORD; //added by me
-        return false;
-      }
+      ErrHandler.SetErrorCode(RARX_WARNING);
+      Cmd->DllError=ERAR_MISSING_PASSWORD;
+      return false;
     }
-    Password=Cmd->Password;
   }
 
-  if (Arc.NewLhd.UnpVer<13 || Arc.NewLhd.UnpVer>UNP_VER)
+  if (*Cmd->DllDestName!=0)
   {
-    ErrHandler.SetErrorCode(RARX_WARNING);
+    wcsncpyz(DestFileName,Cmd->DllDestName,ASIZE(DestFileName));
+//      Do we need this code?
+//      if (Cmd->DllOpMode!=RAR_EXTRACT)
+//        ExtrFile=false;
+  }
+
+  wchar ArcFileName[NM];
+  ConvertPath(Arc.FileHead.FileName,ArcFileName);
+  if (!CheckUnpVer(Arc,ArcFileName))
+  {
+    ErrHandler.SetErrorCode(RARX_FATAL);
     Cmd->DllError=ERAR_UNKNOWN_FORMAT;
     return false;
   }
 
-  if (IsLink(Arc.NewLhd.FileAttr))
-    return true;
-  
-  if (Arc.IsArcDir())
-      return true;
+    SecPassword FilePassword=Cmd->Password;
+#if defined(_WIN_ALL) && !defined(SFX_MODULE)
+    ConvertDosPassword(Arc,FilePassword);
+#endif
 
+  byte PswCheck[SIZE_PSWCHECK];
+  DataIO.SetEncryption(false,Arc.FileHead.CryptMethod,&FilePassword,
+     Arc.FileHead.SaltSet ? Arc.FileHead.Salt:NULL,
+     Arc.FileHead.InitV,Arc.FileHead.Lg2Count,
+     Arc.FileHead.HashKey,PswCheck);
+
+  // If header is damaged, we cannot rely on password check value,
+  // because it can be damaged too.
+  if (Arc.FileHead.Encrypted && Arc.FileHead.UsePswCheck &&
+      memcmp(Arc.FileHead.PswCheck,PswCheck,SIZE_PSWCHECK)!=0 &&
+      !Arc.BrokenHeader)
+  {
+    ErrHandler.SetErrorCode(RARX_BADPWD);
+  }
   DataIO.CurUnpRead=0;
   DataIO.CurUnpWrite=0;
-  DataIO.UnpFileCRC= Arc.OldFormat ? 0 : 0xffffffff;
-  DataIO.PackedCRC= 0xffffffff;
-  DataIO.SetEncryption(
-    (Arc.NewLhd.Flags & LHD_PASSWORD) ? Arc.NewLhd.UnpVer : 0, &Password,
-    (Arc.NewLhd.Flags & LHD_SALT) ? Arc.NewLhd.Salt : NULL, false,
-    Arc.NewLhd.UnpVer >= 36);
-  DataIO.SetPackedSizeToRead(Arc.NewLhd.FullPackSize);
+  DataIO.UnpHash.Init(Arc.FileHead.FileHash.Type,Cmd->Threads);
+  DataIO.PackedDataHash.Init(Arc.FileHead.FileHash.Type,Cmd->Threads);
+  DataIO.SetPackedSizeToRead(Arc.FileHead.PackSize);
+  DataIO.SetFiles(&Arc,NULL);
+  DataIO.SetTestMode(true);
   DataIO.SetSkipUnpCRC(true);
-  DataIO.SetFiles(&Arc, NULL);
 
   return true;
 }
@@ -134,7 +125,7 @@ bool CmdExtract::ExtractCurrentFileChunk(CommandData *Cmd, Archive &Arc,
                                          size_t *ReadSize,
                                          int *finished)
 {
-  if (IsLink(Arc.NewLhd.FileAttr) || Arc.IsArcDir()) {
+  if (Arc.FileHead.RedirType!=FSREDIR_NONE|| Arc.IsArcDir()) {
     *ReadSize = 0;
     *finished = TRUE;
     return true;
@@ -142,7 +133,7 @@ bool CmdExtract::ExtractCurrentFileChunk(CommandData *Cmd, Archive &Arc,
 
   DataIO.SetUnpackToMemory((byte*) this->Buffer, this->BufferSize);
 
-  if (Arc.NewLhd.Method==0x30) {
+  if (Arc.FileHead.Method==0) {
     UnstoreFile(DataIO, this->BufferSize);
     /* not very sophisticated and may result in a subsequent
      * unnecessary call to this function (and probably will if
@@ -152,12 +143,12 @@ bool CmdExtract::ExtractCurrentFileChunk(CommandData *Cmd, Archive &Arc,
   }
   else
   {
-    Unp->SetDestSize(Arc.NewLhd.FullUnpSize);
-    if (Arc.NewLhd.UnpVer<=15)
+    Unp->Init(Arc.FileHead.WinSize,Arc.FileHead.Solid);
+    Unp->SetDestSize(Arc.FileHead.UnpSize);
+    if (Arc.Format!=RARFMT50 && Arc.FileHead.UnpVer<=15)
       Unp->DoUnpack(15,FileCount>1 && Arc.Solid, this->Buffer != NULL);
     else
-      Unp->DoUnpack(Arc.NewLhd.UnpVer,
-        (Arc.NewLhd.Flags & LHD_SOLID)!=0, this->Buffer != NULL);
+      Unp->DoUnpack(Arc.FileHead.UnpVer,Arc.FileHead.Solid, this->Buffer != NULL);
     *finished = Unp->IsFileExtracted();
   }
   *ReadSize = this->BufferSize - DataIO.GetUnpackToMemorySizeLeft();

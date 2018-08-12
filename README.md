@@ -10,3 +10,6 @@ unrar/LICENSE.txt for details.
 Some modifications have been applied to the UnRAR library, mainly to allow
 streaming extraction of files without using threads.
 
+[![Build Status Appveyor](https://ci.appveyor.com/api/projects/status/cbgpepx6kyax2198/branch/master?svg=true)](https://ci.appveyor.com/project/cataphract/php-rar/branch/master)
+[![Build Status Travis](https://travis-ci.org/cataphract/php-rar.svg?branch=master)](https://travis-ci.org/cataphract/php-rar)
+[![codecov](https://codecov.io/gh/cataphract/php-rar/branch/master/graph/badge.svg)](https://codecov.io/gh/cataphract/php-rar)

@@ -4,6 +4,10 @@
 class CmdAdd;
 class Unpack;
 
+#if 0
+// We use external i/o calls for Benchmark command.
+#define COMPRDATAIO_EXTIO
+#endif
 
 class ComprDataIO
 {
@@ -38,17 +42,18 @@ class ComprDataIO
     int64 *SubHeadPos;
 
 #ifndef RAR_NOCRYPT
-    CryptData Crypt;
-    CryptData Decrypt;
+    CryptData *Crypt;
+    CryptData *Decrypt;
 #endif
 
 
     int LastPercent;
 
-    char CurrentCommand;
+    wchar CurrentCommand;
 
   public:
     ComprDataIO();
+    ~ComprDataIO();
     void Init();
     int UnpRead(byte *Addr,size_t Count);
     void UnpWrite(byte *Addr,size_t Count);
@@ -61,18 +66,20 @@ class ComprDataIO
     void SetFiles(File *SrcFile,File *DestFile);
     void SetCommand(CmdAdd *Cmd) {Command=Cmd;}
     void SetSubHeader(FileHeader *hd,int64 *Pos) {SubHead=hd;SubHeadPos=Pos;}
-    void SetEncryption(int Method,SecPassword *Password,const byte *Salt,bool Encrypt,bool HandsOffHash);
+    void SetEncryption(bool Encrypt,CRYPT_METHOD Method,SecPassword *Password,
+         const byte *Salt,const byte *InitV,uint Lg2Cnt,byte *HashKey,byte *PswCheck);
     void SetAV15Encryption();
     void SetCmt13Encryption();
     void SetUnpackToMemory(byte *Addr,size_t Size); //changed by me
-    void SetCurrentCommand(char Cmd) {CurrentCommand=Cmd;}
+    void SetCurrentCommand(wchar Cmd) {CurrentCommand=Cmd;}
+
 
     bool PackVolume;
     bool UnpVolume;
     bool NextVolumeMissing;
-    int64 TotalPackRead;
     int64 UnpArcSize;
     int64 CurPackRead,CurPackWrite,CurUnpRead,CurUnpWrite;
+
 
     // Size of already processed archives.
     // Used to calculate the total operation progress.
@@ -80,10 +87,12 @@ class ComprDataIO
 
     int64 TotalArcSize;
 
-    uint PackFileCRC,UnpFileCRC,PackedCRC;
+    DataHash PackedDataHash; // Packed write and unpack read hash.
+    DataHash PackHash; // Pack read hash.
+    DataHash UnpHash;  // Unpack write hash.
 
-    int Encryption;
-    int Decryption;
+    bool Encryption;
+    bool Decryption;
 };
 
 #endif

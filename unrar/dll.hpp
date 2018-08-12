@@ -3,6 +3,7 @@
 
 #pragma pack(1)
 
+#define ERAR_SUCCESS             0
 #define ERAR_END_ARCHIVE        10
 #define ERAR_NO_MEMORY          11
 #define ERAR_BAD_DATA           12
@@ -16,6 +17,8 @@
 #define ERAR_SMALL_BUF          20
 #define ERAR_UNKNOWN            21
 #define ERAR_MISSING_PASSWORD   22
+#define ERAR_EREFERENCE         23
+#define ERAR_BAD_PASSWORD       24
 
 #define RAR_OM_LIST              0
 #define RAR_OM_EXTRACT           1
@@ -29,8 +32,12 @@
 #define RAR_VOL_ASK           0
 #define RAR_VOL_NOTIFY        1
 
-#define RAR_DLL_VERSION       5
+#define RAR_DLL_VERSION       8
 #define RAR_DLL_EXT_VERSION   1 //added by me
+
+#define RAR_HASH_NONE         0
+#define RAR_HASH_CRC32        1
+#define RAR_HASH_BLAKE2       2
 
 //Must be the same as MAXWINSIZE
 //not in original
@@ -59,6 +66,13 @@ typedef struct RARTime
   unsigned int wDay;
   unsigned int yDay;
 } RARTime;
+
+#define RHDF_SPLITBEFORE 0x01
+#define RHDF_SPLITAFTER  0x02
+#define RHDF_ENCRYPTED   0x04
+#define RHDF_SOLID       0x10
+#define RHDF_DIRECTORY   0x20
+
 
 struct RARHeaderData
 {
@@ -101,15 +115,22 @@ struct RARHeaderDataEx
   unsigned int CmtBufSize;
   unsigned int CmtSize;
   unsigned int CmtState;
-  /* these four were added by me and are optional (not all archives have them)
-   * check if year is 0 to decide if they are set */
-  RARTime      mtime;
-  RARTime      ctime;
-  RARTime      atime;
-  RARTime      arctime;
+  unsigned int DictSize;
+  unsigned int HashType;
+  char         Hash[32];
+  unsigned int RedirType;
+  wchar_t      *RedirName;
+  unsigned int RedirNameSize;
+  unsigned int DirTarget;
+  unsigned int MtimeLow;
+  unsigned int MtimeHigh;
+  unsigned int CtimeLow;
+  unsigned int CtimeHigh;
+  unsigned int AtimeLow;
+  unsigned int AtimeHigh;
   /* removed by me: we don't need to retain binary compatibility in case new
    * fields are added, so we avoid wasting space here */
-  /* unsigned int Reserved[1024]; */
+  /* unsigned int Reserved[988]; */
 };
 
 
@@ -125,6 +146,16 @@ struct RAROpenArchiveData
 };
 
 typedef int (CALLBACK *UNRARCALLBACK)(UINT msg,LPARAM UserData,LPARAM P1,LPARAM P2);
+
+#define ROADF_VOLUME       0x0001
+#define ROADF_COMMENT      0x0002
+#define ROADF_LOCK         0x0004
+#define ROADF_SOLID        0x0008
+#define ROADF_NEWNUMBERING 0x0010
+#define ROADF_SIGNED       0x0020
+#define ROADF_RECOVERY     0x0040
+#define ROADF_ENCHEADERS   0x0080
+#define ROADF_FIRSTVOLUME  0x0100
 
 struct RAROpenArchiveDataEx
 {

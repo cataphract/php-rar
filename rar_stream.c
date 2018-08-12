@@ -41,7 +41,6 @@ extern "C" {
 #include <wchar.h>
 
 #include "php_rar.h"
-#include "unrar/rartypes.hpp"
 
 #include <php_streams.h>
 #include <ext/standard/url.h>
@@ -64,7 +63,7 @@ typedef struct php_rar_stream_data_t {
 } php_rar_stream_data, *php_rar_stream_data_P;
 
 typedef struct php_rar_dir_stream_data_t {
-	zval						*rar_obj;
+	zval						rar_obj;
 	rar_find_output				*state;
 	struct RARHeaderDataEx		*self_header; /* NULL for root */
 	wchar_t						*directory;
@@ -266,47 +265,17 @@ static mode_t _rar_convert_file_attrs(unsigned os_attrs,
 			break;
 
 		default:
-			if ((flags & LHD_WINDOWMASK) == LHD_DIRECTORY)
+			if (flags & RHDF_DIRECTORY)
 				ret = S_IFDIR;
 			else
 				ret = S_IFREG;
 
 			ret |= 0777;
 			ret &= ~mask;
-      break;
-  }
+			break;
+	}
 
 	return ret;
-}
-/* }}} */
-
-/* If from is not set, sets to to default and returns SUCCESS.
- * If from is set, converts it to a time_t. In case of failure returns FAILURE.
- * In case of success, copies the result to to and returns SUCCESS. */
-static int _rar_time_convert(RARTime *from, time_t *to) /* {{{ */
-{
-	time_t default_ = (time_t) 0;
-	time_t retval;
-	struct tm time_s = {0};
-
-	if (from->Year == 0U) {
-		*to = default_;
-		return SUCCESS;
-	}
-
-	time_s.tm_sec  = from->Second;
-	time_s.tm_min  = from->Minute;
-	time_s.tm_hour = from->Hour;
-	time_s.tm_mday = from->Day;
-	time_s.tm_mon  = from->Month - 1; /* starts at 0 in time_t */
-	time_s.tm_year = from->Year - 1900;
-
-	if ((retval = mktime(&time_s)) == -1)
-		return FAILURE;
-	else {
-		*to = retval;
-		return SUCCESS;
-	}
 }
 /* }}} */
 
@@ -339,27 +308,21 @@ static int _rar_stat_from_header(struct RARHeaderDataEx *header,
 			ssb->sb.st_size = (long) (unsigned long) (int64) unp_size;
 	}
 
+	rar_time_convert(header->AtimeLow, header->AtimeHigh, &ssb->sb.st_atime);
+	rar_time_convert(header->CtimeLow, header->CtimeHigh, &ssb->sb.st_ctime);
 
-	_rar_time_convert(&header->atime, &ssb->sb.st_atime);
-	_rar_time_convert(&header->ctime, &ssb->sb.st_ctime);
-
-	if (header->mtime.Year == 0) { /* high precision mod time undefined */
-		struct tm time_s = {0};
+	if (header->MtimeLow == 0 && header->MtimeHigh == 0) {
+		/* high precision mod time undefined */
 		time_t time;
-		unsigned dos_time = header->FileTime;
-
-		time_s.tm_sec  = (dos_time & 0x1f)*2;
-		time_s.tm_min  = (dos_time>>5) & 0x3f;
-		time_s.tm_hour = (dos_time>>11) & 0x1f;
-		time_s.tm_mday = (dos_time>>16) & 0x1f;
-		time_s.tm_mon  = ((dos_time>>21) & 0x0f) - 1;
-		time_s.tm_year = (dos_time>>25) + 80;
-		if ((time = mktime(&time_s)) == -1)
+		if (rar_dos_time_convert(header->FileTime, &time) == FAILURE) {
 			return FAILURE;
+		}
 		ssb->sb.st_mtime = time;
 	}
-	else
-		_rar_time_convert(&header->mtime, &ssb->sb.st_mtime);
+	else {
+		rar_time_convert(header->MtimeLow, header->MtimeHigh,
+			&ssb->sb.st_mtime);
+	}
 
 #ifdef HAVE_STRUCT_STAT_ST_BLKSIZE
 	ssb->sb.st_blksize = 0;
@@ -424,9 +387,19 @@ static size_t php_rar_dir_ops_read(php_stream *stream, char *buf, size_t count T
 		entry.d_name, sizeof entry.d_name);
 
 	if (!self->no_encode) { /* urlencode entry */
-		zend_string* encoded_name = php_url_encode(entry.d_name, strlen(entry.d_name));
+#if PHP_MAJOR_VERSION < 7
+		int new_len;
+		char *encoded_name;
+		encoded_name = php_url_encode(entry.d_name, strlen(entry.d_name),
+			&new_len);
+		strlcpy(entry.d_name, encoded_name, sizeof entry.d_name);
+		efree(encoded_name);
+#else
+		zend_string *encoded_name =
+				php_url_encode(entry.d_name, strlen(entry.d_name));
 		strlcpy(entry.d_name, encoded_name->val, sizeof entry.d_name);
 		zend_string_release(encoded_name);
+#endif
 	}
 
 
@@ -442,8 +415,11 @@ static int php_rar_dir_ops_close(php_stream *stream, int close_handle TSRMLS_DC)
 {
 	STREAM_DIR_DATA_FROM_STREAM
 
-	zval_ptr_dtor(self->rar_obj);
-	self->rar_obj = NULL;
+#if PHP_MAJOR_VERSION < 7
+	zval_dtor(&self->rar_obj);
+#else
+	zval_ptr_dtor(&self->rar_obj);
+#endif
 	efree(self->directory);
 	efree(self->state);
 	efree(self);
@@ -517,8 +493,7 @@ php_stream *php_stream_rar_open(char *arc_name,
 	if (cb_udata_ptr->password != NULL)
 		self->cb_userdata.password = estrdup(cb_udata_ptr->password);
 	if (cb_udata_ptr->callable != NULL) {
-		self->cb_userdata.callable = cb_udata_ptr->callable;
-		Z_ADDREF_P(self->cb_userdata.callable);
+		ZVAL_ALLOC_DUP(self->cb_userdata.callable, cb_udata_ptr->callable);
 	}
 
 	result = _rar_find_file_p(&self->open_data, position, &self->cb_userdata,
@@ -567,6 +542,69 @@ cleanup:
 }
 /* }}} */
 
+/* {{{ Wrapper stuff */
+
+#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION < 3
+/* PHP 5.2 has no zend_resolve_path. Adapted from 5.3's php_resolve_path */
+static char *zend_resolve_path(const char *filename,
+							  int filename_length TSRMLS_DC) /* {{{ */
+{
+	const char *path = PG(include_path);
+	char resolved_path[MAXPATHLEN];
+	char trypath[MAXPATHLEN];
+	const char *ptr, *end;
+	char *actual_path;
+
+	if (filename == NULL || filename[0] == '\0') {
+		return NULL;
+	}
+
+	/* do not use the include path in these circumstances */
+	if ((*filename == '.' && (IS_SLASH(filename[1]) ||
+			((filename[1] == '.') && IS_SLASH(filename[2])))) ||
+			IS_ABSOLUTE_PATH(filename, filename_length) ||
+			path == NULL || path[0] == '\0') {
+		if (tsrm_realpath(filename, resolved_path TSRMLS_CC)) {
+			return estrdup(resolved_path);
+		} else {
+			return NULL;
+		}
+	}
+
+	ptr = path;
+	while (ptr && *ptr) {
+		end = strchr(ptr, DEFAULT_DIR_SEPARATOR);
+		if (end) {
+			if ((end-ptr) + 1 + filename_length + 1 >= MAXPATHLEN) {
+				ptr = end + 1;
+				continue;
+			}
+			memcpy(trypath, ptr, end-ptr);
+			trypath[end-ptr] = '/';
+			memcpy(trypath+(end-ptr)+1, filename, filename_length+1);
+			ptr = end+1;
+		} else {
+			int len = strlen(ptr);
+
+			if (len + 1 + filename_length + 1 >= MAXPATHLEN) {
+				break;
+			}
+			memcpy(trypath, ptr, len);
+			trypath[len] = '/';
+			memcpy(trypath+len+1, filename, filename_length+1);
+			ptr = NULL;
+		}
+		actual_path = trypath;
+		if (tsrm_realpath(actual_path, resolved_path TSRMLS_CC)) {
+			return estrdup(resolved_path);
+		}
+	} /* end provided path */
+
+	return NULL;
+}
+/* }}} */
+#endif
+
 /* {{{ php_rar_process_context */
 /* memory is to be managed externally */
 static void php_rar_process_context(php_stream_context *context,
@@ -576,7 +614,10 @@ static void php_rar_process_context(php_stream_context *context,
 									char **file_password, /* can be NULL */
 									zval **volume_cb TSRMLS_DC)
 {
-	zval *ctx_opt = NULL;
+	zval *ctx_opt;
+#if PHP_MAJOR_VERSION < 7
+	zval **ctx_opt_p = NULL;
+#endif
 
 	assert(context != NULL);
 	assert(open_password != NULL);
@@ -586,16 +627,29 @@ static void php_rar_process_context(php_stream_context *context,
 
 	/* TODO: don't know if I can log errors and not fail. check that */
 
-	ctx_opt = php_stream_context_get_option(context, "rar", "open_password");
-	if (ctx_opt != NULL) {
+#if PHP_MAJOR_VERSION < 7
+	if (php_stream_context_get_option(
+				context, "rar", "open_password", &ctx_opt_p) == SUCCESS) {
+	ctx_opt = *ctx_opt_p;
+#else
+	if ((ctx_opt = php_stream_context_get_option(
+			 context, "rar", "open_password"))) {
+#endif
 		if (Z_TYPE_P(ctx_opt) != IS_STRING)
 			php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
 				"RAR open password was provided, but not a string.");
 		else
 			*open_password = Z_STRVAL_P(ctx_opt);
 	}
-	ctx_opt = php_stream_context_get_option(context, "rar", "file_password");
-	if (file_password != NULL && ctx_opt != NULL) {
+
+#if PHP_MAJOR_VERSION < 7
+	if (file_password != NULL && php_stream_context_get_option(context, "rar",
+			"file_password", &ctx_opt_p) == SUCCESS) {
+		ctx_opt = *ctx_opt_p;
+#else
+	if (file_password != NULL && (ctx_opt = php_stream_context_get_option(
+			context, "rar", "file_password"))) {
+#endif
 		if (Z_TYPE_P(ctx_opt) != IS_STRING)
 			php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
 				"RAR file password was provided, but not a string.");
@@ -603,9 +657,19 @@ static void php_rar_process_context(php_stream_context *context,
 			*file_password = Z_STRVAL_P(ctx_opt);
 	}
 
-	ctx_opt = php_stream_context_get_option(context, "rar", "volume_callback");
-	if (ctx_opt != NULL) {
+#if PHP_MAJOR_VERSION < 7
+	if (php_stream_context_get_option(context, "rar", "volume_callback",
+			&ctx_opt_p) == SUCCESS) {
+		ctx_opt = *ctx_opt_p;
+#else
+	if ((ctx_opt = php_stream_context_get_option(
+			 context, "rar", "volume_callback"))) {
+#endif
+#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION == 2
+		if (zend_is_callable(ctx_opt, IS_CALLABLE_STRICT, NULL)) {
+#else
 		if (zend_is_callable(ctx_opt, IS_CALLABLE_STRICT, NULL TSRMLS_CC)) {
+#endif
 			*volume_cb = ctx_opt;
 		}
 		else
@@ -674,11 +738,17 @@ static int _rar_get_archive_and_fragment(php_stream_wrapper *wrapper,
 
 	if (!(options & STREAM_ASSUME_REALPATH)) {
 		if (options & USE_PATH) {
-            zend_string* resolved_path = zend_resolve_path(tmp_archive, tmp_arch_len TSRMLS_CC);
-            if (resolved_path != NULL) {
-                *archive = estrdup(ZSTR_VAL(resolved_path));
-                zend_string_release(resolved_path);
+#if PHP_MAJOR_VERSION < 7
+			*archive = zend_resolve_path(tmp_archive, tmp_arch_len TSRMLS_CC);
+#else
+			zend_string *arc_str = zend_resolve_path(tmp_archive, tmp_arch_len);
+			if (arc_str != NULL) {
+				*archive = estrndup(arc_str->val, arc_str->len);
+			} else {
+				*archive = NULL;
 			}
+			zend_string_release(arc_str);
+#endif
 		}
 		if (*archive == NULL) {
 			if ((*archive = expand_filepath(tmp_archive, NULL TSRMLS_CC))
@@ -732,7 +802,7 @@ static int _rar_get_archive_and_fragment(php_stream_wrapper *wrapper,
 		wchar_t *ptr;
 		for (ptr = *fragment; *ptr != L'\0'; ptr++) {
 			if (*ptr == L'\\' || *ptr == L'/')
-				*ptr = PATHDIVIDERW[0];
+				*ptr = SPATHDIVIDER[0];
 		}
 	}
 
@@ -745,11 +815,18 @@ cleanup:
 /* }}} */
 
 /* {{{ php_stream_rar_opener */
-static php_stream* php_stream_rar_opener(php_stream_wrapper *wrapper,
+static php_stream *php_stream_rar_opener(php_stream_wrapper *wrapper,
+#if PHP_MAJOR_VERSION < 7
+										 char *filename,
+										 char *mode,
+										 int options,
+										 char **opened_path,
+#else
 										 const char *filename,
 										 const char *mode,
 										 int options,
 										 zend_string **opened_path,
+#endif
 										 php_stream_context *context
 										 STREAMS_DC TSRMLS_DC)
 {
@@ -796,8 +873,7 @@ static php_stream* php_stream_rar_opener(php_stream_wrapper *wrapper,
 	if (open_passwd != NULL)
 		self->cb_userdata.password = estrdup(open_passwd);
 	if (volume_cb != NULL) {
-		self->cb_userdata.callable = volume_cb;
-		Z_ADDREF_P(self->cb_userdata.callable);
+		ZVAL_ALLOC_DUP(self->cb_userdata.callable, volume_cb);
 	}
 
 	rar_result = _rar_find_file_w(&self->open_data, fragment,
@@ -860,11 +936,15 @@ cleanup:
 
 	if (tmp_open_path != NULL) {
 		if (opened_path != NULL) {
-			zval* tmp_open_path_zval = emalloc(sizeof(zval));
-			ZVAL_STRING(tmp_open_path_zval, tmp_open_path);
-			*opened_path = Z_STR_P(tmp_open_path_zval);
+#if PHP_MAJOR_VERSION < 7
+			*opened_path = tmp_open_path;
+#else
+			*opened_path =
+				zend_string_init(tmp_open_path, strlen(tmp_open_path), 0);
+#endif
+		} else {
+			efree(tmp_open_path);
 		}
-		efree(tmp_open_path);
 	}
 	if (fragment != NULL)
 		efree(fragment);
@@ -907,25 +987,30 @@ static int _rar_get_cachable_rararch(php_stream_wrapper *wrapper,
 									 const char* arch_path,
 									 const char* open_passwd,
 									 zval *volume_cb,
-									 zval **rar_obj,
+									 zval *rar_obj, /* output */
 									 rar_file_t **rar TSRMLS_DC) /* {{{ */
 {
 	char		*cache_key = NULL;
 	uint		cache_key_len;
 	int			err_code,
 				ret = FAILURE;
-    zval temp;
-    ZVAL_NULL(&temp);
+	zval		*cache_zv;
+
 	assert(rar_obj != NULL);
+#if PHP_MAJOR_VERSION < 7
+	INIT_ZVAL(*rar_obj);
+#else
+	ZVAL_UNDEF(rar_obj);
+#endif
 
 	_rar_arch_cache_get_key(arch_path, open_passwd, volume_cb, &cache_key,
 		&cache_key_len);
-	*rar_obj = RAR_G(contents_cache).get(cache_key, cache_key_len TSRMLS_CC);
+	cache_zv = RAR_G(contents_cache).get(
+				cache_key, cache_key_len, rar_obj TSRMLS_CC);
 
-	if (*rar_obj == NULL) { /* cache miss */
-
+	if (cache_zv == NULL) { /* cache miss */
 		if (_rar_create_rararch_obj(arch_path, open_passwd, volume_cb,
-				&temp, &err_code TSRMLS_CC) == FAILURE) {
+				rar_obj, &err_code TSRMLS_CC) == FAILURE) {
 			const char *err_str = _rar_error_to_string(err_code);
 			if (err_str == NULL)
 				php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
@@ -942,7 +1027,7 @@ static int _rar_get_cachable_rararch(php_stream_wrapper *wrapper,
 			int res;
 			const char *err_str;
 
-			if (_rar_get_file_resource_ex(&temp, rar, 1 TSRMLS_CC)
+			if (_rar_get_file_resource_ex(rar_obj, rar, 1 TSRMLS_CC)
 					== FAILURE) {
 				php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
 					"Bug: could not retrieve RarArchive object from zval");
@@ -958,16 +1043,15 @@ static int _rar_get_cachable_rararch(php_stream_wrapper *wrapper,
 					err_str);
 				goto cleanup;
 			}
-			RAR_G(contents_cache).put(cache_key, cache_key_len, &temp
+			RAR_G(contents_cache).put(cache_key, cache_key_len, rar_obj
 				TSRMLS_CC);
 			_rar_close_file_resource(*rar);
-			*rar_obj = RAR_G(contents_cache).get(cache_key, cache_key_len TSRMLS_CC);
 		}
 	}
 	else { /* cache hit */
-		/* refcount of rar_obj already incremented by cache get */
-		if (_rar_get_file_resource_ex(*rar_obj, rar, 1 TSRMLS_CC)
-				== FAILURE) {
+		/* cache get already put the value in rar_obj and incremented the
+		 * refcount of the object */
+		if (_rar_get_file_resource_ex(rar_obj, rar, 1 TSRMLS_CC) == FAILURE) {
 			php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
 				"Bug: could not retrieve RarArchive object from zval");
 			goto cleanup;
@@ -976,13 +1060,17 @@ static int _rar_get_cachable_rararch(php_stream_wrapper *wrapper,
 
 	ret = SUCCESS;
 cleanup:
-    zval_ptr_dtor(&temp);
 	if (cache_key != NULL)
 		efree(cache_key);
 
-	if (ret != SUCCESS && *rar_obj != NULL) {
-		zval_ptr_dtor(*rar_obj);
-		*rar_obj = NULL;
+	if (ret != SUCCESS && Z_TYPE_P(rar_obj) == IS_OBJECT) {
+#if PHP_MAJOR_VERSION < 7
+		zval_dtor(rar_obj);
+		Z_TYPE_P(rar_obj) = IS_NULL;
+#else
+		zval_ptr_dtor(rar_obj);
+		ZVAL_UNDEF(rar_obj);
+#endif
 	}
 
 	return ret;
@@ -1012,19 +1100,20 @@ static void _rar_stream_tidy_wrapper_error_log(php_stream_wrapper *wrapper TSRML
 #else
 static void _rar_stream_tidy_wrapper_error_log(php_stream_wrapper *wrapper TSRMLS_DC)
 {
-    if (wrapper && FG(wrapper_errors)) {
-	zval wrapper_zval;
-	ZVAL_STRING(&wrapper_zval, (const char*)&wrapper);
-        zend_hash_del(FG(wrapper_errors), Z_STR(wrapper_zval));
-	zval_ptr_dtor(&wrapper_zval);
-    }
+	if (wrapper && FG(wrapper_errors)) {
+		zend_hash_str_del(FG(wrapper_errors), (const char*)&wrapper, sizeof wrapper);
+	}
 }
 #endif
 /* }}} */
 
 /* {{{ php_stream_rar_stater */
 static int php_stream_rar_stater(php_stream_wrapper *wrapper,
+#if PHP_MAJOR_VERSION < 7
+								 char *url,
+#else
 								 const char *url,
+#endif
 								 int flags,
 								 php_stream_statbuf *ssb,
 								 php_stream_context *context TSRMLS_DC)
@@ -1038,11 +1127,17 @@ static int php_stream_rar_stater(php_stream_wrapper *wrapper,
 	zval *volume_cb = NULL;
 	size_t fragment_len;
 	rar_file_t *rar;
-	zval *rararch = NULL;
+	zval rararch;
 	rar_find_output *state = NULL;
 	int ret = FAILURE;
 
 	/* {{{ preliminaries */
+#if PHP_MAJOR_VERSION < 7
+	Z_TYPE(rararch) = IS_NULL;
+#else
+	ZVAL_UNDEF(&rararch);
+#endif
+
 	if (_rar_get_archive_and_fragment(wrapper, url, options, 1,
 			&open_path, &fragment, NULL TSRMLS_CC) == FAILURE) {
 		goto cleanup;
@@ -1083,16 +1178,24 @@ static int php_stream_rar_stater(php_stream_wrapper *wrapper,
 
 	ret = SUCCESS;
 cleanup:
-	if (open_path != NULL)
+	if (open_path != NULL) {
 		efree(open_path);
+	}
 
-	if (fragment != NULL)
+	if (fragment != NULL) {
 		efree(fragment);
+	}
 
-	if (rararch != NULL)
-		zval_ptr_dtor(rararch);
-	if (state != NULL)
+	if (Z_TYPE(rararch) == IS_OBJECT) {
+#if PHP_MAJOR_VERSION < 7
+		zval_dtor(&rararch);
+#else
+		zval_ptr_dtor(&rararch);
+#endif
+	}
+	if (state != NULL) {
 		_rar_entry_search_end(state);
+	}
 
 	/* note PHP_STREAM_URL_STAT_QUIET is not equivalent to ~REPORT_ERRORS.
 	 * ~REPORT_ERRORS instead of emitting a notice, stores the error in the
@@ -1101,8 +1204,9 @@ cleanup:
 	 * consistency, I treat both the same way but clean the wrapper in the end
 	 * if necessary
 	 */
-	if (flags & PHP_STREAM_URL_STAT_QUIET)
+	if (flags & PHP_STREAM_URL_STAT_QUIET) {
 		_rar_stream_tidy_wrapper_error_log(wrapper TSRMLS_CC);
+	}
 
 	return ret;
 }
@@ -1110,10 +1214,17 @@ cleanup:
 
 /* {{{ php_stream_rar_dir_opener */
 static php_stream *php_stream_rar_dir_opener(php_stream_wrapper *wrapper,
+#if PHP_MAJOR_VERSION < 7
+											 char *filename,
+											 char *mode,
+											 int options,
+											 char **opened_path,
+#else
 											 const char *filename,
 											 const char *mode,
 											 int options,
 											 zend_string **opened_path,
+#endif
 											 php_stream_context *context
 											 STREAMS_DC TSRMLS_DC)
 {
@@ -1121,13 +1232,11 @@ static php_stream *php_stream_rar_dir_opener(php_stream_wrapper *wrapper,
 	char *tmp_open_path = NULL, /* used to hold the pointer that may be copied to opened_path */
 		 *open_passwd = NULL;
 	int no_encode;
-	zval volume_cb_value;
-	zval *volume_cb = &volume_cb_value;
+	zval *volume_cb = NULL;
 	size_t fragment_len;
 	rar_file_t *rar;
 	php_rar_dir_stream_data_P self = NULL;
 	php_stream *stream = NULL;
-	ZVAL_NULL(volume_cb);
 
 	/* {{{ preliminaries */
 	if (options & STREAM_OPEN_PERSISTENT) {
@@ -1167,7 +1276,7 @@ static php_stream *php_stream_rar_dir_opener(php_stream_wrapper *wrapper,
 
 	/* Remove the ending in the path separator */
 	if (fragment_len > 0 &&
-			self->directory[fragment_len - 1] == PATHDIVIDERW[0]) {
+			self->directory[fragment_len - 1] == SPATHDIVIDER[0]) {
 		self->directory[fragment_len - 1] = L'\0';
 		self->dir_size = fragment_len;
 	}
@@ -1181,8 +1290,8 @@ static php_stream *php_stream_rar_dir_opener(php_stream_wrapper *wrapper,
 		 * to the archive, which I'll assume occurs in all good archives */
 		_rar_entry_search_advance(
 			self->state, self->directory, self->dir_size, 0);
-		if (!self->state->found || ((self->state->header->Flags &
-				LHD_WINDOWMASK) != LHD_DIRECTORY)) {
+		if (!self->state->found || !(self->state->header->Flags &
+				RHDF_DIRECTORY)) {
 			const char *message;
 			char *mb_entry = _rar_wide_to_utf_with_alloc(self->directory,
 				(size_t) self->dir_size - 1);
@@ -1214,25 +1323,34 @@ cleanup:
 
 	if (tmp_open_path != NULL) {
 		if (opened_path != NULL) {
-			zval* tmp_open_path_zval = emalloc(sizeof(zval));
-			ZVAL_STRING(tmp_open_path_zval, tmp_open_path);
-			*opened_path = Z_STR_P(tmp_open_path_zval);
+#if PHP_MAJOR_VERSION < 7
+			*opened_path = tmp_open_path;
+#else
+			*opened_path =
+					zend_string_init(tmp_open_path, strlen(tmp_open_path), 0);
+#endif
+		} else {
+			efree(tmp_open_path);
 		}
-		efree(tmp_open_path);
 	}
 	if (fragment != NULL)
 		efree(fragment);
 
 	if (stream == NULL) { /* failed */
 		if (self != NULL) {
-			if (self->rar_obj != NULL) {
-				zval_ptr_dtor(self->rar_obj);
-				self->rar_obj = NULL;
+			if (Z_TYPE(self->rar_obj) == IS_OBJECT) {
+#if PHP_MAJOR_VERSION < 7
+				zval_dtor(&self->rar_obj);
+#else
+				zval_ptr_dtor(&self->rar_obj);
+#endif
 			}
-			if (self->directory != NULL)
+			if (self->directory != NULL) {
 				efree(self->directory);
-			if (self->state != NULL)
+			}
+			if (self->state != NULL) {
 				_rar_entry_search_end(self->state);
+			}
 			efree(self);
 		}
 	}

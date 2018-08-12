@@ -1,0 +1,33 @@
+language: c
+dist: trusty
+addons:
+  apt:
+    packages:
+      - valgrind
+
+env:
+  #- PHP_VERSION=5.2.17 ZTS=yes MIRROR=http://museum.php.net/php5/
+  - PHP_VERSION=5.3.29 ZTS=yes
+  - PHP_VERSION=5.4.45 ZTS=yes
+  - PHP_VERSION=5.5.37 ZTS=yes
+  - PHP_VERSION=5.6.30 ZTS=yes RUN_TESTS_FLAGS=-m
+  - PHP_VERSION=5.6.30 ZTS=no
+  - PHP_VERSION=7.0.21 ZTS=yes COVERAGE=yes
+  - PHP_VERSION=7.1.7 ZTS=yes RUN_TESTS_FLAGS=-m
+
+cache:
+  directories:
+    - $HOME/php_builds
+
+before_install:
+  - source travis.sh
+  - maybe_install_php $PHP_VERSION $ZTS
+
+install:
+  - build $PHP_VERSION $ZTS "$COVERAGE"
+
+script:
+  - run_tests $PHP_VERSION $ZTS
+
+after_success:
+  - 'test "$COVERAGE" != "yes" || bash <(curl -s https://codecov.io/bash)'

@@ -55,7 +55,7 @@ blah-blah-blah
 string(5) "22222"
 object(RarEntry)#%d (%d) {
   ["rarfile%sprivate%s=>
-  object(RarArchive)#3 (0) {
+  object(RarArchive)#%d (%d) {
   }
   ["position%sprivate%s=>
   int(1)
@@ -78,7 +78,13 @@ object(RarEntry)#%d (%d) {
   ["method%sprivate%s=>
   int(53)
   ["flags%sprivate%s=>
-  int(37008)
+  int(16)
+  ["redir_type%sprivate%s=>
+  int(0)
+  ["redir_to_directory%sprivate%s=>
+  NULL
+  ["redir_target%sprivate%s=>
+  NULL
 }
 bool(true)
 Done
