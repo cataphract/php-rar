@@ -971,7 +971,7 @@ static zend_object_iterator *rararch_it_get_iterator(zend_class_entry *ce,
 #if PHP_VERSION_ID < 70300
 	it->parent.funcs = ce->iterator_funcs.funcs;
 #else
-	it->parent.funcs = &rararch_it_funcs
+	it->parent.funcs = &rararch_it_funcs;
 #endif
 	it->state = NULL;
 
