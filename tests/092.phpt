@@ -56,7 +56,7 @@ Warning: RarArchive::getEntries(): Failure to call volume find callback in %s on
 Warning: RarArchive::getEntries(): ERAR_EOPEN (file open error) in %s on line %d
 bool(false)
 
-Warning: count(): ERAR_EOPEN (file open error) in %s on line %d
+Warning: %s(): ERAR_EOPEN (file open error) in %s on line %d
 int(0)
 
 * broken file; do not allow broken (explicit)
@@ -66,7 +66,7 @@ Warning: RarArchive::getEntries(): Failure to call volume find callback in %s on
 Warning: RarArchive::getEntries(): ERAR_EOPEN (file open error) in %s on line %d
 bool(false)
 
-Warning: count(): ERAR_EOPEN (file open error) in %s on line %d
+Warning: %s(): ERAR_EOPEN (file open error) in %s on line %d
 int(0)
 
 * broken file; allow broken

@@ -58,6 +58,33 @@ static zend_class_entry *rararch_ce_ptr;
 static zend_object_handlers rararch_object_handlers;
 /* }}} */
 
+
+/* {{{ Iteration Prototypes */
+static zend_object_iterator *rararch_it_get_iterator(zend_class_entry *ce,
+                                                     zval *object,
+                                                     int by_ref TSRMLS_DC);
+/* static void rararch_it_delete_cache(zend_object_iterator *iter TSRMLS_DC); */
+static void rararch_it_dtor(zend_object_iterator *iter TSRMLS_DC);
+static void rararch_it_fetch(rararch_iterator *it TSRMLS_DC);
+static int rararch_it_valid(zend_object_iterator *iter TSRMLS_DC);
+static zval* rararch_it_current_data(zend_object_iterator *iter);
+static void rararch_it_move_forward(zend_object_iterator *iter TSRMLS_DC);
+static void rararch_it_rewind(zend_object_iterator *iter TSRMLS_DC);
+static void rararch_it_invalidate_current(zend_object_iterator *iter TSRMLS_DC);
+/* }}} */
+
+/* iterator handler table */
+static zend_object_iterator_funcs rararch_it_funcs = {
+        rararch_it_dtor,
+        rararch_it_valid,
+        rararch_it_current_data,
+        NULL,
+        rararch_it_move_forward,
+        rararch_it_rewind,
+        rararch_it_invalidate_current
+};
+/* }}} */
+
 /* {{{ Helper macros */
 #define RAR_THIS_OR_NO_ARGS(file) \
 	if (file == NULL) { \
@@ -210,7 +237,7 @@ static void _rar_raw_entries_to_array(rar_file_t *rar, zval *target TSRMLS_DC) /
 	/* create zval to point to the RarArchive object) */
 	
 	ZVAL_OBJ(&rararch_obj, rar->id);
-	Z_OBJ_HT_P(&rararch_obj) = &rararch_object_handlers;
+    rararch_obj.value.obj->handlers = &rararch_object_handlers;
 	/* object has a new reference; if not incremented, the object would be
 	 * be destroyed when this new zval we created was destroyed */
 
@@ -794,18 +821,7 @@ static zend_function_entry php_rararch_class_functions[] = {
 
 /* {{{ Iteration. Very boring stuff indeed. */
 
-/* {{{ Iteration Prototypes */
-static zend_object_iterator *rararch_it_get_iterator(zend_class_entry *ce,
-													 zval *object,
-													 int by_ref TSRMLS_DC);
-/* static void rararch_it_delete_cache(zend_object_iterator *iter TSRMLS_DC); */
-static void rararch_it_dtor(zend_object_iterator *iter TSRMLS_DC);
-static void rararch_it_fetch(rararch_iterator *it TSRMLS_DC);
-static int rararch_it_valid(zend_object_iterator *iter TSRMLS_DC);
-static zval* rararch_it_current_data(zend_object_iterator *iter);
-static void rararch_it_move_forward(zend_object_iterator *iter TSRMLS_DC);
-static void rararch_it_rewind(zend_object_iterator *iter TSRMLS_DC);
-/* }}} */
+
 
 /* {{{ rararch_it_get_iterator */
 static zend_object_iterator *rararch_it_get_iterator(zend_class_entry *ce,
@@ -840,7 +856,7 @@ static zend_object_iterator *rararch_it_get_iterator(zend_class_entry *ce,
 
 	zend_iterator_init(&it->parent);
 	ZVAL_COPY(&it->parent.data, object);
-	it->parent.funcs = ce->iterator_funcs.funcs;
+	it->parent.funcs = &rararch_it_funcs;
 	_rar_entry_search_start(rar, RAR_SEARCH_TRAVERSE, &it->state TSRMLS_CC);
 	it->value = NULL;
 	return &it->parent;
@@ -938,17 +954,6 @@ static void rararch_it_rewind(zend_object_iterator *iter TSRMLS_DC)
 }
 /* }}} */
 
-/* iterator handler table */
-static zend_object_iterator_funcs rararch_it_funcs = {
-	rararch_it_dtor,
-	rararch_it_valid,
-	rararch_it_current_data,
-	NULL,
-	rararch_it_move_forward,
-	rararch_it_rewind,
-	rararch_it_invalidate_current
-};
-/* }}} */
 
 void minit_rararch(TSRMLS_D)
 {
@@ -967,7 +972,6 @@ void minit_rararch(TSRMLS_D)
 	rararch_ce_ptr->clone = NULL;
 	rararch_ce_ptr->create_object = rararch_ce_create_object;
 	rararch_ce_ptr->get_iterator = rararch_it_get_iterator;
-	rararch_ce_ptr->iterator_funcs.funcs = &rararch_it_funcs;
 	zend_class_implements(rararch_ce_ptr TSRMLS_CC, 1, zend_ce_traversable);
 }
 

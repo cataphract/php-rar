@@ -85,8 +85,15 @@ void _rar_handle_ext_error(const char *format TSRMLS_DC, ...) /* {{{ */
 int _rar_using_exceptions(TSRMLS_D)
 {
 	zval *pval;
+
+	zend_class_entry *old_scope = EG(fake_scope);
+	EG(fake_scope) = rarexception_ce_ptr;
+
 	pval = zend_read_static_property(rarexception_ce_ptr, "usingExceptions",
 		sizeof("usingExceptions") -1, (zend_bool) 1 TSRMLS_CC);
+
+	EG(fake_scope) = old_scope;
+
 	assert(Z_TYPE_P(pval) == IS_TRUE || Z_TYPE_P(pval) == IS_FALSE);
 
 	return Z_TYPE_P(pval) == IS_TRUE;

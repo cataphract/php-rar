@@ -66,8 +66,9 @@ void _rar_entry_to_zval(zval *parent, /* zval to RarArchive object, will have it
 	long unp_size; /* zval stores PHP ints as long, so use that here */
 
 	object_init_ex(object, rar_class_entry_ptr);
-	zend_update_property(rar_class_entry_ptr, object, "rarfile",
-		sizeof("rararch") - 1, parent TSRMLS_CC);
+    object_properties_init(Z_OBJ_P(object), rar_class_entry_ptr);
+
+	zend_update_property(rar_class_entry_ptr, object, "rarfile", sizeof("rararch") - 1, parent TSRMLS_CC);
 
 #if ULONG_MAX > 0xffffffffUL
 	unp_size = ((long) entry->UnpSize) + (((long) entry->UnpSizeHigh) << 32);

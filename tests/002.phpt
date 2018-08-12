@@ -139,6 +139,6 @@ array(2) {
 
 Warning: rar_open(): Failed to open %s: ERAR_EOPEN (file open error) in %s on line %d
 
-Warning: rar_list() expects parameter 1 to be RarArchive, boolean given in %s on line %d
+Warning: rar_list() expects parameter 1 to be RarArchive, boo%s given in %s on line %d
 NULL
 Done
