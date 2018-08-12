@@ -86,7 +86,7 @@ true
 true
 true
 true
-Stats: 5/5 (hits/misses)
+Stats: 0/5 (hits/misses)
 
 * Hit cache:
 true
@@ -94,25 +94,25 @@ true
 true
 true
 true
-Stats: 10/5 (hits/misses)
+Stats: 5/5 (hits/misses)
 
 * Evict first file:
 true
-Stats: 11/6 (hits/misses)
+Stats: 5/6 (hits/misses)
 
 * One hit, one miss:
 true
 true
-Stats: 13/7 (hits/misses)
+Stats: 6/7 (hits/misses)
 
 * Miss on last evicted:
 true
-Stats: 14/8 (hits/misses)
+Stats: 6/8 (hits/misses)
 
 * Hit on three last added :
 true
 true
 true
-Stats: 17/8 (hits/misses)
+Stats: 9/8 (hits/misses)
 
 Done.
