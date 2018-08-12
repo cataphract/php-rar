@@ -1173,6 +1173,9 @@ void minit_rararch(TSRMLS_D)
 	rararch_ce_ptr->clone = NULL;
 	rararch_ce_ptr->create_object = &rararch_ce_create_object;
 	rararch_ce_ptr->get_iterator = rararch_it_get_iterator;
+#if PHP_VERSION_ID < 70300
+    rararch_ce_ptr->iterator_funcs.funcs = &rararch_it_funcs;
+#endif
 	zend_class_implements(rararch_ce_ptr TSRMLS_CC, 1, zend_ce_traversable);
 }
 
