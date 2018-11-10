@@ -23,10 +23,10 @@ http://pear.php.net/dtd/package-2.0.xsd">
   <active>no</active>
  </developer>
 
- <date>2018-08-12</date>
- <time>15:00:00</time>
+ <date>2018-10-10</date>
+ <time>16:00:00</time>
  <version>
-  <release>4.0.4</release>
+  <release>4.0.5</release>
   <api>4.0.0</api>
  </version>
 
@@ -367,6 +367,18 @@ http://pear.php.net/dtd/package-2.0.xsd">
  <extsrcrelease />
  
  <changelog>
+  <release>
+   <version>
+    <release>4.0.5</release>
+    <api>4.0.0</api>
+   </version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api>
+   </stability>
+   <date>2018-10-10</date>
+   <notes>PHP7.0 fix</notes>
+  </release>
   <release>
    <version>
     <release>4.0.4</release>

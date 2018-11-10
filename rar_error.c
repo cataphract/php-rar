@@ -33,6 +33,12 @@ extern "C" {
 #include <zend_exceptions.h>
 #include "php_rar.h"
 
+#if PHP_VERSION_ID >= 70100
+	#define PORT_70_FAKE_SCOPE fake_scope
+#else
+	#define PORT_70_FAKE_SCOPE scope
+#endif
+
 /* {{{ Globals with external linkage */
 zend_class_entry *rarexception_ce_ptr;
 /* }}} */
@@ -90,13 +96,13 @@ int _rar_using_exceptions(TSRMLS_D)
 {
 	zval *pval;
 
-	zend_class_entry *old_scope = EG(fake_scope);
-	EG(fake_scope) = rarexception_ce_ptr;
+	zend_class_entry *old_scope = EG(PORT_70_FAKE_SCOPE);
+	EG(PORT_70_FAKE_SCOPE) = rarexception_ce_ptr;
 
 	pval = zend_read_static_property(rarexception_ce_ptr, "usingExceptions",
 		sizeof("usingExceptions") -1, (zend_bool) 1 TSRMLS_CC);
 
-	EG(fake_scope) = old_scope;
+	EG(PORT_70_FAKE_SCOPE) = old_scope;
 
 #if PHP_MAJOR_VERSION < 7
 	assert(Z_TYPE_P(pval) == IS_BOOL);
