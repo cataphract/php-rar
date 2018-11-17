@@ -146,11 +146,11 @@ typedef int zpp_s_size_t;
 
 #if PHP_VERSION_ID < 70300
 
-#ifdef HAVE_ST_BLKSIZE
+#if defined(HAVE_ST_BLKSIZE) && !defined(HAVE_STRUCT_STAT_ST_BLKSIZE)
 #define HAVE_STRUCT_STAT_ST_BLKSIZE HAVE_ST_BLKSIZE
 #endif
 
-#ifdef HAVE_ST_RDEV
+#if defined(HAVE_ST_RDEV) && !defined(HAVE_STRUCT_STAT_ST_RDEV)
 #define HAVE_STRUCT_STAT_ST_RDEV HAVE_ST_RDEV
 #endif
 
