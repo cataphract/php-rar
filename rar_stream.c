@@ -327,7 +327,7 @@ static int _rar_stat_from_header(struct RARHeaderDataEx *header,
 #ifdef HAVE_STRUCT_STAT_ST_BLKSIZE
 	ssb->sb.st_blksize = 0;
 #endif
-#ifdef HAVE_STRUCT_STAT_ST_RDEV
+#ifdef HAVE_STRUCT_STAT_ST_BLOCKS
 	ssb->sb.st_blocks = 0;
 #endif
 	/* php_stat in filestat.c doesn't check this one, so don't touch it */
