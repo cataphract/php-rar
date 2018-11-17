@@ -145,8 +145,15 @@ typedef int zpp_s_size_t;
 #endif
 
 #if PHP_VERSION_ID < 70300
+
+#ifdef HAVE_ST_BLKSIZE
 #define HAVE_STRUCT_STAT_ST_BLKSIZE HAVE_ST_BLKSIZE
+#endif
+
+#ifdef HAVE_ST_RDEV
 #define HAVE_STRUCT_STAT_ST_RDEV HAVE_ST_RDEV
+#endif
+
 #endif
 
 typedef struct _rar_cb_user_data {
