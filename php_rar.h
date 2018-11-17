@@ -223,7 +223,11 @@ ZEND_EXTERN_MODULE_GLOBALS(rar);
 #if defined(COMPILE_DL_RAR)
 ZEND_TSRMLS_CACHE_EXTERN();
 #endif
+#if PHP_MAJOR_VERSION == 5
+# define RAR_G(v) TSRMG(rar_globals_id, zend_rar_globals *, v)
+#else
 # define RAR_G(v) ZEND_TSRMG(rar_globals_id, zend_rar_globals *, v)
+#endif
 #else
 # define RAR_G(v) (rar_globals.v)
 #endif
