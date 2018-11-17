@@ -1150,6 +1150,59 @@ static void rararch_it_rewind(zend_object_iterator *iter TSRMLS_DC)
 /* }}} */
 
 
+/* {{{ rararch_it_get_iterator */
+static zend_object_iterator *rararch_it_get_iterator(zend_class_entry *ce,
+													 zval *object,
+													 int by_ref TSRMLS_DC)
+{
+	rararch_iterator	*it;
+	rar_file_t			*rar;
+	int					res;
+
+	if (by_ref) {
+		php_error_docref(NULL TSRMLS_CC, E_ERROR,
+			"An iterator cannot be used with foreach by reference");
+	}
+
+	it = emalloc(sizeof *it);
+
+#if PHP_MAJOR_VERSION < 7
+	zval_add_ref(&object);
+	it->parent.data = object;
+	it->value = NULL;
+#else
+	zend_iterator_init((zend_object_iterator *) it);
+	ZVAL_COPY(&it->parent.data, object);
+	ZVAL_UNDEF(&it->value);
+#endif
+
+#if PHP_VERSION_ID < 70300
+	it->parent.funcs = ce->iterator_funcs.funcs;
+#else
+	it->parent.funcs = &rararch_it_funcs;
+#endif
+	it->state = NULL;
+
+	res = _rar_get_file_resource_ex(object, &rar, 1 TSRMLS_CC);
+	if (res == FAILURE)
+		php_error_docref(NULL TSRMLS_CC, E_ERROR,
+			"Cannot fetch RarArchive object");
+	if (rar->arch_handle == NULL)
+		php_error_docref(NULL TSRMLS_CC, E_ERROR,
+			"The archive is already closed, cannot give an iterator");
+	res = _rar_list_files(rar TSRMLS_CC);
+	if (_rar_handle_error(res TSRMLS_CC) == FAILURE) {
+		/* if it failed, do not expose the possibly incomplete entry list */
+		it->empty_iterator = 1;
+	}
+	else
+		it->empty_iterator = 0;
+
+	_rar_entry_search_start(rar, RAR_SEARCH_TRAVERSE, &it->state TSRMLS_CC);
+	return (zend_object_iterator*) it;
+}
+/* }}} */
+
 void minit_rararch(TSRMLS_D)
 {
 	zend_class_entry ce;
@@ -1174,7 +1227,7 @@ void minit_rararch(TSRMLS_D)
 	rararch_ce_ptr->create_object = &rararch_ce_create_object;
 	rararch_ce_ptr->get_iterator = rararch_it_get_iterator;
 #if PHP_VERSION_ID < 70300
-    rararch_ce_ptr->iterator_funcs.funcs = &rararch_it_funcs;
+	rararch_ce_ptr->iterator_funcs.funcs = &rararch_it_funcs;
 #endif
 	zend_class_implements(rararch_ce_ptr TSRMLS_CC, 1, zend_ce_traversable);
 }
