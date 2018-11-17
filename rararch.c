@@ -76,7 +76,11 @@ static zend_object_iterator *rararch_it_get_iterator(zend_class_entry *ce,
 static void rararch_it_dtor(zend_object_iterator *iter TSRMLS_DC);
 static void rararch_it_fetch(rararch_iterator *it TSRMLS_DC);
 static int rararch_it_valid(zend_object_iterator *iter TSRMLS_DC);
+#if PHP_MAJOR_VERSION < 7
+static void rararch_it_current_data(zend_object_iterator *iter, zval ***data TSRMLS_DC);
+#else
 static zval* rararch_it_current_data(zend_object_iterator *iter);
+#endif
 static void rararch_it_move_forward(zend_object_iterator *iter TSRMLS_DC);
 static void rararch_it_rewind(zend_object_iterator *iter TSRMLS_DC);
 static void rararch_it_invalidate_current(zend_object_iterator *iter TSRMLS_DC);
