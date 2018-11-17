@@ -324,10 +324,10 @@ static int _rar_stat_from_header(struct RARHeaderDataEx *header,
 			&ssb->sb.st_mtime);
 	}
 
-#ifdef HAVE_STRUCT_STAT_ST_BLKSIZE
+#if defined(HAVE_ST_BLKSIZE) || defined(HAVE_STRUCT_STAT_ST_BLKSIZE)
 	ssb->sb.st_blksize = 0;
 #endif
-#ifdef HAVE_STRUCT_STAT_ST_BLOCKS
+#if defined(HAVE_ST_BLOCKS) || defined(HAVE_STRUCT_STAT_ST_BLOCKS)
 	ssb->sb.st_blocks = 0;
 #endif
 	/* php_stat in filestat.c doesn't check this one, so don't touch it */
