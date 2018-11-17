@@ -719,7 +719,7 @@ static zval *_rar_contents_cache_get(const char *key,
  * ZEND_INIT_MODULE_GLOBALS, it cannot (per the spec) be used. */
 static void ZEND_MODULE_GLOBALS_CTOR_N(rar)(void *arg TSRMLS_DC) /* {{{ */
 {
-#if defined(COMPILE_DL_RAR) && defined(ZTS)
+#if defined(COMPILE_DL_RAR) && defined(ZTS) && PHP_MAJOR_VERSION > 5
 	ZEND_TSRMLS_CACHE_UPDATE();
 #endif
 	zend_rar_globals *rar_globals = arg;
