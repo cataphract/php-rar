@@ -11,6 +11,3 @@ new RarEntry();
 echo "Done\n";
 --EXPECTF--
 Fatal error:%sCall to private RarEntry::__construct() from invalid context in %s
-Stack trace:
-#0 {main}
-%sthrown in %s on line %d
