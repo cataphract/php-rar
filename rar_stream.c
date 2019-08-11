@@ -909,9 +909,7 @@ static php_stream *php_stream_rar_opener(php_stream_wrapper *wrapper,
 	{
 		/* no need to allocate a buffer bigger than the file uncomp size */
 		size_t buffer_size = (size_t)
-			MIN((uint64) RAR_CHUNK_BUFFER_SIZE,
-			INT32TO64(self->header_data.UnpSizeHigh,
-			self->header_data.UnpSize));
+			INT32TO64(self->header_data.UnpSizeHigh, self->header_data.UnpSize);
 		rar_result = RARProcessFileChunkInit(self->rar_handle);
 
 		if ((rar_error = _rar_error_to_string(rar_result)) != NULL) {
