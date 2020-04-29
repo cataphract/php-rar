@@ -31,6 +31,35 @@ unrar_sources="unrar/sha256.cpp unrar/qopen.cpp \
                unrar/encname.cpp unrar/file.cpp \
                unrar/secpassword.cpp unrar/options.cpp"
 
+
+AC_LANG_PUSH([C++])
+cxxflags_null=""
+AC_DEFUN([CXXC_FLAG_CHECK],
+[
+ac_saved_cxxflags="$CXXFLAGS"
+CXXFLAGS="$1 -Werror"
+flag_to_add=m4_default([$2],[$1])
+AC_MSG_CHECKING([whether the C++ compiler supports $1])
+AC_COMPILE_IFELSE(
+  [AC_LANG_PROGRAM([])],
+  [AC_MSG_RESULT([yes])]
+  [cxxflags_null="$cxxflags_null $flag_to_add"],
+  [AC_MSG_RESULT([no])]
+)
+CXXFLAGS="$ac_saved_cxxflags"
+])
+CXXC_FLAG_CHECK([-Wparentheses], [-Wno-parentheses])
+CXXC_FLAG_CHECK([-Wswitch], [-Wno-switch])
+CXXC_FLAG_CHECK([-Wdangling-else], [-Wno-dangling-else])
+CXXC_FLAG_CHECK([-Wunused-function], [-Wno-unused-function])
+CXXC_FLAG_CHECK([-Wunused-variable], [-Wno-unused-variable])
+CXXC_FLAG_CHECK([-Wsign-compare], [-Wno-sign-compare])
+CXXC_FLAG_CHECK([-Wmisleading-indentation], [-Wno-misleading-indentation])
+AC_LANG_POP([C++])
+
+extra_cxxflags="$cxxflags_null"
+echo "CXXFLAGS := \$(CXXFLAGS) $extra_cxxflags" >> Makefile.fragments
+
 if test "$PHP_RAR" != "no"; then
   AC_DEFINE(HAVE_RAR, 1, [Whether you have rar support])
   PHP_SUBST(RAR_SHARED_LIBADD)
