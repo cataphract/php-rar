@@ -4,10 +4,17 @@ bool Archive::GetComment(Array<wchar> *CmtData)
 {
   if (!MainComment)
     return false;
-  SaveFilePos SavePos(*this);
+  int64 SavePos=Tell();
+  bool Success=DoGetComment(CmtData);
+  Seek(SavePos,SEEK_SET);
+  return Success;
+}
 
+
+bool Archive::DoGetComment(Array<wchar> *CmtData)
+{
 #ifndef SFX_MODULE
-  ushort CmtLength;
+  uint CmtLength;
   if (Format==RARFMT14)
   {
     Seek(SFXSize+SIZEOF_MAINHEAD14,SEEK_SET);
@@ -22,7 +29,8 @@ bool Archive::GetComment(Array<wchar> *CmtData)
       // Old style (RAR 2.9) archive comment embedded into the main 
       // archive header.
       Seek(SFXSize+SIZEOF_MARKHEAD3+SIZEOF_MAINHEAD3,SEEK_SET);
-      ReadHeader();
+      if (!ReadHeader() || GetHeaderType()!=HEAD3_CMT)
+        return false;
     }
     else
     {
@@ -33,7 +41,7 @@ bool Archive::GetComment(Array<wchar> *CmtData)
 #ifndef SFX_MODULE
     // Old style (RAR 2.9) comment header embedded into the main 
     // archive header.
-    if (BrokenHeader)
+    if (BrokenHeader || CommHead.HeadSize<SIZEOF_COMMHEAD)
     {
       uiMsg(UIERROR_CMTBROKEN,FileName);
       return false;
@@ -52,10 +60,12 @@ bool Archive::GetComment(Array<wchar> *CmtData)
     if (Format==RARFMT14)
     {
 #ifdef RAR_NOCRYPT
-      return(false);
+      return false;
 #else
       UnpCmtLength=GetByte();
       UnpCmtLength+=(GetByte()<<8);
+      if (CmtLength<2)
+        return false;
       CmtLength-=2;
       DataIO.SetCmt13Encryption();
       CommHead.UnpVer=15;
@@ -67,6 +77,7 @@ bool Archive::GetComment(Array<wchar> *CmtData)
     DataIO.EnableShowProgress(false);
     DataIO.SetPackedSizeToRead(CmtLength);
     DataIO.UnpHash.Init(HASH_CRC32,1);
+    DataIO.SetNoFileHeader(true); // this->FileHead is not filled yet.
 
     Unpack CmtUnpack(&DataIO);
     CmtUnpack.Init(0x10000,false);
@@ -83,6 +94,8 @@ bool Archive::GetComment(Array<wchar> *CmtData)
       byte *UnpData;
       size_t UnpDataSize;
       DataIO.GetUnpackedData(&UnpData,&UnpDataSize);
+      if (UnpDataSize>0)
+      {
 #ifdef _WIN_ALL
       // If we ever decide to extend it to Android, we'll need to alloc
       // 4x memory for OEM to UTF-8 output here.
@@ -94,11 +107,19 @@ bool Archive::GetComment(Array<wchar> *CmtData)
       CmtData->Alloc(wcslen(CmtData->Addr(0)));
     }
   }
+  }
   else
   {
+    if (CmtLength==0)
+      return false;
     Array<byte> CmtRaw(CmtLength);
-    Read(&CmtRaw[0],CmtLength);
-    
+    int ReadSize=Read(&CmtRaw[0],CmtLength);
+    if (ReadSize>=0 && (uint)ReadSize<CmtLength) // Comment is shorter than declared.
+    {
+      CmtLength=ReadSize;
+      CmtRaw.Alloc(CmtLength);
+    }
+
     if (Format!=RARFMT14 && CommHead.CommCRC!=(~CRC32(0xffffffff,&CmtRaw[0],CmtLength)&0xffff))
     {
       uiMsg(UIERROR_CMTBROKEN,FileName);
@@ -111,9 +132,9 @@ bool Archive::GetComment(Array<wchar> *CmtData)
     // 4x memory for OEM to UTF-8 output here.
     OemToCharA((char *)&CmtRaw[0],(char *)&CmtRaw[0]);
 #endif
-    CharToWide((char *)&CmtRaw[0],CmtData->Addr(0),CmtLength);
+    CharToWide((char *)&CmtRaw[0],CmtData->Addr(0),CmtData->Size());
     CmtData->Alloc(wcslen(CmtData->Addr(0)));
-    }
+  }
 #endif
   return CmtData->Size() > 0;
 }
@@ -122,7 +143,7 @@ bool Archive::GetComment(Array<wchar> *CmtData)
 bool Archive::ReadCommentData(Array<wchar> *CmtData)
 {
   Array<byte> CmtRaw;
-  if (!ReadSubData(&CmtRaw,NULL))
+  if (!ReadSubData(&CmtRaw,NULL,false))
     return false;
   size_t CmtSize=CmtRaw.Size();
   CmtRaw.Push(0);
@@ -131,12 +152,12 @@ bool Archive::ReadCommentData(Array<wchar> *CmtData)
     UtfToWide((char *)&CmtRaw[0],CmtData->Addr(0),CmtData->Size());
   else
     if ((SubHead.SubFlags & SUBHEAD_FLAGS_CMT_UNICODE)!=0)
-  {
+    {
       RawToWide(&CmtRaw[0],CmtData->Addr(0),CmtSize/2);
       (*CmtData)[CmtSize/2]=0;
 
     }
-  else
+    else
     {
       CharToWide((char *)&CmtRaw[0],CmtData->Addr(0),CmtData->Size());
     }

@@ -29,6 +29,9 @@
 #include "pathfn.hpp"
 #include "strfn.hpp"
 #include "strlist.hpp"
+#ifdef _WIN_ALL
+#include "isnt.hpp"
+#endif
 #include "file.hpp"
 #include "crc.hpp"
 #include "ui.hpp"
@@ -36,7 +39,6 @@
 #include "filestr.hpp"
 #include "find.hpp"
 #include "scantree.hpp"
-#include "savepos.hpp"
 #include "getbits.hpp"
 #include "rdwrfn.hpp"
 #ifdef USE_QOPEN
@@ -48,9 +50,6 @@
 #include "filcreat.hpp"
 #include "consio.hpp"
 #include "system.hpp"
-#ifdef _WIN_ALL
-#include "isnt.hpp"
-#endif
 #include "log.hpp"
 #include "rawint.hpp"
 #include "rawread.hpp"
@@ -77,6 +76,9 @@
 
 #include "rs.hpp"
 #include "rs16.hpp"
+
+
+
 #include "recvol.hpp"
 #include "volume.hpp"
 #include "smallfn.hpp"

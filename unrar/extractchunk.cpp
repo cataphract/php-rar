@@ -82,7 +82,7 @@ bool CmdExtract::ExtractCurrentFileChunkInit(Archive &Arc,
   }
 
   wchar ArcFileName[NM];
-  ConvertPath(Arc.FileHead.FileName,ArcFileName);
+  ConvertPath(Arc.FileHead.FileName,ArcFileName,ASIZE(ArcFileName));
   if (!CheckUnpVer(Arc,ArcFileName))
   {
     ErrHandler.SetErrorCode(RARX_FATAL);

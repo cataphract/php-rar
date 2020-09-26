@@ -58,7 +58,7 @@ CXXC_FLAG_CHECK([-Wmisleading-indentation], [-Wno-misleading-indentation])
 AC_LANG_POP([C++])
 
 extra_cxxflags="$cxxflags_null"
-echo "CXXFLAGS := \$(CXXFLAGS) $extra_cxxflags" >> Makefile.fragments
+echo "EXTRA_CXXFLAGS := \$(EXTRA_CXXFLAGS) $extra_cxxflags" >> Makefile.fragments
 
 if test "$PHP_RAR" != "no"; then
   AC_DEFINE(HAVE_RAR, 1, [Whether you have rar support])

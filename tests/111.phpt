@@ -10,5 +10,5 @@ $e = $a->getEntry('file1.txt');
 var_dump($e->getVersion());
 echo "Done.\n";
 --EXPECTF--
-int(200)
+int(50)
 Done.
