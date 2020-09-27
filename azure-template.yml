@@ -1,0 +1,69 @@
+parameters:
+  name: ~
+  displayName: ~
+  phpVersion: bundled
+  imageName: ubuntu-20.04
+  zts: false
+  clang: false
+  publishCoverage: false
+  valgrind: false
+
+jobs:
+  - job: ${{ parameters.name }}
+    displayName: ${{ parameters.displayName }}
+    pool:
+      vmImage: ${{ parameters.imageName }}
+
+    variables:
+      TESTOPTS: -v
+      gem: /opt/ruby/${{ parameters.rubyVersion }}/bin/gem
+      bundle: /opt/ruby/${{ parameters.rubyVersion }}/bin/bundle
+      GEM_HOME: /opt/ruby/${{ parameters.rubyVersion }}/lib/ruby/gems/${{ parameters.rubyVersion }}.0
+      ${{ if eq(parameters.clang, true) }}:
+        CC: clang
+        CXX: clang++
+
+    steps:
+      - checkout: self
+        displayName: Checkout
+        clean: true
+        submodules: recursive
+
+      - bash: |
+          source test_funcs.sh
+          install_php ${{ parameters.phpVersion }} ${{ parameters.zts }}
+        displayName: Install PHP ${{ parameters.phpVersion }}
+
+      - ${{ if eq(parameters.valgrind, true) }}:
+          - bash: >
+              sudo apt-get install valgrind
+            displayName: "Install Valgrind"
+
+      - script: |
+          source test_funcs.sh
+          build_ext ${{ parameters.phpVersion }} ${{ parameters.zts }} ${{ parameters.publishCoverage }}
+        displayName: Build extension
+
+      - script: |
+          source test_funcs.sh
+          run_tests ${{ parameters.phpVersion }} ${{ parameters.zts }} ${{ parameters.publishCoverage }}
+        ${{ if eq(parameters.valgrind, true) }}:
+          env:
+            RUN_TESTS_FLAGS: -m
+        displayName: Run tests
+
+      - task: PublishTestResults@2
+        displayName: Publish test results
+        condition: succeededOrFailed()
+        inputs:
+          testResultsFormat: 'JUnit'
+          testResultsFiles: 'report.xml'
+          searchFolder: '$(System.DefaultWorkingDirectory)'
+          mergeTestResults: true
+
+      - ${{ if eq(parameters.publishCoverage, true) }}:
+          - bash: >
+              bash <(curl -s https://codecov.io/bash)
+            displayName: "Publish coverage (Codecov)"
+            env:
+              CODECOV_TOKEN: $(CODECOV_TOKEN)

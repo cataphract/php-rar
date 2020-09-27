@@ -23,12 +23,14 @@
 /config.guess
 /config.h
 /config.h.in
+/config.h.in~
 /config.log
 /config.nice
 /config.status
 /config.sub
 /configure
 /configure.in
+/configure.ac
 /install-sh
 /intl.la
 /libtool
@@ -41,3 +43,4 @@
 /rar.la
 *.autosave
 /unrar/.libs
+/tmp-php.ini

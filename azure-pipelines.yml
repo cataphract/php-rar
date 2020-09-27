@@ -1,0 +1,75 @@
+jobs:
+  - template: azure-template.yml
+    parameters:
+      name: php_5_3_valgrind
+      displayName: PHP 5.3 (valgrind, clang)
+      phpVersion: '5.3'
+      clang: true
+      valgrind: true
+
+  - template: azure-template.yml
+    parameters:
+      name: php_5_3_zts
+      displayName: PHP 5.3 ZTS
+      phpVersion: '5.3'
+      zts: true
+
+  - template: azure-template.yml
+    parameters:
+      name: php_5_4
+      displayName: PHP 5.4
+      phpVersion: '5.4'
+
+  - template: azure-template.yml
+    parameters:
+      name: php_5_5
+      displayName: PHP 5.5
+      phpVersion: '5.5'
+
+  - template: azure-template.yml
+    parameters:
+      name: php_5_6
+      displayName: PHP 5.6
+      phpVersion: '5.6'
+
+  - template: azure-template.yml
+    parameters:
+      name: php_5_6_valgrind
+      displayName: PHP 5.6 ZTS (valgrind, clang)
+      phpVersion: '5.6'
+      clang: true
+      valgrind: true
+      zts: true
+
+  - template: azure-template.yml
+    parameters:
+      name: php_7_0
+      displayName: PHP 7.0
+      phpVersion: '7.0'
+
+  - template: azure-template.yml
+    parameters:
+      name: php_7_1
+      displayName: PHP 7.1
+      phpVersion: '7.1'
+
+  - template: azure-template.yml
+    parameters:
+      name: php_7_2
+      displayName: PHP 7.2
+      phpVersion: '7.2'
+
+  - template: azure-template.yml
+    parameters:
+      name: php_7_3
+      displayName: PHP 7.3
+      phpVersion: '7.3'
+
+  - template: azure-template.yml
+    parameters:
+      name: php_7_4
+      displayName: PHP 7.4 ZTS (valgrind, clang)
+      phpVersion: '7.4'
+      clang: true
+      valgrind: true
+      zts: true
