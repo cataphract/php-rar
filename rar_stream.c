@@ -98,7 +98,11 @@ static char *_rar_wide_to_utf_with_alloc(const wchar_t *wide, int len)
 /* {{{ RAR file streams */
 
 /* {{{ php_rar_ops_read */
+#if PHP_VERSION_ID < 70400
 static size_t php_rar_ops_read(php_stream *stream, char *buf, size_t count TSRMLS_DC)
+#else
+static ssize_t php_rar_ops_read(php_stream *stream, char *buf, size_t count)
+#endif
 {
 	size_t n = 0;
 	STREAM_DATA_FROM_STREAM
@@ -156,7 +160,7 @@ static size_t php_rar_ops_read(php_stream *stream, char *buf, size_t count TSRML
 	/* no more data upstream (for sure), buffer already read and
 	 * caller asked for more data than we're giving */
 	if (self->no_more_data && self->buffer_pos == self->buffer_cont_size &&
-			((size_t) n) < count)
+			n < count)
 		stream->eof = 1;
 
 	/* we should only give no data if we have no more */
@@ -167,17 +171,29 @@ static size_t php_rar_ops_read(php_stream *stream, char *buf, size_t count TSRML
 		stream->eof = 1;
 	}
 
+#if PHP_VERSION_ID < 50400
 	return n;
+#else
+	return (ssize_t) n;
+#endif
 }
 /* }}} */
 
 /* {{{ php_rar_ops_write */
+#if PHP_VERSION_ID < 70400
 static size_t php_rar_ops_write(php_stream *stream, const char *buf, size_t count TSRMLS_DC)
+#else
+static ssize_t php_rar_ops_write(php_stream *stream, const char *buf, size_t count TSRMLS_DC)
+#endif
 {
 	php_error_docref(NULL TSRMLS_CC, E_WARNING,
 		"Write operation not supported for RAR streams.");
 	if (!stream) {
+#if PHP_VERSION_ID < 70400
 		return 0;
+#else
+		return -1;
+#endif
 	}
 
 	return count;
@@ -363,19 +379,32 @@ static php_stream_ops php_stream_rario_ops = {
 /* {{{ RAR directory streams */
 
 /* {{{ php_rar_dir_ops_read */
+#if PHP_VERSION_ID < 70400
 static size_t php_rar_dir_ops_read(php_stream *stream, char *buf, size_t count TSRMLS_DC)
+#else
+static ssize_t php_rar_dir_ops_read(php_stream *stream, char *buf, size_t count TSRMLS_DC)
+#endif
 {
 	php_stream_dirent entry;
-	int offset;
+	size_t offset;
 	STREAM_DIR_DATA_FROM_STREAM
 
-	if (count != sizeof(entry))
+	if (count != sizeof(entry)) {
+#if PHP_VERSION_ID < 70400
 		return 0;
+#else
+		return -1;
+#endif
+	}
 
 	_rar_entry_search_advance(self->state, self->directory, self->dir_size, 1);
 	if (!self->state->found) {
 		stream->eof = 1;
+#if PHP_VERSION_ID < 70400
 		return 0;
+#else
+		return -1;
+#endif
 	}
 
 	if (self->dir_size == 1) /* root */
@@ -431,7 +460,11 @@ static int php_rar_dir_ops_close(php_stream *stream, int close_handle TSRMLS_DC)
 /* }}} */
 
 /* {{{ php_rar_dir_ops_rewind */
+#if PHP_VERSION_ID < 70400
 static int php_rar_dir_ops_rewind(php_stream *stream, off_t offset, int whence, off_t *newoffset TSRMLS_DC)
+#else
+static int php_rar_dir_ops_rewind(php_stream *stream, zend_off_t offset, int whence, zend_off_t *newoffset)
+#endif
 {
 	STREAM_DIR_DATA_FROM_STREAM
 
