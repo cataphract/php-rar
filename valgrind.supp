@@ -19,3 +19,25 @@
    fun:_ZN8Rijndael12blockDecryptEPKhmPh
    ...
 }
+#see comment in unicode.cpp, func WideToChar
+{
+   <wcsrtombs cond>
+   Memcheck:Cond
+   ...
+   fun:wcsrtombs
+   ...
+}
+{
+   <wcsrtombs addr32>
+   Memcheck:Addr32
+   ...
+   fun:wcsrtombs
+   ...
+}
+{
+   <7.4 zend_string_equal_val>
+   Memcheck:Cond
+   fun:zend_string_equal_val
+   fun:zend_string_equal_content
+   ...
+}

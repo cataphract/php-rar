@@ -29,18 +29,20 @@ function build_ext {
 function do_tests {
   local readonly prefix=$1
   local found_leaks= dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  echo "--suppressions=$dir/valgrind.supp" | tee ~/.valgrindrc
+  local ret=0
+  sed -i s/-@if/@if/ Makefile
   TEST_PHP_EXECUTABLE="$prefix/bin/php" \
     TEST_PHP_JUNIT=report.xml \
     REPORT_EXIT_STATUS=1 \
     NO_INTERACTION=1 \
-    TESTS="--set-timeout 300 --show-diff $RUN_TESTS_FLAGS" make test
+    TESTS="--set-timeout 300 --show-diff $RUN_TESTS_FLAGS" make test \
+    || ret=$?
   found_leaks=$(find tests -name '*.mem' | wc -l)
   if [[ $found_leaks -gt 0 ]]; then
     echo "Found $found_leaks leaks. Failing."
     find tests -name "*.mem" -print -exec cat {} \;
-    return 1
   fi
+  return $ret
 }
 
 function install_php {
