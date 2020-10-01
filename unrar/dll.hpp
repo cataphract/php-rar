@@ -39,8 +39,10 @@
 #define RAR_HASH_CRC32        1
 #define RAR_HASH_BLAKE2       2
 
-//Must be the same as MAXWINSIZE
 //not in original
+// should be a multiple of 16 becasue this buffer is passed
+// directly to UnpRead (bypassing UnstoreFile) and 16 is the size
+// of crypt blocks
 #define RAR_CHUNK_BUFFER_SIZE   0x400000
 
 #ifdef _UNIX

@@ -131,18 +131,23 @@ bool CmdExtract::ExtractCurrentFileChunk(CommandData *Cmd, Archive &Arc,
     return true;
   }
 
-  DataIO.SetUnpackToMemory((byte*) this->Buffer, this->BufferSize);
-
   if (Arc.FileHead.Method==0) {
-    UnstoreFile(DataIO, this->BufferSize);
-    /* not very sophisticated and may result in a subsequent
-     * unnecessary call to this function (and probably will if
-     * the buffer size is chosen so that it just fits for small
-     * files) */
-    *finished = (DataIO.GetUnpackToMemorySizeLeft() > 0);
+    // we use to call UnstoreFile here, together with unpack to memory
+    // but it's easier to bypass the intermediate buffer altogether
+    // UnstoreFile would need to be changed anyway to avoid it reading
+    // the whole file in one go till the output memory buffer is full
+    int read = DataIO.UnpRead((byte *)this->Buffer, this->BufferSize);
+    if (read <= 0) {
+      *ReadSize = 0;
+      *finished = true;
+    } else {
+      *ReadSize = (size_t)read;
+      *finished = false;
+    }
   }
   else
   {
+    DataIO.SetUnpackToMemory((byte*) this->Buffer, this->BufferSize);
     Unp->Init(Arc.FileHead.WinSize,Arc.FileHead.Solid);
     Unp->SetDestSize(Arc.FileHead.UnpSize);
     if (Arc.Format!=RARFMT50 && Arc.FileHead.UnpVer<=15)
@@ -150,8 +155,8 @@ bool CmdExtract::ExtractCurrentFileChunk(CommandData *Cmd, Archive &Arc,
     else
       Unp->DoUnpack(Arc.FileHead.UnpVer,Arc.FileHead.Solid, this->Buffer != NULL);
     *finished = Unp->IsFileExtracted();
+    *ReadSize = this->BufferSize - DataIO.GetUnpackToMemorySizeLeft();
   }
-  *ReadSize = this->BufferSize - DataIO.GetUnpackToMemorySizeLeft();
 
   return true;
 }
