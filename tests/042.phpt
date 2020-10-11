@@ -7,9 +7,9 @@ if(!extension_loaded("rar")) die("skip");
 <?php
 chdir(dirname(__FILE__));
 function volume_callback($vol) {
-	if (preg_match('/_fail/', $vol))
+	if (strpos($vol, '_fail') !== false)
 		$ret = basename(str_replace('_fail', '', $vol));
-	elseif (preg_match('/_broken/', $vol))
+	elseif (strpos($vol, '_broken') !== false)
 		$ret = basename(str_replace('_broken', '_fail', $vol));
 	else
 		$ret = null;

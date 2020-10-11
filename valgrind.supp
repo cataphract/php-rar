@@ -41,3 +41,37 @@
    fun:zend_string_equal_content
    ...
 }
+{
+   <7.4 constructor exception>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   ...
+   fun:_emalloc
+   fun:zend_objects_new
+   fun:zend_default_exception_new_ex
+   fun:zend_default_exception_new
+   fun:_object_and_properties_init
+   fun:object_init_ex
+   fun:zend_throw_exception
+   ...
+}
+{
+   <7.4 zend_compile>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   ...
+   fun:_emalloc
+   fun:zend_compile
+   fun:compile_file
+   ...
+}
+{
+   <7.4 error>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   ...
+   fun:_emalloc
+   ...
+   fun:php_verror
+   ...
+}

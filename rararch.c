@@ -1103,7 +1103,6 @@ static zend_object_iterator *rararch_it_get_iterator(zend_class_entry *ce,
 													 zval *object,
 													 int by_ref TSRMLS_DC)
 {
-	rararch_iterator	*it;
 	rar_file_t			*rar;
 	int					res;
 
@@ -1112,7 +1111,17 @@ static zend_object_iterator *rararch_it_get_iterator(zend_class_entry *ce,
 			"An iterator cannot be used with foreach by reference");
 	}
 
-	it = emalloc(sizeof *it);
+	res = _rar_get_file_resource_ex(object, &rar, 1 TSRMLS_CC);
+	if (res == FAILURE) {
+		php_error_docref(NULL TSRMLS_CC, E_ERROR,
+			"Cannot fetch RarArchive object");
+	}
+	if (rar->arch_handle == NULL) {
+		php_error_docref(NULL TSRMLS_CC, E_ERROR,
+			"The archive is already closed, cannot give an iterator");
+	}
+
+	rararch_iterator *it = emalloc(sizeof *it);
 
 #if PHP_MAJOR_VERSION < 7
 	zval_add_ref(&object);
@@ -1131,13 +1140,6 @@ static zend_object_iterator *rararch_it_get_iterator(zend_class_entry *ce,
 #endif
 	it->state = NULL;
 
-	res = _rar_get_file_resource_ex(object, &rar, 1 TSRMLS_CC);
-	if (res == FAILURE)
-		php_error_docref(NULL TSRMLS_CC, E_ERROR,
-			"Cannot fetch RarArchive object");
-	if (rar->arch_handle == NULL)
-		php_error_docref(NULL TSRMLS_CC, E_ERROR,
-			"The archive is already closed, cannot give an iterator");
 	res = _rar_list_files(rar TSRMLS_CC);
 	if (_rar_handle_error(res TSRMLS_CC) == FAILURE) {
 		/* if it failed, do not expose the possibly incomplete entry list */

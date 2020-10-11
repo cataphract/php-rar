@@ -10,7 +10,9 @@ phpinfo(INFO_MODULES);
 $phpinfo = ob_get_contents();
 ob_end_clean();
 
-$phpinfo = preg_replace('/\r\n?/', "\n", $phpinfo); //normalize line endings
+//normalize line endings
+$phpinfo = str_replace("\r\n", "\n", $phpinfo);
+$phpinfo = str_replace("\r", "\n", $phpinfo);
 
 $phpinfo = explode("\n", $phpinfo);
 
