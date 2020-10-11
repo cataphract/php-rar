@@ -414,7 +414,7 @@ int PASCAL ProcessFile(HANDLE hArcData, int Operation, char *DestPath,
 
       bool Repeat=false;
       if (Operation != RAR_EXTRACT_CHUNK)
-      Data->Extract.ExtractCurrentFile(Data->Arc,Data->HeaderSize,Repeat);
+          Data->Extract.ExtractCurrentFile(Data->Arc,Data->HeaderSize,Repeat);
       else
       {
         if (InitDataIO) //chunk, init

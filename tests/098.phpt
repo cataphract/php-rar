@@ -16,7 +16,10 @@ foreach ($rar as $rar_file) {
 
 echo "\nDone.\n";
 --EXPECTF--
-int(2279)
-int(1316)
+Warning: stream_get_contents(): The file size is supposed to be 2279 bytes, but we read more: 2288 bytes (corruption/wrong pwd) in %s on line %d
+int(2288)
+
+Warning: stream_get_contents(): The file size is supposed to be 1316 bytes, but we read more: 1328 bytes (corruption/wrong pwd) in %s on line %d
+int(1328)
 
 Done.

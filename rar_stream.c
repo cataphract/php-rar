@@ -51,10 +51,11 @@ typedef struct php_rar_stream_data_t {
 	struct RAROpenArchiveDataEx	open_data;
 	struct RARHeaderDataEx		header_data;
 	HANDLE						rar_handle;
+	size_t						file_size;
 	/* TODO: consider encapsulating a php memory/tmpfile stream */
 	unsigned char				*buffer;
 	size_t						buffer_size;
-	size_t						buffer_cont_size; /* content size */
+	size_t						buffer_read_size; /* content size */
 	size_t						buffer_pos;
 	uint64						cursor;
 	int							no_more_data;
@@ -117,12 +118,12 @@ static ssize_t php_rar_ops_read(php_stream *stream, char *buf, size_t count)
 		while (left > 0) {
 			size_t this_read_size;
 			/* if nothing in the buffer or buffer already read, fill buffer */
-			if (/*self->buffer_cont_size == 0 || > condition not necessary */
-				self->buffer_pos == self->buffer_cont_size)
+			if (/*self->buffer_read_size == 0 || > condition not necessary */
+					self->buffer_pos == self->buffer_read_size)
 			{
 				int res;
 				self->buffer_pos = 0;
-				self->buffer_cont_size = 0;
+				self->buffer_read_size = 0;
 				/* Note: this condition is important, you cannot rely on
 				 * having a call to RARProcessFileChunk return no data and
 				 * break on the condition self->buffer_cont_size == 0 because
@@ -132,25 +133,25 @@ static ssize_t php_rar_ops_read(php_stream *stream, char *buf, size_t count)
 				if (self->no_more_data)
 					break;
 				res = RARProcessFileChunk(self->rar_handle, self->buffer,
-					self->buffer_size, &self->buffer_cont_size,
+						self->buffer_size, &self->buffer_read_size,
 					&self->no_more_data);
 				if (_rar_handle_error(res TSRMLS_CC) == FAILURE) {
 					break; /* finish in case of failure */
 				}
-				assert(self->buffer_cont_size <= self->buffer_size);
+				assert(self->buffer_read_size <= self->buffer_size);
 				/* we did not read anything. no need to continue */
-				if (self->buffer_cont_size == 0)
+				if (self->buffer_read_size == 0)
 					break;
 			}
 			/* if we get here we have data to be read in the buffer */
 			this_read_size = MIN(left,
-				self->buffer_cont_size - self->buffer_pos);
+					self->buffer_read_size - self->buffer_pos);
 			assert(this_read_size > 0);
 			memcpy(&buf[count-left], &self->buffer[self->buffer_pos],
 				this_read_size);
 			left				-= this_read_size;
 			n					+= this_read_size;
-			self->buffer_pos		+= this_read_size;
+			self->buffer_pos	+= this_read_size;
 			assert(left >= 0);
 		}
 
@@ -159,9 +160,16 @@ static ssize_t php_rar_ops_read(php_stream *stream, char *buf, size_t count)
 
 	/* no more data upstream (for sure), buffer already read and
 	 * caller asked for more data than we're giving */
-	if (self->no_more_data && self->buffer_pos == self->buffer_cont_size &&
-			n < count)
+	if (self->no_more_data && self->buffer_pos == self->buffer_read_size &&
+			n < count && stream->eof != 1) {
 		stream->eof = 1;
+		if (self->cursor > self->file_size) {
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,
+					"The file size is supposed to be %lu bytes, but "
+					"we read more: %lu bytes (corruption/wrong pwd)",
+					self->file_size, self->cursor);
+		}
+	}
 
 	/* we should only give no data if we have no more */
 	if (!self->no_more_data && n == 0) {
@@ -541,16 +549,18 @@ php_stream *php_stream_rar_open(char *arc_name,
 			TSRMLS_CC, position, arc_name);
 	else {
 		/* no need to allocate a buffer bigger than the file uncomp size */
-		size_t buffer_size = (size_t)
-			MIN((uint64) RAR_CHUNK_BUFFER_SIZE,
-			INT32TO64(self->header_data.UnpSizeHigh,
-			self->header_data.UnpSize));
+		size_t file_size = INT32TO64(self->header_data.UnpSizeHigh,
+				self->header_data.UnpSize);
+		size_t buffer_size =  MIN(
+				RAR_CHUNK_BUFFER_SIZE,
+				file_size);
 		int process_result = RARProcessFileChunkInit(self->rar_handle);
 
 		if (_rar_handle_error(process_result TSRMLS_CC) == FAILURE) {
 			goto cleanup;
 		}
 
+		self->file_size = file_size;
 		self->buffer = emalloc(buffer_size);
 		self->buffer_size = buffer_size;
 		stream = php_stream_alloc(&php_stream_rario_ops, self, NULL, "rb");
@@ -942,21 +952,23 @@ static php_stream *php_stream_rar_opener(php_stream_wrapper *wrapper,
 
 	{
 		/* no need to allocate a buffer bigger than the file uncomp size */
-		size_t buffer_size = (size_t)
-			MIN((uint64) RAR_CHUNK_BUFFER_SIZE,
-			INT32TO64(self->header_data.UnpSizeHigh,
-			self->header_data.UnpSize));
+		size_t file_size = INT32TO64(self->header_data.UnpSizeHigh,
+				self->header_data.UnpSize);
+		size_t buffer_size =  MIN(
+				RAR_CHUNK_BUFFER_SIZE,
+				file_size);
 		rar_result = RARProcessFileChunkInit(self->rar_handle);
 
 		if ((rar_error = _rar_error_to_string(rar_result)) != NULL) {
 			char *mb_entry = _rar_wide_to_utf_with_alloc(fragment, -1);
 			php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
-				"Error opening file %s inside RAR archive %s: %s",
-				mb_entry, tmp_open_path, rar_error);
+					"Error opening file %s inside RAR archive %s: %s",
+					mb_entry, tmp_open_path, rar_error);
 			efree(mb_entry);
 			goto cleanup;
 		}
 
+		self->file_size = file_size;
 		self->buffer = emalloc(buffer_size);
 		self->buffer_size = buffer_size;
 		stream = php_stream_alloc(&php_stream_rario_ops, self, NULL, mode);
