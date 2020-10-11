@@ -23,10 +23,10 @@ http://pear.php.net/dtd/package-2.0.xsd">
   <active>no</active>
  </developer>
 
- <date>2017-07-22</date>
+ <date>2020-10-11</date>
  <time>03:00:00</time>
  <version>
-  <release>4.0.0</release>
+  <release>4.1.0</release>
   <api>4.0.0</api>
  </version>
 
@@ -37,10 +37,9 @@ http://pear.php.net/dtd/package-2.0.xsd">
 
  <license uri="http://www.php.net/license">PHP License</license>
  <notes>- Merge changes made to unrar up to version 5.5.6.
-- Support PHP 7.0 and PHP 7.1.
-- Added functions RarEntry::getRedirType(), RarEntry::isRedirectToDirectory() and RarEntry::getRedirTarget(), as well as the following constants on RarEntry: FSREDIR_UNIXSYMLINK, FSREDIR_WINSYMLINK, FSREDIR_JUNCTION, FSREDIR_HARDLINK and FSREDIR_FILECOPY.
-- Changed stat handler to return UTC time for creation, modification and access time (does not work reliably on Windows).
-- Fix cloning of RarArchive being allowed.
+- Support PHP 7.2, PHP 7.3 and PHP 7.4.
+- Update to unrar 5.9.4
+- Fix bug #76592: streaming unpacking of uncompressed files incomplete
  </notes>
  <contents>
   <dir name="/">
@@ -159,6 +158,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file role="test" name="111.phpt"/>
     <file role="test" name="112.phpt"/>
     <file role="test" name="113.phpt"/>
+    <file role="test" name="114.phpt"/>
     <file role="test" name="commented.rar"/>
     <file role="test" name="corrupted.rar"/>
     <file role="test" name="directories.rar"/>
@@ -199,6 +199,8 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file name="blake2sp.cpp" role="src" />
     <file name="cmddata.cpp" role="src" />
     <file name="cmddata.hpp" role="src" />
+    <file name="cmdfilter.cpp" role="src" />
+    <file name="cmdmix.cpp" role="src" />
     <file name="coder.cpp" role="src" />
     <file name="coder.hpp" role="src" />
     <file name="compress.hpp" role="src" />
@@ -270,7 +272,6 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file name="rartypes.hpp" role="src" />
     <file name="rarvm.cpp" role="src" />
     <file name="rarvm.hpp" role="src" />
-    <file name="rarvmtbl.cpp" role="src" />
     <file name="rawint.hpp" role="src" />
     <file name="rawread.cpp" role="src" />
     <file name="rawread.hpp" role="src" />
@@ -325,7 +326,6 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file name="timefn.cpp" role="src" />
     <file name="timefn.hpp" role="src" />
     <file name="ulinks.cpp" role="src" />
-    <file name="ulinks.hpp" role="src" />
     <file name="unicode.cpp" role="src" />
     <file name="unicode.hpp" role="src" />
     <file name="unpack.cpp" role="src" />
@@ -343,6 +343,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file name="config.w32" role="src" />
     <file name="CREDITS" role="doc" />
     <file name="LICENSE" role="doc" />
+    <file name="Makefile.frag" role="src" />
     <file name="README.md" role="doc" />
     <file name="example.php" role="doc" />
     <file name="php_rar.h" role="src" />
@@ -372,6 +373,23 @@ http://pear.php.net/dtd/package-2.0.xsd">
  <extsrcrelease />
  
  <changelog>
+  <release>
+   <version>
+    <release>4.0.0</release>
+    <api>4.0.0</api>
+   </version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api>
+   </stability>
+   <date>2017-07-22</date>
+   <notes>Changes in this version:
+- Added functions RarEntry::getRedirType(), RarEntry::isRedirectToDirectory() and RarEntry::getRedirTarget(), as well as the following constants on RarEntry: FSREDIR_UNIXSYMLINK, FSREDIR_WINSYMLINK, FSREDIR_JUNCTION, FSREDIR_HARDLINK and FSREDIR_FILECOPY.
+- Changed stat handler to return UTC time for creation, modification and access time (does not work reliably on Windows).
+- Fix cloning of RarArchive being allowed.
+   </notes>
+  </release>
+
   <release>
    <version>
     <release>3.0.2</release>
