@@ -552,7 +552,7 @@ php_stream *php_stream_rar_open(char *arc_name,
 		size_t file_size = INT32TO64(self->header_data.UnpSizeHigh,
 				self->header_data.UnpSize);
 		size_t buffer_size =  MIN(
-				RAR_CHUNK_BUFFER_SIZE,
+				MAX(RAR_CHUNK_BUFFER_SIZE, self->header_data.WinSize),
 				file_size);
 		int process_result = RARProcessFileChunkInit(self->rar_handle);
 
@@ -955,7 +955,7 @@ static php_stream *php_stream_rar_opener(php_stream_wrapper *wrapper,
 		size_t file_size = INT32TO64(self->header_data.UnpSizeHigh,
 				self->header_data.UnpSize);
 		size_t buffer_size =  MIN(
-				RAR_CHUNK_BUFFER_SIZE,
+				MAX(RAR_CHUNK_BUFFER_SIZE, self->header_data.WinSize),
 				file_size);
 		rar_result = RARProcessFileChunkInit(self->rar_handle);
 

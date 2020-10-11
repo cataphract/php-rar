@@ -43,7 +43,7 @@
 // should be a multiple of 16 becasue this buffer is passed
 // directly to UnpRead (bypassing UnstoreFile) and 16 is the size
 // of crypt blocks
-#define RAR_CHUNK_BUFFER_SIZE   0x400000
+#define RAR_CHUNK_BUFFER_SIZE   0x100000UL
 
 #ifdef _UNIX
 #define CALLBACK
@@ -133,6 +133,8 @@ struct RARHeaderDataEx
   /* removed by me: we don't need to retain binary compatibility in case new
    * fields are added, so we avoid wasting space here */
   /* unsigned int Reserved[988]; */
+  /* added by me */
+  size_t WinSize; /* window size */
 };
 
 

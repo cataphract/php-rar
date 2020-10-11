@@ -312,6 +312,9 @@ int PASCAL RARReadHeaderEx(HANDLE hArcData,struct RARHeaderDataEx *D)
         D->RedirNameSize>0 && D->RedirNameSize<100000)
       wcsncpyz(D->RedirName,hd->RedirName,D->RedirNameSize);
     D->DirTarget=hd->DirTarget;
+
+    /* added by me */
+    D->WinSize = hd->WinSize;
   }
   catch (RAR_EXIT ErrCode)
   {
