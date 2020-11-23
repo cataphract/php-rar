@@ -1,19 +1,19 @@
 --TEST--
 rar_list() function
 --SKIPIF--
-<?php if(!extension_loaded("rar") || version_compare(phpversion(), '8.0') >= 0) print "skip"; ?>
+<?php if(!extension_loaded("rar") || version_compare(phpversion(), '8.0') == -1) print "skip"; ?>
 --FILE--
 <?php
 
-$rar_file1 = rar_open(dirname(__FILE__).'/linux_rar.rar'); 
+$rar_file1 = rar_open(dirname(__FILE__).'/linux_rar.rar');
 $list1 = rar_list($rar_file1);
 var_dump($list1);
 
-$rar_file2 = rar_open(dirname(__FILE__).'/latest_winrar.rar'); 
+$rar_file2 = rar_open(dirname(__FILE__).'/latest_winrar.rar');
 $list2 = rar_list($rar_file2);
 var_dump($list2);
 
-$rar_file3 = rar_open(dirname(__FILE__).'/no_such_file.rar'); 
+$rar_file3 = rar_open(dirname(__FILE__).'/no_such_file.rar');
 $list3 = rar_list($rar_file3);
 var_dump($list3);
 
@@ -163,6 +163,8 @@ array(2) {
 
 Warning: rar_open(): Failed to open %s: ERAR_EOPEN (file open error) in %s on line %d
 
-Warning: rar_list() expects parameter 1 to be RarArchive, boo%s given in %s on line %d
-NULL
-Done
+Fatal error: Uncaught TypeError: rar_list(): Argument #1 ($rarfile) must be of type RarArchive, bool given in %s:%d
+Stack trace:
+#0 /app/tests/115.php(12): rar_list(false)
+#1 {main}
+  thrown in /app/tests/115.php on line %d

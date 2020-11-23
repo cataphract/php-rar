@@ -2,7 +2,7 @@
 Stream wrapper relative path test
 --SKIPIF--
 <?php
-if(!extension_loaded("rar") || version_compare(phpversion(), '8.0') >= 0) die("skip");
+if(!extension_loaded("rar") || version_compare(phpversion(), '8.0') == -1) die("skip");
 --CLEAN--
 <?php
 unlink(dirname(__FILE__) . '/temp/tmp.rar');
@@ -50,11 +50,11 @@ string(5) "11111"
 Test with include path:
 Should fail (not in include):
 
-Warning: fopen(rar://tmp.rar#1.txt): failed to open stream: Error opening RAR archive %stmp.rar: ERAR_EOPEN (file open error) in %s on line %d
+Warning: fopen(rar://tmp.rar#1.txt): Failed to open stream: Error opening RAR archive %stmp.rar: ERAR_EOPEN (file open error) in %s on line %d
 
 Should fail (include unused):
 
-Warning: fopen(rar://tmp.rar#1.txt): failed to open stream: Error opening RAR archive %stmp.rar: ERAR_EOPEN (file open error) in %s on line %d
+Warning: fopen(rar://tmp.rar#1.txt): Failed to open stream: Error opening RAR archive %stmp.rar: ERAR_EOPEN (file open error) in %s on line %d
 
 Should succeed:
 string(5) "11111"

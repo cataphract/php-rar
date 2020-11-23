@@ -144,6 +144,15 @@ typedef int zpp_s_size_t;
 #define zend_hash_str_del zend_hash_del
 #endif
 
+#if PHP_MAJOR_VERSION >= 8
+#define TSRMLS_DC
+#define TSRMLS_D
+#define TSRMLS_CC
+#define TSRMLS_C
+#define TSRMLS_FETCH()
+#define IS_CALLABLE_STRICT 0
+#endif
+
 typedef struct _rar_cb_user_data {
 	char					*password;	/* can be NULL */
 	zval					*callable;  /* can be NULL */

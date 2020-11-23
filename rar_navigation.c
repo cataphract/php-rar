@@ -121,9 +121,15 @@ void _rar_entry_search_start(rar_file_t *rar,
 			sizeof *rar->entries->entries_array_s, _rar_nav_compare_entries
 			TSRMLS_CC);
 #else
+#if PHP_MAJOR_VERSION >= 8
+		zend_sort(rar->entries->entries_array_s, rar->entries->num_entries,
+			sizeof *rar->entries->entries_array_s, _rar_nav_compare_entries,
+			_rar_nav_swap_entries);
+#else
 		zend_qsort(rar->entries->entries_array_s, rar->entries->num_entries,
 			sizeof *rar->entries->entries_array_s, _rar_nav_compare_entries,
 			_rar_nav_swap_entries);
+#endif
 #endif
 	}
 }

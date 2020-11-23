@@ -1,7 +1,7 @@
 --TEST--
 RarArchive::setAllowBroken has the desired effect
 --SKIPIF--
-<?php if(!extension_loaded("rar") || version_compare(phpversion(), '8.0') >= 0) print "skip"; ?>
+<?php if(!extension_loaded("rar") || version_compare(phpversion(), '8.0') == -1) print "skip"; ?>
 --FILE--
 <?php
 
@@ -10,8 +10,18 @@ $b = dirname(__FILE__) . "/multi_broken.part1.rar";
 
 echo "* broken file; bad arguments\n";
 $a = RarArchive::open($b, null, 'retnull');
-$a->setAllowBroken();
-rar_allow_broken_set($a);
+try {
+    $a->setAllowBroken();
+    die("should have thrown exception.");
+} catch (ArgumentCountError $e) {
+    echo "\nOK, threw ArgumentCountError: " . $e->getMessage() . "\n";
+}
+try {
+    rar_allow_broken_set($a);
+    die("should have thrown exception.");
+} catch (ArgumentCountError $e) {
+    echo "\nOK, threw ArgumentCountError: " . $e->getMessage() . "\n";
+}
 
 echo "\n* broken file; do not allow broken (default)\n";
 $a = RarArchive::open($b, null, 'retnull');
@@ -45,9 +55,9 @@ echo "Done.\n";
 --EXPECTF--
 * broken file; bad arguments
 
-Warning: RarArchive::setAllowBroken() expects exactly 1 parameter, 0 given in %s on line %d
+OK, threw ArgumentCountError: RarArchive::setAllowBroken() expects exactly 1 argument, 0 given
 
-Warning: rar_allow_broken_set() expects exactly 2 parameters, 1 given in %s on line %d
+OK, threw ArgumentCountError: rar_allow_broken_set() expects exactly 2 arguments, 1 given
 
 * broken file; do not allow broken (default)
 

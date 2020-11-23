@@ -2,7 +2,7 @@
 RAR directory stream attempt on file
 --SKIPIF--
 <?php
-if(!extension_loaded("rar")) die("skip");
+if(!extension_loaded("rar") || version_compare(phpversion(), '8.0') >= 0) die("skip");
 --FILE--
 <?php
 $u = "rar://" .

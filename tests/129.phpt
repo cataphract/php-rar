@@ -1,7 +1,7 @@
 --TEST--
 fopen modes 'r' and 'rb' are the only allowed
 --SKIPIF--
-<?php if(!extension_loaded("rar") || version_compare(phpversion(), '8.0') >= 0) print "skip"; ?>
+<?php if(!extension_loaded("rar") || version_compare(phpversion(), '8.0') == -1) print "skip"; ?>
 --FILE--
 <?php
 
@@ -32,6 +32,6 @@ opened
 
 Testing 'r+'
 
-Warning: fopen(%s): failed to open stream: Only the "r" and "rb" open modes are permitted, given r+ in %s on line %d
+Warning: fopen(%s): Failed to open stream: Only the "r" and "rb" open modes are permitted, given r+ in %s on line %d
 
 Done.

@@ -2,7 +2,7 @@
 rar_open() with invalid volume callback
 --SKIPIF--
 <?php
-if(!extension_loaded("rar") || version_compare(phpversion(), '8.0') >= 0) die("skip");
+if(!extension_loaded("rar") || version_compare(phpversion(), '8.0') == -1) die("skip");
 --FILE--
 <?php
 
@@ -30,11 +30,21 @@ var_dump($rar);
 
 echo "\nGiven callback that takes more arguments:\n";
 $rar = RarArchive::open($fn, null, 'strpos');
-$rar->getEntries();
+try {
+    $rar->getEntries();
+    die("should have thrown exception.");
+} catch (ArgumentCountError $e) {
+    echo "\nOK, threw ArgumentCountError: " . $e->getMessage() . "\n";
+}
 
 echo "\nGiven callback that takes another kind of arguments:\n";
 $rar = RarArchive::open($fn, null, 'array_keys');
-$rar->getEntries();
+try {
+    $rar->getEntries();
+    die("should have thrown exception.");
+} catch (TypeError $e) {
+    echo "\nOK, threw TypeError: " . $e->getMessage() . "\n";
+}
 
 echo "\nGiven callback that returns another kind of arguments:\n";
 function testA($vol) { return true; }
@@ -64,15 +74,19 @@ bool(false)
 
 Given callback that takes more arguments:
 
-Warning: strpos() expects at least %d parameters, 1 given in %s on line %d
+Warning: RarArchive::getEntries(): Failure to call volume find callback in %s on line %d
 
 Warning: RarArchive::getEntries(): ERAR_EOPEN (file open error) in %s on line %d
+
+OK, threw ArgumentCountError: strpos() expects at least 2 arguments, 1 given
 
 Given callback that takes another kind of arguments:
 
-Warning: array_keys() expects parameter 1 to be array, string given in %s on line %d
+Warning: RarArchive::getEntries(): Failure to call volume find callback in %s on line %d
 
 Warning: RarArchive::getEntries(): ERAR_EOPEN (file open error) in %s on line %d
+
+OK, threw TypeError: array_keys(): Argument #1 ($array) must be of type array, string given
 
 Given callback that returns another kind of arguments:
 

@@ -2,7 +2,7 @@
 Stream wrapper archive/file not found
 --SKIPIF--
 <?php
-if(!extension_loaded("rar") || version_compare(phpversion(), '8.0') >= 0) die("skip");
+if(!extension_loaded("rar") || version_compare(phpversion(), '8.0') == -1) die("skip");
 --FILE--
 <?php
 
@@ -20,9 +20,9 @@ echo "Done.\n";
 --EXPECTF--
 Archive not found :
 
-Warning: fopen(rar://%snot_found.rar#1.txt): failed to open stream: Error opening RAR archive %snot_found.rar: ERAR_EOPEN (file open error) in %s on line %d
+Warning: fopen(rar://%snot_found.rar#1.txt): Failed to open stream: Error opening RAR archive %snot_found.rar: ERAR_EOPEN (file open error) in %s on line %d
 
 File not found :
 
-Warning: fopen(rar://%slatest_winrar.rar#not_found.txt): failed to open stream: Can't file not_found.txt in RAR archive %s on line %d
+Warning: fopen(rar://%slatest_winrar.rar#not_found.txt): Failed to open stream: Can't file not_found.txt in RAR archive %s on line %d
 Done.

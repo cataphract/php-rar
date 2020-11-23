@@ -1,7 +1,7 @@
 --TEST--
 rar_entry_get() function
 --SKIPIF--
-<?php if(!extension_loaded("rar") || version_compare(phpversion(), '8.0') >= 0) print "skip"; ?>
+<?php if(!extension_loaded("rar") || version_compare(phpversion(), '8.0') == -1) print "skip"; ?>
 --FILE--
 <?php
 
@@ -89,6 +89,8 @@ object(RarEntry)#%d (%d) {
 
 Warning: rar_open(): Failed to open %s: ERAR_EOPEN (file open error) in %s on line %d
 
-Warning: rar_entry_get() expects parameter 1 to be RarArchive, boo%s given in %s on line %d
-NULL
-Done
+Fatal error: Uncaught TypeError: rar_entry_get(): Argument #1 ($rarfile) must be of type RarArchive, bool given in %s:%d
+Stack trace:
+#0 %s(%d): rar_entry_get(false, '2.txt')
+#1 {main}
+  thrown in %s on line %d

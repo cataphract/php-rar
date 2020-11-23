@@ -1,7 +1,7 @@
 --TEST--
 RarArchive::isBroken/rar_broken_is test
 --SKIPIF--
-<?php if(!extension_loaded("rar") || version_compare(phpversion(), '8.0') >= 0) print "skip"; ?>
+<?php if(!extension_loaded("rar") || version_compare(phpversion(), '8.0') == -1) print "skip"; ?>
 --FILE--
 <?php
 
@@ -10,8 +10,18 @@ $b = dirname(__FILE__) . "/multi_broken.part1.rar";
 
 echo "\n* unbroken file; bad arguments\n";
 $a = RarArchive::open($f);
-var_dump($a->isBroken("jjj"));
-var_dump(rar_broken_is($a, "jjj"));
+try {
+    var_dump($a->isBroken("jjj"));
+    die("should have thrown exception.");
+} catch (ArgumentCountError $e) {
+    echo "\nOK, threw ArgumentCountError: " . $e->getMessage() . "\n";
+}
+try {
+    var_dump(rar_broken_is($a, "jjj"));
+    die("should have thrown exception.");
+} catch (ArgumentCountError $e) {
+    echo "\nOK, threw ArgumentCountError: " . $e->getMessage() . "\n";
+}
 
 echo "\n* unbroken file; as first call\n";
 var_dump($a->isBroken());
@@ -45,11 +55,9 @@ echo "Done.\n";
 --EXPECTF--
 * unbroken file; bad arguments
 
-Warning: RarArchive::isBroken() expects exactly 0 parameters, 1 given in %s on line %d
-NULL
+OK, threw ArgumentCountError: RarArchive::isBroken() expects exactly 0 arguments, 1 given
 
-Warning: rar_broken_is() expects exactly 1 parameter, 2 given in %s on line %d
-NULL
+OK, threw ArgumentCountError: rar_broken_is() expects exactly 1 argument, 2 given
 
 * unbroken file; as first call
 bool(false)

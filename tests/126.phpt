@@ -1,7 +1,7 @@
 --TEST--
 RarArchive read_property handler non-int valid dimensions
 --SKIPIF--
-<?php if(!extension_loaded("rar") || version_compare(phpversion(), '8.0') >= 0) print "skip"; ?>
+<?php if(!extension_loaded("rar") || version_compare(phpversion(), '8.0') == -1) print "skip"; ?>
 --FILE--
 <?php
 
@@ -17,8 +17,6 @@ echo "\n";
 echo "Done.\n";
 --EXPECTF--
 string ("0"). RarEntry for file "1.txt" (a0de71c0)
-
-Notice: A non well formed numeric value encountered in %s on line %d
 string ("1abc"). RarEntry for file "2.txt" (45a918de)
 float (0.001). RarEntry for file "1.txt" (a0de71c0)
 string ("0.001"). RarEntry for file "1.txt" (a0de71c0)

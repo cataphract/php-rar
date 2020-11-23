@@ -1,7 +1,7 @@
 --TEST--
 RarArchive read_property handler invalid dimensions
 --SKIPIF--
-<?php if(!extension_loaded("rar") || version_compare(phpversion(), '8.0') >= 0) print "skip"; ?>
+<?php if(!extension_loaded("rar") || version_compare(phpversion(), '8.0') == -1) print "skip"; ?>
 --FILE--
 <?php
 
@@ -81,6 +81,6 @@ Warning: main(): Attempt to use a non-numeric dimension to access a RarArchive o
 
 * new stdClass():
 
-Warning: main(): Attempt to use an object with no get handler as a dimension to access a RarArchive object in %s on line %d
+Warning: main(): Could not convert object given as dimension index into an integer (get handler returned another object) in %s on line %d
 
 Done.

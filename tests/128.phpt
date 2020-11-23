@@ -1,7 +1,7 @@
 --TEST--
 Wrapper cache exaustion test
 --SKIPIF--
-<?php if(!extension_loaded("rar") || version_compare(phpversion(), '8.0') >= 0) print "skip"; ?>
+<?php if(!extension_loaded("rar") || version_compare(phpversion(), '8.0') == -1) print "skip"; ?>
 --FILE--
 <?php
 
@@ -18,7 +18,11 @@ function printstats() {
 }
 
 echo "* Invalid call to rar_wrapper_cache_stats():\n";
-var_dump(rar_wrapper_cache_stats("sfddf"));
+try {
+    var_dump(rar_wrapper_cache_stats("sfddf"));
+} catch (ArgumentCountError $e) {
+    echo "\nOK, threw ArgumentCountError: " . $e->getMessage() . "\n";
+}
 
 echo "\n* Initial stats:\n";
 printstats();
@@ -74,8 +78,7 @@ echo "Done.\n";
 --EXPECTF--
 * Invalid call to rar_wrapper_cache_stats():
 
-Warning: rar_wrapper_cache_stats() expects exactly 0 parameters, 1 given in %s on line %d
-NULL
+OK, threw ArgumentCountError: rar_wrapper_cache_stats() expects exactly 0 arguments, 1 given
 
 * Initial stats:
 Stats: 0/0 (hits/misses)
