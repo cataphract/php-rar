@@ -1050,13 +1050,8 @@ static void rararch_it_current_data(zend_object_iterator *iter,
 static zval *rararch_it_current_data(zend_object_iterator *iter)
 {
 	zval *ret;
-#if PHP_MAJOR_VERSION < 7
-	ret = ((rararch_iterator *) iter)->value;
-	assert(ret != NULL);
-#else
 	ret = &((rararch_iterator *) iter)->value;
 	assert(Z_TYPE_P(ret) != IS_UNDEF);
-#endif
 	return ret;
 }
 #endif
