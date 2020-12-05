@@ -75,3 +75,50 @@
    fun:php_verror
    ...
 }
+{
+   <verror (pre-8)>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   ...
+   fun:spprintf
+   fun:php_verror
+   fun:php_error_docref0
+   ...
+}
+{
+   <verror (pre-8) 7.4>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   ...
+   fun:zend_spprintf
+   fun:php_verror
+   fun:php_error_docref0
+   ...
+}
+{
+   <compilation leak>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   ...
+   fun:_emalloc
+   fun:compile_file
+   fun:zend_execute_scripts
+   fun:php_execute_script
+   ...
+}
+{
+   <compilation leak (7)>
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:realloc
+   fun:__zend_realloc
+   fun:_realloc_custom
+   fun:_erealloc
+   fun:pass_two
+   fun:zend_compile
+   fun:compile_file
+   fun:zend_execute_scripts
+   fun:php_execute_script
+   fun:do_cli
+   fun:main
+}

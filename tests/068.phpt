@@ -4,6 +4,7 @@ RarArchive direct instantiation does not crash (PHP 5.x)
 <?php
 if (!extension_loaded("rar")) die("skip");
 if (!defined('PHP_VERSION_ID') || PHP_VERSION_ID >= 70000) die("skip for PHP 5.x");
+if (key_exists('USE_ZEND_ALLOC', $_ENV) && PHP_VERSION_ID < 70000) die('skip do not use with valgrind in PHP <7');
 --FILE--
 <?php
 

@@ -1,7 +1,10 @@
 --TEST--
 RarArchive write_property gives a fatal error
 --SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
+<?php
+if(!extension_loaded("rar")) die("skip");
+if (key_exists('USE_ZEND_ALLOC', $_ENV) && PHP_VERSION_ID < 70000) die('skip do not use with valgrind in PHP <7');
+?>
 --FILE--
 <?php
 

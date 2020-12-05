@@ -27,3 +27,5 @@ CALL configure.bat --disable-all --enable-cli --enable-rar=shared --with-config-
 nmake || exit /b
 rmdir Release_TS\php-rar /S /Q
 del /S /Q "Release_TS\*.sbr"
+
+copy %APPVEYOR_BUILD_FOLDER%\run-tests8.php C:\projects\php-src\run-tests.php
