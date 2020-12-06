@@ -19,10 +19,17 @@ function prefix {
 }
 
 function build_ext {
-  local readonly version=$1 zts=$2 coverage=$2
+  local readonly version=$1 zts=$2 coverage=$3
   local readonly prefix=$(prefix $1 $2)
+  local cflags= cxxflags= ldflags=
   "$prefix"/bin/phpize
-  ./configure --with-php-config="$prefix/bin/php-config"
+  if [[ $coverage == true ]]; then
+    cflags=--coverage
+    cxxflags=--coverage
+    ldflags=--coverage
+  fi
+  CFLAGS="$cflags" CXXFLAGS="$cxxflags" LDFLAGS="$ldflags" \
+    ./configure --with-php-config="$prefix/bin/php-config"
   make -j $JOBS
 }
 

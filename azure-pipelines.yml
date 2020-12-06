@@ -74,6 +74,7 @@ jobs:
       displayName: PHP 8.0 ZTS
       phpVersion: '8.0'
       zts: true
+      publishCoverage: true
 
   - template: azure-template.yml
     parameters:
