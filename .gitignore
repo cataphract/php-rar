@@ -44,3 +44,6 @@
 *.autosave
 /unrar/.libs
 /tmp-php.ini
+/php-rar.creator.user
+/compile_commands.json
+/.clangd

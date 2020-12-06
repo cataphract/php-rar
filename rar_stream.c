@@ -1072,7 +1072,7 @@ static int _rar_get_cachable_rararch(php_stream_wrapper *wrapper,
 			int res;
 			const char *err_str;
 
-			if (_rar_get_file_resource_ex(rar_obj, rar, 1 TSRMLS_CC)
+			if (_rar_get_file_resource_zv_ex(rar_obj, rar, 1 TSRMLS_CC)
 					== FAILURE) {
 				php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
 					"Bug: could not retrieve RarArchive object from zval");
@@ -1096,7 +1096,7 @@ static int _rar_get_cachable_rararch(php_stream_wrapper *wrapper,
 	else { /* cache hit */
 		/* cache get already put the value in rar_obj and incremented the
 		 * refcount of the object */
-		if (_rar_get_file_resource_ex(rar_obj, rar, 1 TSRMLS_CC) == FAILURE) {
+		if (_rar_get_file_resource_zv_ex(rar_obj, rar, 1 TSRMLS_CC) == FAILURE) {
 			php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
 				"Bug: could not retrieve RarArchive object from zval");
 			goto cleanup;

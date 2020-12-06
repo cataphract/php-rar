@@ -5,6 +5,7 @@ rar_list() function
 --FILE--
 <?php
 
+require __DIR__ . "/php8compat.php.inc";
 $rar_file1 = rar_open(dirname(__FILE__).'/linux_rar.rar'); 
 $list1 = rar_list($rar_file1);
 var_dump($list1);
@@ -14,8 +15,7 @@ $list2 = rar_list($rar_file2);
 var_dump($list2);
 
 $rar_file3 = rar_open(dirname(__FILE__).'/no_such_file.rar'); 
-$list3 = rar_list($rar_file3);
-var_dump($list3);
+argerr(function() use ($rar_file3) { rar_list($rar_file3); });
 
 echo "Done\n";
 ?>
@@ -164,5 +164,4 @@ array(2) {
 Warning: rar_open(): Failed to open %s: ERAR_EOPEN (file open error) in %s on line %d
 
 Warning: rar_list() expects parameter 1 to be RarArchive, boo%s given in %s on line %d
-NULL
 Done

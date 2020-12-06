@@ -55,11 +55,11 @@ echo "\nDone.\n";
 --EXPECTF--
 Headers: should not work (no password):
 
-Warning: fopen(rar://%sencrypted_headers.rar#encfile1.txt): failed to open stream: Error opening RAR archive %sencrypted_headers.rar: ERAR_MISSING_PASSWORD (password needed but not specified) in %s on line %d
+Warning: fopen(rar://%sencrypted_headers.rar#encfile1.txt): %cailed to open stream: Error opening RAR archive %sencrypted_headers.rar: ERAR_MISSING_PASSWORD (password needed but not specified) in %s on line %d
 
 Headers: should not work (password given was file_password):
 
-Warning: fopen(rar://%sencrypted_headers.rar#encfile1.txt): failed to open stream: Error opening RAR archive %sencrypted_headers.rar: ERAR_MISSING_PASSWORD (password needed but not specified) in %s on line %d
+Warning: fopen(rar://%sencrypted_headers.rar#encfile1.txt): %cailed to open stream: Error opening RAR archive %sencrypted_headers.rar: ERAR_MISSING_PASSWORD (password needed but not specified) in %s on line %d
 
 Headers: should work (password given was open_password):
 string(26) "Encrypted file 1 contents."
@@ -67,11 +67,11 @@ string(26) "Encrypted file 1 contents."
 
 Files: should not work (no password):
 
-Warning: fopen(rar://%sencrypted_only_files.rar#encfile1.txt): failed to open stream: Error opening file encfile1.txt inside RAR archive %sencrypted_only_files.rar: ERAR_MISSING_PASSWORD (password needed but not specified) in %s on line %d
+Warning: fopen(rar://%sencrypted_only_files.rar#encfile1.txt): %cailed to open stream: Error opening file encfile1.txt inside RAR archive %sencrypted_only_files.rar: ERAR_MISSING_PASSWORD (password needed but not specified) in %s on line %d
 
 Files: should not work (password given was open_password):
 
-Warning: fopen(rar://%sencrypted_only_files.rar#encfile1.txt): failed to open stream: Error opening file encfile1.txt inside RAR archive %sencrypted_only_files.rar: ERAR_MISSING_PASSWORD (password needed but not specified) in %s on line %d
+Warning: fopen(rar://%sencrypted_only_files.rar#encfile1.txt): %cailed to open stream: Error opening file encfile1.txt inside RAR archive %sencrypted_only_files.rar: ERAR_MISSING_PASSWORD (password needed but not specified) in %s on line %d
 
 Files: should work (password given was file_password):
 string(26) "Encrypted file 1 contents."

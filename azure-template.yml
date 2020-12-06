@@ -15,10 +15,6 @@ jobs:
       vmImage: ${{ parameters.imageName }}
 
     variables:
-      TESTOPTS: -v
-      gem: /opt/ruby/${{ parameters.rubyVersion }}/bin/gem
-      bundle: /opt/ruby/${{ parameters.rubyVersion }}/bin/bundle
-      GEM_HOME: /opt/ruby/${{ parameters.rubyVersion }}/lib/ruby/gems/${{ parameters.rubyVersion }}.0
       ${{ if eq(parameters.clang, true) }}:
         CC: clang
         CXX: clang++

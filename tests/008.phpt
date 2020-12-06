@@ -5,6 +5,8 @@ rar_entry_get() function
 --FILE--
 <?php
 
+require __DIR__ . "/php8compat.php.inc";
+
 $rar_file1 = rar_open(dirname(__FILE__).'/multi.part1.rar');
 $entry = rar_entry_get($rar_file1, "file1.txt");
 echo "$entry\n";
@@ -13,8 +15,9 @@ var_dump($entry);
 echo "\n";
 
 $rar_file2 = rar_open(dirname(__FILE__).'/nonexistent.rar'); 
-$entry = rar_entry_get($rar_file2, "file1.txt");
-var_dump($entry);
+argerr(function() use ($rar_file2) {
+    rar_entry_get($rar_file2, "file1.txt");
+});
 echo "\n";
 
 echo "Done\n";
@@ -29,6 +32,5 @@ bool(false)
 Warning: rar_open(): Failed to open %s: ERAR_EOPEN (file open error) in %s on line %d
 
 Warning: rar_entry_get() expects parameter 1 to be RarArchive, boo%s given in %s on line %d
-NULL
 
 Done

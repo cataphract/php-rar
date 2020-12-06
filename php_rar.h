@@ -63,6 +63,8 @@ extern zend_module_entry rar_module_entry;
 #include "TSRM.h"
 #endif
 
+#include "php_compat.h"
+
 /* causes linking errors (multiple definitions) in functions
    that were requested inlining but were not inlined by the compiler */
 /* #include "unrar/rar.hpp */
@@ -86,63 +88,6 @@ enum FILE_SYSTEM_REDIRECT {
 
 /* maximum comment size if 64KB */
 #define RAR_MAX_COMMENT_SIZE 65536
-
-/* PHP 7+ abstraction */
-#if PHP_MAJOR_VERSION >= 7
-typedef zend_object* rar_obj_ref;
-
-#define rar_zval_add_ref(ppzv) zval_add_ref(*ppzv)
-
-#define ZVAL_ALLOC_DUP(dst, src) \
-	do { \
-		dst = (zval*) emalloc(sizeof(zval)); \
-		ZVAL_DUP(dst, src); \
-	} while (0)
-
-#define RAR_RETURN_STRINGL(s, l, duplicate) \
-	do { \
-		RETVAL_STRINGL(s, l); \
-		if (duplicate == 0) { \
-			efree(s); \
-		} \
-		return; \
-	} while (0)
-
-#define RAR_ZVAL_STRING(z, s, duplicate) \
-	do { \
-		ZVAL_STRING(z, s); \
-		if (duplicate == 0) { \
-			efree(s); \
-		} \
-	} while (0)
-
-typedef size_t zpp_s_size_t;
-
-#define MAKE_STD_ZVAL(zv_p) \
-	do { \
-		(zv_p) = emalloc(sizeof(zval)); \
-		ZVAL_NULL(zv_p); \
-	} while (0)
-#define INIT_ZVAL(zv) ZVAL_UNDEF(&zv)
-
-#define ZEND_ACC_FINAL_CLASS ZEND_ACC_FINAL
-
-#else /* PHP 5.x */
-typedef zend_object_handle rar_obj_ref;
-
-#define rar_zval_add_ref zval_add_ref
-#define ZVAL_ALLOC_DUP(dst, src) \
-	do { \
-		zval *z_src = src; \
-		dst = z_src; \
-		zval_add_ref(&dst); \
-		SEPARATE_ZVAL(&dst); \
-	} while (0)
-#define RAR_ZVAL_STRING ZVAL_STRING
-#define RAR_RETURN_STRINGL(s, l, duplicate) RETURN_STRINGL(s, l, duplicate)
-typedef int zpp_s_size_t;
-#define zend_hash_str_del zend_hash_del
-#endif
 
 typedef struct _rar_cb_user_data {
 	char					*password;	/* can be NULL */
@@ -333,8 +278,9 @@ void _rar_close_file_resource(rar_file_t *rar);
 /* Fetches the rar_file_t part of the RarArchive object in order to use the
  * operations above and (discouraged) to have direct access to the fields
  * RarEntry::extract/getStream access extract_open_dat and cb_userdata */
-int _rar_get_file_resource(zval *zval_file, rar_file_t **rar_file TSRMLS_DC);
-int _rar_get_file_resource_ex(zval *zval_file, rar_file_t **rar_file, int silent TSRMLS_DC);
+int _rar_get_file_resource_zv(zval *zv_file, rar_file_t **rar_file TSRMLS_DC);
+int _rar_get_file_resource_zv_ex(zval *zv_file, rar_file_t **rar_file, int silent TSRMLS_DC);
+int _rar_get_file_resource_ex(rar_obj_ref objref_file, rar_file_t **rar_file, int silent TSRMLS_DC);
 void minit_rararch(TSRMLS_D);
 
 PHP_FUNCTION(rar_open);

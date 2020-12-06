@@ -50,11 +50,11 @@ string(5) "11111"
 Test with include path:
 Should fail (not in include):
 
-Warning: fopen(rar://tmp.rar#1.txt): failed to open stream: Error opening RAR archive %stmp.rar: ERAR_EOPEN (file open error) in %s on line %d
+Warning: fopen(rar://tmp.rar#1.txt): %cailed to open stream: Error opening RAR archive %stmp.rar: ERAR_EOPEN (file open error) in %s on line %d
 
 Should fail (include unused):
 
-Warning: fopen(rar://tmp.rar#1.txt): failed to open stream: Error opening RAR archive %stmp.rar: ERAR_EOPEN (file open error) in %s on line %d
+Warning: fopen(rar://tmp.rar#1.txt): %cailed to open stream: Error opening RAR archive %stmp.rar: ERAR_EOPEN (file open error) in %s on line %d
 
 Should succeed:
 string(5) "11111"

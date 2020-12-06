@@ -42,7 +42,7 @@ echo $a[new stdClass()];
 
 echo "\n";
 echo "Done.\n";
---EXPECTF--
+--EXPECTF_DYNAMIC--
 * -1 (int):
 
 Warning: main(): Dimension index must be non-negative, given -1 in %s on line %d
@@ -81,6 +81,11 @@ Warning: main(): Attempt to use a non-numeric dimension to access a RarArchive o
 
 * new stdClass():
 
-Warning: main(): Attempt to use an object with no get handler as a dimension to access a RarArchive object in %s on line %d
+<?php if (PHP_VERSION_ID >= 80000) { ?>
+Warning: main(): Could not convert object given as dimension index into an integer (cast_object failed) in %s on line %d
 
+<?php } else { ?>
+Notice: Object of class stdClass could not be converted to int in %s on line %d
+RarEntry for file "2.txt" (45a918de)
+<?php } ?>
 Done.

@@ -5,13 +5,18 @@ RarArchive::isBroken/rar_broken_is test
 --FILE--
 <?php
 
+require __DIR__ . "/php8compat.php.inc";
 $f = dirname(__FILE__) . "/latest_winrar.rar";
 $b = dirname(__FILE__) . "/multi_broken.part1.rar";
 
 echo "\n* unbroken file; bad arguments\n";
 $a = RarArchive::open($f);
-var_dump($a->isBroken("jjj"));
-var_dump(rar_broken_is($a, "jjj"));
+argerr(function() use ($a) {
+    $a->isBroken("jjj");
+});
+argerr(function() use ($a) {
+    rar_broken_is($a, "jjj");
+});
 
 echo "\n* unbroken file; as first call\n";
 var_dump($a->isBroken());
@@ -46,10 +51,8 @@ echo "Done.\n";
 * unbroken file; bad arguments
 
 Warning: RarArchive::isBroken() expects exactly 0 parameters, 1 given in %s on line %d
-NULL
 
 Warning: rar_broken_is() expects exactly 1 parameter, 2 given in %s on line %d
-NULL
 
 * unbroken file; as first call
 bool(false)

@@ -58,7 +58,8 @@ void _rar_entry_to_zval(zval *parent,
 						struct RARHeaderDataEx *entry,
 						unsigned long packed_size,
 						size_t position,
-						zval *object TSRMLS_DC) /* {{{ */
+						zval *object TSRMLS_DC)
+/* {{{ */
 {
 	char tmp_s [MAX_LENGTH_OF_LONG + 1];
 	char time[50];
@@ -76,7 +77,13 @@ void _rar_entry_to_zval(zval *parent,
 #endif
 
 	object_init_ex(object, rar_class_entry_ptr);
-	zend_update_property(rar_class_entry_ptr, object, "rarfile",
+#if PHP_MAJOR_VERSION >= 8
+	zend_object *obj = Z_OBJ_P(object);
+#else
+	zval *obj = object;
+#endif
+
+	zend_update_property(rar_class_entry_ptr, obj, "rarfile",
 		sizeof("rararch") - 1, parent_copy TSRMLS_CC);
 
 #if ULONG_MAX > 0xffffffffUL
@@ -102,42 +109,42 @@ void _rar_entry_to_zval(zval *parent,
 	 * properties from here with add_property_x, or
 	 * direct call to rarentry_object_handlers.write_property
 	 * zend_update_property_x updates the scope accordingly */
-	zend_update_property_long(rar_class_entry_ptr, object, "position",
+	zend_update_property_long(rar_class_entry_ptr, obj, "position",
 		sizeof("position") - 1, (long) position TSRMLS_CC);
-	zend_update_property_stringl(rar_class_entry_ptr, object, "name",
+	zend_update_property_stringl(rar_class_entry_ptr, obj, "name",
 		sizeof("name") - 1, filename, filename_len TSRMLS_CC);
-	zend_update_property_long(rar_class_entry_ptr, object, "unpacked_size",
+	zend_update_property_long(rar_class_entry_ptr, obj, "unpacked_size",
 		sizeof("unpacked_size") - 1, unp_size TSRMLS_CC);
-	zend_update_property_long(rar_class_entry_ptr, object, "packed_size",
+	zend_update_property_long(rar_class_entry_ptr, obj, "packed_size",
 		sizeof("packed_size") - 1, packed_size TSRMLS_CC);
-	zend_update_property_long(rar_class_entry_ptr, object, "host_os",
+	zend_update_property_long(rar_class_entry_ptr, obj, "host_os",
 		sizeof("host_os") - 1, entry->HostOS TSRMLS_CC);
 
 	_rar_dos_date_to_text(entry->FileTime, time);
-	zend_update_property_string(rar_class_entry_ptr, object, "file_time",
+	zend_update_property_string(rar_class_entry_ptr, obj, "file_time",
 		sizeof("file_time") - 1, time TSRMLS_CC);
 
 	sprintf(tmp_s, "%x", entry->FileCRC);
-	zend_update_property_string(rar_class_entry_ptr, object, "crc",
+	zend_update_property_string(rar_class_entry_ptr, obj, "crc",
 		sizeof("crc") - 1, tmp_s TSRMLS_CC);
 
-	zend_update_property_long(rar_class_entry_ptr, object, "attr",
+	zend_update_property_long(rar_class_entry_ptr, obj, "attr",
 		sizeof("attr") - 1, entry->FileAttr TSRMLS_CC);
-	zend_update_property_long(rar_class_entry_ptr, object, "version",
+	zend_update_property_long(rar_class_entry_ptr, obj, "version",
 		sizeof("version") - 1, entry->UnpVer TSRMLS_CC);
-	zend_update_property_long(rar_class_entry_ptr, object, "method",
+	zend_update_property_long(rar_class_entry_ptr, obj, "method",
 		sizeof("method") - 1, entry->Method TSRMLS_CC);
-	zend_update_property_long(rar_class_entry_ptr, object, "flags",
+	zend_update_property_long(rar_class_entry_ptr, obj, "flags",
 		sizeof("flags") - 1, entry->Flags TSRMLS_CC);
 
-	zend_update_property_long(rar_class_entry_ptr, object, "redir_type",
+	zend_update_property_long(rar_class_entry_ptr, obj, "redir_type",
 		sizeof("redir_type") - 1, entry->RedirType TSRMLS_CC);
 
 	if (entry->RedirName) {
 		char *redir_target = NULL;
 		size_t redir_target_size;
 
-		zend_update_property_bool(rar_class_entry_ptr, object,
+		zend_update_property_bool(rar_class_entry_ptr, obj,
 			"redir_to_directory", sizeof("redir_to_directory") - 1,
 			!!entry->DirTarget TSRMLS_CC);
 
@@ -146,7 +153,7 @@ void _rar_entry_to_zval(zval *parent,
 		assert(redir_target_size > 0);
 		_rar_wide_to_utf(entry->RedirName, redir_target, redir_target_size);
 
-		zend_update_property_string(rar_class_entry_ptr, object, "redir_target",
+		zend_update_property_string(rar_class_entry_ptr, obj, "redir_target",
 			sizeof("redir_target") - 1, redir_target TSRMLS_CC);
 
 		efree(redir_target);
@@ -195,8 +202,14 @@ static int _rar_decl_priv_prop_null(zend_class_entry *ce, const char *name,
 	ZVAL_NULL(&property);
 	name_str = zend_string_init(name, (size_t) name_length, 1);
 	doc_str = zend_string_init(doc_comment, (size_t) doc_comment_len, 1);
+# if PHP_MAJOR_VERSION >= 8
+	zend_declare_property_ex(ce, name_str, &property, ZEND_ACC_PRIVATE,
+							 doc_str);
+	ret = SUCCESS;
+# else
 	ret = zend_declare_property_ex(ce, name_str, &property, ZEND_ACC_PRIVATE,
 								   doc_str);
+#endif
 	zend_string_release(name_str);
 	zend_string_release(doc_str);
 	return ret;
@@ -216,10 +229,12 @@ static zval *_rar_entry_get_property(zval *entry_obj, char *name, int namelen TS
 	EG(scope) = rar_class_entry_ptr;
 #endif
 
-#if PHP_MAJOR_VERSION < 7
-	tmp = zend_read_property(Z_OBJCE_P(entry_obj), entry_obj, name, namelen, 1 TSRMLS_CC);
-#else
+#if PHP_MAJOR_VERSION >= 8
+	tmp = zend_read_property(Z_OBJCE_P(entry_obj), Z_OBJ_P(entry_obj), name, namelen, 1, &zv);
+#elif PHP_MAJOR_VERSION >= 7
 	tmp = zend_read_property(Z_OBJCE_P(entry_obj), entry_obj, name, namelen, 1, &zv);
+#else
+	tmp = zend_read_property(Z_OBJCE_P(entry_obj), entry_obj, name, namelen, 1 TSRMLS_CC);
 #endif
 	if (tmp == NULL) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,
@@ -290,7 +305,7 @@ PHP_METHOD(rarentry, extract)
 	}
 
 	RAR_GET_PROPERTY(tmp, "rarfile");
-	if (_rar_get_file_resource(tmp, &rar TSRMLS_CC) == FAILURE) {
+	if (_rar_get_file_resource_zv(tmp, &rar TSRMLS_CC) == FAILURE) {
 		RETURN_FALSE;
 	}
 
@@ -544,7 +559,7 @@ PHP_METHOD(rarentry, getStream)
 
 	RAR_GET_PROPERTY(position, "position");
 	RAR_GET_PROPERTY(tmp, "rarfile");
-	if (_rar_get_file_resource(tmp, &rar TSRMLS_CC) == FAILURE) {
+	if (_rar_get_file_resource_zv(tmp, &rar TSRMLS_CC) == FAILURE) {
 		RETURN_FALSE;
 	}
 

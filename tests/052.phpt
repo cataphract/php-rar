@@ -20,9 +20,9 @@ echo "Done.\n";
 --EXPECTF--
 Archive not found :
 
-Warning: fopen(rar://%snot_found.rar#1.txt): failed to open stream: Error opening RAR archive %snot_found.rar: ERAR_EOPEN (file open error) in %s on line %d
+Warning: fopen(rar://%snot_found.rar#1.txt): %cailed to open stream: Error opening RAR archive %snot_found.rar: ERAR_EOPEN (file open error) in %s on line %d
 
 File not found :
 
-Warning: fopen(rar://%slatest_winrar.rar#not_found.txt): failed to open stream: Can't file not_found.txt in RAR archive %s on line %d
+Warning: fopen(rar://%slatest_winrar.rar#not_found.txt): %cailed to open stream: Can't file not_found.txt in RAR archive %s on line %d
 Done.

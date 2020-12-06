@@ -5,13 +5,18 @@ RarArchive::setAllowBroken has the desired effect
 --FILE--
 <?php
 
+require __DIR__ . "/php8compat.php.inc";
 function retnull() { return null; }
 $b = dirname(__FILE__) . "/multi_broken.part1.rar";
 
 echo "* broken file; bad arguments\n";
 $a = RarArchive::open($b, null, 'retnull');
-$a->setAllowBroken();
-rar_allow_broken_set($a);
+argerr(function() use ($a) {
+    $a->setAllowBroken();
+});
+argerr(function() use ($a) {
+    rar_allow_broken_set($a);
+});
 
 echo "\n* broken file; do not allow broken (default)\n";
 $a = RarArchive::open($b, null, 'retnull');

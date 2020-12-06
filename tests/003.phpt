@@ -5,6 +5,7 @@ rar_entry_get() function
 --FILE--
 <?php
 
+require __DIR__ . "/php8compat.php.inc";
 $rar_file1 = rar_open(dirname(__FILE__).'/linux_rar.rar'); 
 $entry1 = rar_entry_get($rar_file1, 'test file with whitespaces.txt');
 var_dump($entry1);
@@ -14,8 +15,9 @@ $entry2 = rar_entry_get($rar_file2, '2.txt');
 var_dump($entry2);
 
 $rar_file3 = rar_open(dirname(__FILE__).'/no_such_file.rar'); 
-$entry3 = rar_entry_get($rar_file3, '2.txt');
-var_dump($entry3);
+argerr(function() use ($rar_file3) {
+    rar_entry_get($rar_file3, '2.txt');
+});
 
 echo "Done\n";
 ?>
@@ -90,5 +92,4 @@ object(RarEntry)#%d (%d) {
 Warning: rar_open(): Failed to open %s: ERAR_EOPEN (file open error) in %s on line %d
 
 Warning: rar_entry_get() expects parameter 1 to be RarArchive, boo%s given in %s on line %d
-NULL
 Done

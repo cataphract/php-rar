@@ -2,16 +2,10 @@ jobs:
   - template: azure-template.yml
     parameters:
       name: php_5_3_valgrind
-      displayName: PHP 5.3 (valgrind, clang)
+      displayName: PHP 5.3 ZTS (valgrind, clang)
       phpVersion: '5.3'
       clang: true
       valgrind: true
-
-  - template: azure-template.yml
-    parameters:
-      name: php_5_3_zts
-      displayName: PHP 5.3 ZTS
-      phpVersion: '5.3'
       zts: true
 
   - template: azure-template.yml
@@ -73,3 +67,18 @@ jobs:
       clang: true
       valgrind: true
       zts: true
+
+  - template: azure-template.yml
+    parameters:
+      name: php_8_0
+      displayName: PHP 8.0 ZTS
+      phpVersion: '8.0'
+      zts: true
+
+  - template: azure-template.yml
+    parameters:
+      name: php_8_0_valgrind
+      displayName: PHP 8.0 (valgrind, clang)
+      phpVersion: '8.0'
+      clang: true
+      valgrind: true

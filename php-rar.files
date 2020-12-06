@@ -1,4 +1,6 @@
 config.h
+php_compat.h
+php_compat.h
 php_rar.h
 rar.c
 rar_error.c

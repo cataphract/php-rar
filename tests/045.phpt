@@ -5,6 +5,7 @@ rar_open() with invalid volume callback
 if(!extension_loaded("rar")) die("skip");
 --FILE--
 <?php
+require __DIR__ . "/php8compat.php.inc";
 
 class A {
 	public static function resolve($vol) {
@@ -30,11 +31,15 @@ var_dump($rar);
 
 echo "\nGiven callback that takes more arguments:\n";
 $rar = RarArchive::open($fn, null, 'strpos');
-$rar->getEntries();
+argerr(function() use ($rar) {
+    $rar->getEntries();
+});
 
 echo "\nGiven callback that takes another kind of arguments:\n";
 $rar = RarArchive::open($fn, null, 'array_keys');
-$rar->getEntries();
+argerr(function() use ($rar) {
+    $rar->getEntries();
+});
 
 echo "\nGiven callback that returns another kind of arguments:\n";
 function testA($vol) { return true; }
@@ -52,7 +57,7 @@ try {
 }
 
 echo "Done.\n";
---EXPECTF--
+--EXPECTF_DYNAMIC--
 Not given a callback:
 
 Warning: RarArchive::open(): Expected the third argument, if provided, to be a valid callback in %s on line %d
@@ -64,15 +69,33 @@ bool(false)
 
 Given callback that takes more arguments:
 
+<?php if (PHP_VERSION_ID >= 80000) { ?>
+Warning: RarArchive::getEntries(): Failure to call volume find callback in %s on line %d
+<?php } ?>
+<?php if (PHP_VERSION_ID >= 80000) { ?>
+
+Warning: RarArchive::getEntries(): ERAR_EOPEN (file open error) in %s on line %d
+
+Warning: strpos() expects at least %d parameters, 1 given in %s on line %d
+<?php } else { ?>
 Warning: strpos() expects at least %d parameters, 1 given in %s on line %d
 
 Warning: RarArchive::getEntries(): ERAR_EOPEN (file open error) in %s on line %d
+<?php } ?>
 
 Given callback that takes another kind of arguments:
 
+<?php if (PHP_VERSION_ID >= 80000) { ?>
+Warning: RarArchive::getEntries(): Failure to call volume find callback in %s on line %d
+
+Warning: RarArchive::getEntries(): ERAR_EOPEN (file open error) in %s on line %d
+
+Warning: array_keys() expects parameter 1 to be array, string given in %s on line %d
+<?php } else { ?>
 Warning: array_keys() expects parameter 1 to be array, string given in %s on line %d
 
 Warning: RarArchive::getEntries(): ERAR_EOPEN (file open error) in %s on line %d
+<?php } ?>
 
 Given callback that returns another kind of arguments:
 

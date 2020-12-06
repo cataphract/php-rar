@@ -5,6 +5,7 @@ Wrapper cache exaustion test
 --FILE--
 <?php
 
+require __DIR__ . "/php8compat.php.inc";
 $f = array();
 $f[] = dirname(__FILE__) . "/latest_winrar.rar";
 $f[] = dirname(__FILE__) . "/directories.rar";
@@ -18,7 +19,9 @@ function printstats() {
 }
 
 echo "* Invalid call to rar_wrapper_cache_stats():\n";
-var_dump(rar_wrapper_cache_stats("sfddf"));
+argerr(function() {
+    rar_wrapper_cache_stats("sfddf");
+});
 
 echo "\n* Initial stats:\n";
 printstats();
@@ -75,7 +78,6 @@ echo "Done.\n";
 * Invalid call to rar_wrapper_cache_stats():
 
 Warning: rar_wrapper_cache_stats() expects exactly 0 parameters, 1 given in %s on line %d
-NULL
 
 * Initial stats:
 Stats: 0/0 (hits/misses)
