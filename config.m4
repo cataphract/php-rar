@@ -60,6 +60,7 @@ AC_LANG_POP([C++])
 extra_cxxflags="$cxxflags_null"
 echo "EXTRA_CXXFLAGS := \$(EXTRA_CXXFLAGS) $extra_cxxflags" >> Makefile.fragments
 cat Makefile.frag >> Makefile.fragments
+INCLUDES=`echo "$INCLUDES" | sed 's/-I/-isystem /g'`
 
 if test "$PHP_RAR" != "no"; then
   AC_DEFINE(HAVE_RAR, 1, [Whether you have rar support])
