@@ -784,7 +784,13 @@ static int _rar_get_archive_and_fragment(php_stream_wrapper *wrapper,
 #if PHP_MAJOR_VERSION < 7
 			*archive = zend_resolve_path(tmp_archive, tmp_arch_len TSRMLS_CC);
 #else
+#  if PHP_VERSION_ID < 80100
 			zend_string *arc_str = zend_resolve_path(tmp_archive, tmp_arch_len);
+#  else
+			zend_string *tmp_archive_str = zend_string_init_fast(tmp_archive, tmp_arch_len);
+			zend_string *arc_str = zend_resolve_path(tmp_archive_str);
+			zend_string_free(tmp_archive_str);
+#  endif
 			if (arc_str != NULL) {
 				*archive = estrndup(arc_str->val, arc_str->len);
 			} else {

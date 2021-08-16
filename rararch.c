@@ -28,6 +28,7 @@
 /* $Id$ */
 
 #include "zend_types.h"
+#include <zend_API.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -962,6 +963,11 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_rararchive_setallowbroken, 0, 0, 1)
 	ZEND_ARG_INFO(0, allow_broken)
 ZEND_END_ARG_INFO()
 
+#if PHP_MAJOR_VERSION >= 8
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_rararchive_getiterator, 0, 0, Traversable, 0)
+ZEND_END_ARG_INFO()
+#endif
+
 ZEND_BEGIN_ARG_INFO(arginfo_rararchive_void, 0)
 ZEND_END_ARG_INFO()
 /* }}} */
@@ -981,7 +987,7 @@ static zend_function_entry php_rararch_class_functions[] = {
 	PHP_ME(rararch,					__toString,				arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
 	PHP_ME_MAPPING(__construct,		rar_bogus_ctor,			arginfo_rararchive_void,		ZEND_ACC_PRIVATE | ZEND_ACC_CTOR)
 #if PHP_MAJOR_VERSION >= 8
-	PHP_ME(rararch,					getIterator,			arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
+	PHP_ME(rararch,					getIterator,			arginfo_rararchive_getiterator,	ZEND_ACC_PUBLIC)
 #endif
 	{NULL, NULL, NULL}
 };

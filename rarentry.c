@@ -27,11 +27,10 @@
 
 /* $Id$ */
 
-#ifdef __cplusplus
-extern "C" {
+#include <zend_types.h>
+#ifndef _GNU_SOURCE
+#  define _GNU_SOURCE
 #endif
-
-#define _GNU_SOURCE
 #include <string.h>
 
 #include <php.h>
@@ -270,8 +269,8 @@ static void _rar_dos_date_to_text(unsigned dos_time, char *date_string) /* {{{ *
 /* }}} */
 
 /* {{{ Methods */
-/* {{{ proto bool RarEntry::extract(string dir [, string filepath = ''
-       [, string password = NULL [, bool extended_data  = FALSE]])
+/* {{{ public function extract(?string $dir, ?string $filepath = '',
+		?string $password = null, bool $extended_data = false): void {}
    Extract file from the archive */
 PHP_METHOD(rarentry, extract)
 { /* lots of variables, but no need to be intimidated */
@@ -298,7 +297,7 @@ PHP_METHOD(rarentry, extract)
 	 * password that's different from the one stored in the rar_file_t object*/
 	rar_cb_user_data		cb_udata = {NULL};
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|ss!b", &dir,
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s!|s!s!b", &dir,
 			&dir_len, &filepath, &filepath_len, &password, &password_len,
 			&process_ed) == FAILURE ) {
 		return;
@@ -714,12 +713,21 @@ PHP_METHOD(rarentry, __toString)
 /* }}} */
 
 /* {{{ arginfo */
+#if PHP_MAJOR_VERSION < 8
 ZEND_BEGIN_ARG_INFO_EX(arginfo_rarentry_extract, 0, 0, 1)
 	ZEND_ARG_INFO(0, path)
 	ZEND_ARG_INFO(0, filename)
 	ZEND_ARG_INFO(0, password)
 	ZEND_ARG_INFO(0, extended_data)
 ZEND_END_ARG_INFO()
+#else
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rarentry_extract, 0, 1, _IS_BOOL, 0)
+	ZEND_ARG_TYPE_INFO(0, dir, IS_STRING, 1)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, filepath, IS_STRING, 1, "\'\'")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, password, IS_STRING, 1, "null")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, extended_data, _IS_BOOL, 0, "false")
+ZEND_END_ARG_INFO()
+#endif
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_rarentry_getstream, 0, 0, 0)
 	ZEND_ARG_INFO(0, password)
@@ -829,7 +837,3 @@ void minit_rarentry(TSRMLS_D)
 	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_UNIX_SYM_LINK",				0x0A000L);
 	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_UNIX_SOCKET",				0x0C000L);
 }
-
-#ifdef __cplusplus
-}
-#endif

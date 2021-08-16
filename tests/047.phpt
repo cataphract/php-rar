@@ -10,9 +10,9 @@ function resolve($vol) {
 	else
 		return null;
 }
-function int32_to_hex($value) { 
-  $value &= 0xffffffff; 
-  return str_pad(strtoupper(dechex($value)), 8, "0", STR_PAD_LEFT); 
+function int32_to_hex($value) {
+  $value &= 0xffffffff;
+  return str_pad(strtoupper(dechex($value)), 8, "0", STR_PAD_LEFT);
 }
 echo "Fail:\n";
 $rar_file1 = rar_open(dirname(__FILE__).'/multi_broken.part1.rar');
