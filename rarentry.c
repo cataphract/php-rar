@@ -65,7 +65,11 @@ void _rar_entry_to_zval(zval *parent,
 	char *filename;
 	int  filename_size,
 		 filename_len;
+#if PHP_MAJOR_VERSION >= 7
+	zend_long unp_size; /* zval stores PHP ints as zend_long, so use that here */
+#else
 	long unp_size; /* zval stores PHP ints as long, so use that here */
+#endif
 	zval *parent_copy = parent;
 #if PHP_MAJOR_VERSION < 7
 	/* allocate zval on the heap */
@@ -85,7 +89,9 @@ void _rar_entry_to_zval(zval *parent,
 	zend_update_property(rar_class_entry_ptr, obj, "rarfile",
 		sizeof("rararch") - 1, parent_copy TSRMLS_CC);
 
-#if ULONG_MAX > 0xffffffffUL
+#if PHP_MAJOR_VERSION >= 7 && ZEND_ENABLE_ZVAL_LONG64
+	unp_size = ((zend_long) entry->UnpSize) + (((zend_long) entry->UnpSizeHigh) << 32);
+#elif PHP_MAJOR_VERSION < 7 && ULONG_MAX > 0xffffffffUL
 	unp_size = ((long) entry->UnpSize) + (((long) entry->UnpSizeHigh) << 32);
 #else
 	/* for 32-bit long, at least don't give negative values */
