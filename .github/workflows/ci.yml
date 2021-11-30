@@ -1,0 +1,36 @@
+name: Build and Test
+on: [push, pull_request]
+jobs:
+  windows:
+    defaults:
+      run:
+        shell: cmd
+    strategy:
+      matrix:
+          version: ["7.4"]
+          arch: [x64]
+          ts: [ts]
+    runs-on: windows-latest
+    steps:
+      - name: Checkout rar
+        uses: actions/checkout@v2
+      - name: Setup PHP
+        id: setup-php
+        uses: cmb69/setup-php-sdk@v0.2
+        with:
+          version: ${{matrix.version}}
+          arch: ${{matrix.arch}}
+          ts: ${{matrix.ts}}
+      - name: Enable Developer Command Prompt
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{matrix.arch}}
+          toolset: ${{steps.setup-php.outputs.toolset}}
+      - name: phpize
+        run: phpize
+      - name: configure
+        run: configure --enable-rar --with-prefix=${{steps.setup-php.outputs.prefix}}
+      - name: make
+        run: nmake
+      - name: test
+        run: copy run-tests8.php run-tests.php && nmake test TESTS="-g FAIL --show-diff tests"
