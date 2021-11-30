@@ -31,7 +31,7 @@ if (PHP_RAR != "no") {
 		arcread.cpp filefn.cpp \
 		global.cpp list.cpp \
 		encname.cpp file.cpp \
-		secpassword.cpp options.cpp", "rar");
+		secpassword.cpp options.cpp", "rar", "rarobj");
 
 	AC_DEFINE("HAVE_RAR", 1, "Rar support");
 }
