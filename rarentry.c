@@ -67,7 +67,7 @@ void _rar_entry_to_zval(zval *parent,
 		 filename_len;
 #if PHP_MAJOR_VERSION >= 7
 	zend_long unp_size; /* zval stores PHP ints as zend_long, so use that here */
-#elif
+#else
 	long unp_size; /* zval stores PHP ints as long, so use that here */
 #endif
 	zval *parent_copy = parent;
