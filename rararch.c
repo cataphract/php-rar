@@ -150,12 +150,20 @@ int _rar_create_rararch_obj(const char* resolved_path,
 
 	rar = emalloc(sizeof *rar);
 	rar->list_open_data = ecalloc(1, sizeof *rar->list_open_data);
+#if !defined(PHP_WIN32) || PHP_VERSION_ID < 70100
 	rar->list_open_data->ArcName = estrdup(resolved_path);
+#else
+	rar->list_open_data->ArcNameW = php_win32_ioutil_any_to_w(resolved_path);
+#endif
 	rar->list_open_data->OpenMode = RAR_OM_LIST_INCSPLIT;
 	rar->list_open_data->CmtBuf = ecalloc(RAR_MAX_COMMENT_SIZE, 1);
 	rar->list_open_data->CmtBufSize = RAR_MAX_COMMENT_SIZE;
 	rar->extract_open_data = ecalloc(1, sizeof *rar->extract_open_data);
+#if !defined(PHP_WIN32) || PHP_VERSION_ID < 70100
 	rar->extract_open_data->ArcName = estrdup(resolved_path);
+#else
+	rar->extract_open_data->ArcNameW = php_win32_ioutil_any_to_w(resolved_path);
+#endif
 	rar->extract_open_data->OpenMode = RAR_OM_EXTRACT;
 	rar->extract_open_data->CmtBuf = NULL; /* not interested in it again */
 	rar->cb_userdata.password = NULL;
@@ -186,10 +194,19 @@ int _rar_create_rararch_obj(const char* resolved_path,
 	} else {
 		*err_code = rar->list_open_data->OpenResult;
 
+
+#if !defined(PHP_WIN32) || PHP_VERSION_ID < 70100
 		efree(rar->list_open_data->ArcName);
+#else
+		free(rar->list_open_data->ArcNameW);
+#endif
 		efree(rar->list_open_data->CmtBuf);
 		efree(rar->list_open_data);
+#if !defined(PHP_WIN32) || PHP_VERSION_ID < 70100
 		efree(rar->extract_open_data->ArcName);
+#else
+		free(rar->extract_open_data->ArcNameW);
+#endif
 		efree(rar->extract_open_data);
 		efree(rar);
 		return FAILURE;
@@ -381,10 +398,18 @@ static void rararch_ce_free_object_storage(zend_object *zobj)
 
 		_rar_delete_entries(rar TSRMLS_CC);
 
+#if !defined(PHP_WIN32) || PHP_VERSION_ID < 70100
 		efree(rar->list_open_data->ArcName);
+#else
+		free(rar->list_open_data->ArcNameW);
+#endif
 		efree(rar->list_open_data->CmtBuf);
 		efree(rar->list_open_data);
+#if !defined(PHP_WIN32) || PHP_VERSION_ID < 70100
 		efree(rar->extract_open_data->ArcName);
+#else
+		free(rar->extract_open_data->ArcNameW);
+#endif
 		efree(rar->extract_open_data);
 		efree(rar);
 	}
@@ -772,9 +797,16 @@ PHP_FUNCTION(rar_entry_get)
 			sstate->position, return_value TSRMLS_CC);
 	}
 	else {
+#if defined(PHP_WIN32) && PHP_VERSION_ID >= 70100
+		rar->list_open_data->ArcName = php_win32_cp_w_to_any(rar->list_open_data->ArcNameW);
+#endif
 		_rar_handle_ext_error(
 			"cannot find file \"%s\" in Rar archive \"%s\""
 			TSRMLS_CC, filename, rar->list_open_data->ArcName);
+#if defined(PHP_WIN32) && PHP_VERSION_ID >= 70100
+		free(rar->list_open_data->ArcName);
+		rar->list_open_data->ArcName = NULL;
+#endif
 		RETVAL_FALSE;
 	}
 	_rar_entry_search_end(sstate);
@@ -923,13 +955,24 @@ PHP_METHOD(rararch, __toString)
 
 	/* 2 is size of %s, 1 is terminating 0 */
 	restring_size = (sizeof(format) - 1) - 2 * 2 + 1;
+#if !defined(PHP_WIN32) || PHP_VERSION_ID < 70100
 	restring_size += strlen(rar->list_open_data->ArcName);
+#else
+	restring_size += wcslen(rar->list_open_data->ArcNameW);
+#endif
 	if (is_closed)
 		restring_size += sizeof(closed) - 1;
 
 	restring = emalloc(restring_size);
+#if defined(PHP_WIN32) && PHP_VERSION_ID >= 70100
+	rar->list_open_data->ArcName = php_win32_cp_w_to_any(rar->list_open_data->ArcNameW);
+#endif
 	snprintf(restring, restring_size, format, rar->list_open_data->ArcName,
 		is_closed?closed:"");
+#if defined(PHP_WIN32) && PHP_VERSION_ID >= 70100
+	free(rar->list_open_data->ArcName);
+	rar->list_open_data->ArcName = NULL;
+#endif
 	restring[restring_size - 1] = '\0'; /* just to be safe */
 
 	RAR_RETURN_STRINGL(restring, (int) restring_size - 1, 0);
