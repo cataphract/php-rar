@@ -91,5 +91,5 @@ object(RarEntry)#%d (%d) {
 
 Warning: rar_open(): Failed to open %s: ERAR_EOPEN (file open error) in %s on line %d
 
-Warning: rar_entry_get() expects parameter 1 to be RarArchive, boo%s given in %s on line %d
+Warning: rar_entry_get() expects parameter 1 to be RarArchive, %s given in %s on line %d
 Done

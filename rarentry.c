@@ -735,6 +735,13 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_rar_void, 0)
 ZEND_END_ARG_INFO()
+
+#if PHP_VERSION_ID >= 80200
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rar_tostring, 0, 0, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+#else
+#define arginfo_rar_tostring arginfo_rar_void
+#endif
 /* }}} */
 
 static zend_function_entry php_rar_class_functions[] = {
@@ -755,7 +762,7 @@ static zend_function_entry php_rar_class_functions[] = {
 	PHP_ME(rarentry,		getRedirType,		arginfo_rar_void,	ZEND_ACC_PUBLIC)
 	PHP_ME(rarentry,		isRedirectToDirectory,	arginfo_rar_void,	ZEND_ACC_PUBLIC)
 	PHP_ME(rarentry,		getRedirTarget,	arginfo_rar_void,	ZEND_ACC_PUBLIC)
-	PHP_ME(rarentry,		__toString,			arginfo_rar_void,	ZEND_ACC_PUBLIC)
+	PHP_ME(rarentry,		__toString,			arginfo_rar_tostring,	ZEND_ACC_PUBLIC)
 	PHP_ME_MAPPING(__construct,	rar_bogus_ctor,	arginfo_rar_void,	ZEND_ACC_PRIVATE | ZEND_ACC_CTOR)
 	{NULL, NULL, NULL}
 };
