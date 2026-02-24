@@ -10,6 +10,33 @@ unrar/LICENSE.txt for details.
 Some modifications have been applied to the UnRAR library, mainly to allow
 streaming extraction of files without using threads.
 
-[![Build Status Appveyor](https://ci.appveyor.com/api/projects/status/cbgpepx6kyax2198/branch/master?svg=true)](https://ci.appveyor.com/project/cataphract/php-rar/branch/master)
-[![Build Status Travis](https://travis-ci.org/cataphract/php-rar.svg?branch=master)](https://travis-ci.org/cataphract/php-rar)
-[![codecov](https://codecov.io/gh/cataphract/php-rar/branch/master/graph/badge.svg)](https://codecov.io/gh/cataphract/php-rar)
+| Version | Status                       |
+|---------|------------------------------|
+| master  | unmaintened :x:              |
+| v4.x    | maintened :white_check_mark: |
+
+Maintained PHP Versions compatibility:
+
+| PHP Version | Status                 |
+|-------------|------------------------|
+| 5.x         | no :x:                 |
+| 7.x         | no :x:                 |
+| 8.0         | yes :white_check_mark: |
+| 8.1         | yes :white_check_mark: |
+| 8.2         | yes :white_check_mark: |
+| 8.3         | yes :white_check_mark: |
+| 8.4         | yes :white_check_mark: |
+| 8.5         | yes :white_check_mark: |
+
+Installation system support:
+
+| Platform | Status                 |
+|----------|------------------------|
+| PECL     | no  :x:                |
+| PIE      | yes :white_check_mark: |
+
+To install the extension, use PIE (PHP Installer Extension) with a command like:
+
+```bash
+pie install php-win-ext/rar
+```

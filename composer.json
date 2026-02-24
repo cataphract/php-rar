@@ -2,7 +2,7 @@
     "name": "php-win-ext/rar",
     "type": "php-ext",
     "license": [
-        "PHP License"
+        "PHP-3.01"
     ],
     "authors": [
         {
