@@ -27,6 +27,7 @@ echo "\n* broken file; do not allow broken (explicit)\n";
 $a = RarArchive::open($b, null, 'retnull');
 $a->setAllowBroken(false);
 var_dump($a->getEntries());
+if(PHP_OS_FAMILY==='Windows') var_dump($a);
 var_dump(count($a));
 
 echo "\n* broken file; allow broken\n";
