@@ -544,7 +544,8 @@ static int rararch_dimensions_preamble(rar_file_t *rar,
 /* }}} */
 
 /* {{{ RarArchive count_elements handler */
-static int rararch_count_elements(handler_this_t *object, long *count TSRMLS_DC)
+
+static int rararch_count_elements(zend_object *object, zend_long *count TSRMLS_DC)
 {
 	rar_file_t	*rar = NULL;
 	size_t		entry_count;
@@ -555,10 +556,10 @@ static int rararch_count_elements(handler_this_t *object, long *count TSRMLS_DC)
 	}
 
 	entry_count = _rar_entry_count(rar);
-	if (entry_count > LONG_MAX)
-		entry_count = (size_t) LONG_MAX;
+	if (entry_count > ZEND_LONG_MAX)
+		entry_count = ZEND_LONG_MAX;
 
-	*count = (long) entry_count;
+	*count = (zend_long) entry_count;
 
 	return SUCCESS;
 }
