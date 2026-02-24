@@ -2829,10 +2829,10 @@ case "$1" in
     gdb --args {$cmd}
     ;;
 "valgrind")
-    USE_ZEND_ALLOC=0 valgrind $2 ${cmd}
+    USE_ZEND_ALLOC=0 valgrind $2 {$cmd}
     ;;
 "rr")
-    rr record $2 ${cmd}
+    rr record $2 {$cmd}
     ;;
 *)
     {$cmd}

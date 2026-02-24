@@ -11,6 +11,7 @@
 /modules
 /missing
 /.deps
+*.dep
 /.libs
 /Makefile
 /Makefile.fragments

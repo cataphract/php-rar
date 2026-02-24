@@ -7,6 +7,9 @@ if (key_exists('USE_ZEND_ALLOC', $_ENV) && PHP_VERSION_ID < 70000) die('skip do 
 ?>
 --FILE--
 <?php
+if (PHP_VERSION_ID>=80500){
+  ini_set('fatal_error_backtraces', 'Off');
+}
 
 $f1 = dirname(__FILE__) . "/latest_winrar.rar";
 $a = RarArchive::open($f1);

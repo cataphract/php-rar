@@ -544,7 +544,8 @@ static int rararch_dimensions_preamble(rar_file_t *rar,
 /* }}} */
 
 /* {{{ RarArchive count_elements handler */
-static int rararch_count_elements(handler_this_t *object, long *count TSRMLS_DC)
+
+static int rararch_count_elements(zend_object *object, zend_long *count TSRMLS_DC)
 {
 	rar_file_t	*rar = NULL;
 	size_t		entry_count;
@@ -555,10 +556,10 @@ static int rararch_count_elements(handler_this_t *object, long *count TSRMLS_DC)
 	}
 
 	entry_count = _rar_entry_count(rar);
-	if (entry_count > LONG_MAX)
-		entry_count = (size_t) LONG_MAX;
+	if (entry_count > ZEND_LONG_MAX)
+		entry_count = ZEND_LONG_MAX;
 
-	*count = (long) entry_count;
+	*count = (zend_long) entry_count;
 
 	return SUCCESS;
 }
@@ -970,6 +971,13 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_rararchive_void, 0)
 ZEND_END_ARG_INFO()
+
+#if PHP_VERSION_ID >= 80200
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_rararchive_tostring, 0, 0, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+#else
+#define arginfo_rararchive_tostring arginfo_rararchive_void
+#endif
 /* }}} */
 
 static zend_function_entry php_rararch_class_functions[] = {
@@ -984,7 +992,7 @@ static zend_function_entry php_rararch_class_functions[] = {
 	PHP_ME_MAPPING(isBroken,		rar_broken_is,			arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
 	PHP_ME_MAPPING(setAllowBroken,	rar_allow_broken_set,	arginfo_rararchive_setallowbroken, ZEND_ACC_PUBLIC)
 	PHP_ME_MAPPING(close,			rar_close,				arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
-	PHP_ME(rararch,					__toString,				arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
+	PHP_ME(rararch,					__toString,				arginfo_rararchive_tostring,	ZEND_ACC_PUBLIC)
 	PHP_ME_MAPPING(__construct,		rar_bogus_ctor,			arginfo_rararchive_void,		ZEND_ACC_PRIVATE | ZEND_ACC_CTOR)
 #if PHP_MAJOR_VERSION >= 8
 	PHP_ME(rararch,					getIterator,			arginfo_rararchive_getiterator,	ZEND_ACC_PUBLIC)
