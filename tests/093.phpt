@@ -4,6 +4,9 @@ Traversal of RarArchive with foreach by reference gives error
 <?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
+if (PHP_VERSION_ID>=80500){
+  ini_set('fatal_error_backtraces', 'Off');
+}
 
 $f1 = dirname(__FILE__) . "/latest_winrar.rar";
 $a = RarArchive::open($f1);
