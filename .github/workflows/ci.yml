@@ -3,7 +3,7 @@ on:
   push:
     branches: ['*']
 jobs:
-  build:
+  test-linux:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
