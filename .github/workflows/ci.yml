@@ -1,12 +1,26 @@
 name: CI
 on:
-  pull_request: null
-
+  push:
+    branches: ['*']
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        php-rel: ['8.2', '8.3', '8.4', '8.5']
+        ts-state: [ts, nts]
+
     steps:
       - uses: actions/checkout@v5
-      - run: yarn install
-      - run: yarn lint
-      - run: yarn test
+      - name: Setup PHP
+        id: setup-php
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '${{ matrix.php-rel }}'
+          phpts: '${{ matrix.ts-state }}'
+
+      - name: build extension
+        run: phpize && ./configure --enable-rar && make
+      - name: run tests
+        run: rm run-tests.php && cp run-tests8.php run-tests.php && make test
