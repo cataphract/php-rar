@@ -3,6 +3,7 @@ Supports version 5 RAR files
 --SKIPIF--
 <?php if(!extension_loaded("rar")) die("skip");
 if (isset($_ENV['APPVEYOR'])) die("skip failing on appveyor");
+if ($_ENV['RUNNER_OS'] === 'Windows') die("skip failing on Windows runner on GitHub Action");
 --FILE--
 <?php
 RarException::setUsingExceptions(true);
