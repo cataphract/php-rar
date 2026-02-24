@@ -10,10 +10,6 @@ function resolve($vol) {
 	else
 		return null;
 }
-function int32_to_hex($value) {
-  $value &= 0xffffffff;
-  return str_pad(strtoupper(dechex($value)), 8, "0", STR_PAD_LEFT);
-}
 echo "Fail:\n";
 $rar_file1 = rar_open(dirname(__FILE__).'/multi_broken.part1.rar');
 $entry = $rar_file1->getEntry('file2.txt');
@@ -22,7 +18,7 @@ echo "\nSuccess:\n";
 $rar_file1 = rar_open(dirname(__FILE__).'/multi_broken.part1.rar', null, 'resolve');
 $entry = $rar_file1->getEntry('file2.txt');
 $entry->extract(null, dirname(__FILE__) . "/temp_file2.txt");
-echo int32_to_hex(crc32(file_get_contents(dirname(__FILE__) . "/temp_file2.txt")));
+echo strtoupper(hash("crc32b", file_get_contents(dirname(__FILE__) . "/temp_file2.txt")));
 echo "\n";
 echo "Done\n";
 ?>

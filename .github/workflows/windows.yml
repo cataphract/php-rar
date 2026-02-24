@@ -19,6 +19,8 @@ jobs:
       - name: Get the extension matrix
         id: extension-matrix
         uses: php/php-windows-builder/extension-matrix@v1
+        with:
+          php-version-list: '8.1'
   build:
     needs: get-extension-matrix
     runs-on: ${{ matrix.os }}
