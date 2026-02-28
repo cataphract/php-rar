@@ -248,7 +248,7 @@ typedef struct _rar_find_output {
 	int							found;
 	size_t						position;
 	struct RARHeaderDataEx *	header;
-	unsigned long				packed_size;
+	zend_ulong					packed_size;
 	int							eof;
 } rar_find_output;
 #define RAR_SEARCH_INDEX		0x01U
@@ -297,7 +297,7 @@ extern zend_class_entry *rar_class_entry_ptr;
 void minit_rarentry(TSRMLS_D);
 void _rar_entry_to_zval(zval *parent,
 						struct RARHeaderDataEx *entry,
-						unsigned long packed_size,
+						zend_ulong packed_size,
 						size_t index,
 						zval *entry_object TSRMLS_DC);
 

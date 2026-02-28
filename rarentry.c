@@ -55,7 +55,7 @@ static void _rar_dos_date_to_text(unsigned dos_time, char *date_string);
  * will have its refcount increased */
 void _rar_entry_to_zval(zval *parent,
 						struct RARHeaderDataEx *entry,
-						unsigned long packed_size,
+						zend_ulong packed_size,
 						size_t position,
 						zval *object TSRMLS_DC)
 /* {{{ */
@@ -65,7 +65,7 @@ void _rar_entry_to_zval(zval *parent,
 	char *filename;
 	int  filename_size,
 		 filename_len;
-	long unp_size; /* zval stores PHP ints as long, so use that here */
+	zend_long unp_size; /* zend_long is the portable PHP integer type (always 64-bit in PHP 7+) */
 	zval *parent_copy = parent;
 #if PHP_MAJOR_VERSION < 7
 	/* allocate zval on the heap */
@@ -85,22 +85,17 @@ void _rar_entry_to_zval(zval *parent,
 	zend_update_property(rar_class_entry_ptr, obj, "rarfile",
 		sizeof("rararch") - 1, parent_copy TSRMLS_CC);
 
-#if ULONG_MAX > 0xffffffffUL
-	unp_size = ((long) entry->UnpSize) + (((long) entry->UnpSizeHigh) << 32);
-#else
-	/* for 32-bit long, at least don't give negative values */
-	if ((unsigned long) entry->UnpSize > (unsigned long) LONG_MAX
-			|| entry->UnpSizeHigh != 0)
-		unp_size = LONG_MAX;
-	else
-		unp_size = (long) entry->UnpSize;
-#endif
+	{
+		zend_ulong raw_size = (zend_ulong)entry->UnpSizeHigh << 32 | entry->UnpSize;
+		unp_size = raw_size > (zend_ulong)ZEND_LONG_MAX
+			? ZEND_LONG_MAX : (zend_long)raw_size;
+	}
 
 	filename_size = sizeof(entry->FileNameW) * 4;
 	filename = (char*) emalloc(filename_size);
 
-	if (packed_size > (unsigned long) LONG_MAX)
-		packed_size = LONG_MAX;
+	if (packed_size > (zend_ulong) ZEND_LONG_MAX)
+		packed_size = (zend_ulong) ZEND_LONG_MAX;
 	_rar_wide_to_utf(entry->FileNameW, filename, filename_size);
 	/* OK; safe usage below: */
 	filename_len = _rar_strnlen(filename, filename_size);
@@ -109,7 +104,7 @@ void _rar_entry_to_zval(zval *parent,
 	 * direct call to rarentry_object_handlers.write_property
 	 * zend_update_property_x updates the scope accordingly */
 	zend_update_property_long(rar_class_entry_ptr, obj, "position",
-		sizeof("position") - 1, (long) position TSRMLS_CC);
+		sizeof("position") - 1, (zend_long) position TSRMLS_CC);
 	zend_update_property_stringl(rar_class_entry_ptr, obj, "name",
 		sizeof("name") - 1, filename, filename_len TSRMLS_CC);
 	zend_update_property_long(rar_class_entry_ptr, obj, "unpacked_size",
@@ -176,7 +171,7 @@ void _rar_entry_to_zval(zval *parent,
 
 #define REG_RAR_CLASS_CONST_LONG(const_name, value) \
 	zend_declare_class_constant_long(rar_class_entry_ptr, const_name, \
-		sizeof(const_name) - 1, (long) value TSRMLS_CC)
+		sizeof(const_name) - 1, (zend_long) value TSRMLS_CC)
 
 #define REG_RAR_PROPERTY(name, comment) \
 	_rar_decl_priv_prop_null(rar_class_entry_ptr, name, sizeof(name) -1, \
@@ -585,7 +580,7 @@ PHP_METHOD(rarentry, isDirectory)
 {
 	zval *tmp;
 	zval *entry_obj = getThis();
-	long flags;
+	zend_long flags;
 	int is_dir;
 
 	RAR_RETNULL_ON_ARGS();
@@ -604,7 +599,7 @@ PHP_METHOD(rarentry, isEncrypted)
 {
 	zval *tmp;
 	zval *entry_obj = getThis();
-	long flags;
+	zend_long flags;
 	int is_encrypted;
 
 	RAR_RETNULL_ON_ARGS();

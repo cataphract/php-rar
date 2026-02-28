@@ -105,8 +105,8 @@ static void rararch_ce_free_object_storage(ze_rararch_object *object TSRMLS_DC);
 
 /* {{{ RarArchive handlers */
 static int rararch_handlers_preamble(handler_this_t *object, rar_file_t **rar TSRMLS_DC);
-static int rararch_dimensions_preamble(rar_file_t *rar, zval *offset, long *index, int quiet TSRMLS_DC);
-static int rararch_count_elements(handler_this_t *object, long *count TSRMLS_DC);
+static int rararch_dimensions_preamble(rar_file_t *rar, zval *offset, zend_long *index, int quiet TSRMLS_DC);
+static int rararch_count_elements(handler_this_t *object, zend_long *count TSRMLS_DC);
 #if PHP_MAJOR_VERSION < 7
 static zval *rararch_read_dimension(zval *object, zval *offset, int type TSRMLS_DC);
 #else
@@ -420,7 +420,7 @@ static int rararch_handlers_preamble(handler_this_t *object,
 /* {{{ rararch_dimensions_preamble - semi-strict parsing of int argument */
 static int rararch_dimensions_preamble(rar_file_t *rar,
 									   zval *offset,
-									   long *index,
+									   zend_long *index,
 									   int quiet TSRMLS_DC)
 {
 	if (offset == NULL) {
@@ -444,23 +444,23 @@ static int rararch_dimensions_preamble(rar_file_t *rar,
 			return FAILURE;
 		}
 		else if (type == IS_DOUBLE) {
-			if (d > (double) LONG_MAX || d < (double) LONG_MIN) {
+			if (d > (double) ZEND_LONG_MAX || d < (double) ZEND_LONG_MIN) {
 				RAR_DOCREF_IF_UNQUIET(NULL TSRMLS_CC, E_WARNING,
 					"Dimension index is out of integer bounds");
 				return FAILURE;
 			}
 
-			*index = (long) d;
+			*index = (zend_long) d;
 		}
 	}
 	else if (Z_TYPE_P(offset) == IS_DOUBLE) {
-		if (Z_DVAL_P(offset) > (double) LONG_MAX ||
-				Z_DVAL_P(offset) < (double) LONG_MIN) {
+		if (Z_DVAL_P(offset) > (double) ZEND_LONG_MAX ||
+				Z_DVAL_P(offset) < (double) ZEND_LONG_MIN) {
 			RAR_DOCREF_IF_UNQUIET(NULL TSRMLS_CC, E_WARNING,
 				"Dimension index is out of integer bounds");
 			return FAILURE;
 		}
-		*index = (long) Z_DVAL_P(offset);
+		*index = (zend_long) Z_DVAL_P(offset);
 	}
 	else if (Z_TYPE_P(offset) == IS_OBJECT) {
 #if PHP_MAJOR_VERSION < 8
@@ -527,9 +527,9 @@ static int rararch_dimensions_preamble(rar_file_t *rar,
 		return FAILURE;
 	}
 
-	if (*index < 0L) {
+	if (*index < 0) {
 		RAR_DOCREF_IF_UNQUIET(NULL TSRMLS_CC, E_WARNING,
-			"Dimension index must be non-negative, given %ld", *index);
+			"Dimension index must be non-negative, given " ZEND_LONG_FMT, *index);
 		return FAILURE;
 	}
 	if ((size_t) *index >= _rar_entry_count(rar)) {
@@ -544,21 +544,21 @@ static int rararch_dimensions_preamble(rar_file_t *rar,
 /* }}} */
 
 /* {{{ RarArchive count_elements handler */
-static int rararch_count_elements(handler_this_t *object, long *count TSRMLS_DC)
+static int rararch_count_elements(handler_this_t *object, zend_long *count TSRMLS_DC)
 {
 	rar_file_t	*rar = NULL;
 	size_t		entry_count;
 
 	if (rararch_handlers_preamble(object, &rar TSRMLS_CC) == FAILURE) {
-		*count = 0L;
+		*count = 0;
 		return SUCCESS; /* intentional */
 	}
 
 	entry_count = _rar_entry_count(rar);
-	if (entry_count > LONG_MAX)
-		entry_count = (size_t) LONG_MAX;
+	if (entry_count > ZEND_LONG_MAX)
+		entry_count = (size_t) ZEND_LONG_MAX;
 
-	*count = (long) entry_count;
+	*count = (zend_long) entry_count;
 
 	return SUCCESS;
 }
@@ -571,7 +571,7 @@ static zval *rararch_read_dimension(zval *object, zval *offset, int type TSRMLS_
 static zval *rararch_read_dimension(handler_this_t *object, zval *offset, int type, zval *rv)
 #endif
 {
-	long					index;
+	zend_long				index;
 	rar_file_t				*rar = NULL;
 	struct _rar_find_output	*out;
 	zval					*ret = NULL;
@@ -626,7 +626,7 @@ static void rararch_write_dimension(handler_this_t *object, zval *offset, zval *
 /* {{{ RarArchive has_dimension handler */
 static int rararch_has_dimension(handler_this_t *object, zval *offset, int check_empty TSRMLS_DC)
 {
-	long		index;
+	zend_long	index;
 	rar_file_t	*rar = NULL;
 
 	(void) check_empty; /* don't care */

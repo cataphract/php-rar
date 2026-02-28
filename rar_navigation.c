@@ -49,7 +49,7 @@ typedef struct _rar_find_state {
 struct _rar_unique_entry {
 	size_t					id;				/* position in the entries_array */
 	struct RARHeaderDataEx	entry;			/* last entry */
-	unsigned long			packed_size;
+	zend_ulong				packed_size;
 	int						depth;			/* number of directory separators */
 	size_t					name_wlen;		/* excluding L'\0' terminator */
 };
@@ -336,7 +336,7 @@ int _rar_list_files(rar_file_t *rar TSRMLS_DC) /* {{{ */
 	int result = 0;
 	size_t capacity = 0;
 	int first_file_check = TRUE;
-	unsigned long packed_size = 0UL;
+	zend_ulong packed_size = 0;
 	struct _rar_entries *ents;
 
 	if (rar->entries != NULL) {
@@ -378,22 +378,16 @@ int _rar_list_files(rar_file_t *rar TSRMLS_DC) /* {{{ */
 
 		/* reset packed size if not split before */
 		if ((entry.Flags & RHDF_SPLITBEFORE) == 0)
-			packed_size = 0UL;
+			packed_size = 0;
 
-		/* we would exceed size of ulong. cap at ulong_max
-		 * equivalent to packed_size + entry.PackSize > ULONG_MAX,
-		 * but without overflowing */
-		if (ULONG_MAX - packed_size < entry.PackSize)
-			packed_size = ULONG_MAX;
-		else {
-			packed_size += entry.PackSize;
-			if (entry.PackSizeHigh != 0) {
-#if ULONG_MAX > 0xffffffffUL
-				packed_size += ((unsigned long) entry.PackSizeHigh) << 32;
-#else
-				packed_size = ULONG_MAX; /* cap */
-#endif
-			}
+		/* accumulate packed size; cap at ZEND_LONG_MAX (the PHP int ceiling) */
+		{
+			zend_ulong entry_packed = ((zend_ulong)entry.PackSizeHigh << 32) | entry.PackSize;
+			if (entry_packed > (zend_ulong)ZEND_LONG_MAX ||
+					packed_size > (zend_ulong)ZEND_LONG_MAX - entry_packed)
+				packed_size = (zend_ulong)ZEND_LONG_MAX;
+			else
+				packed_size += entry_packed;
 		}
 
 		if (entry.Flags & RHDF_SPLITAFTER) /* do not commit */
