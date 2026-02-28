@@ -1,0 +1,76 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  generate-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: set-matrix
+        run: |
+          python3 <<'EOF'
+          import yaml, json, os
+          with open('.github/docker-image-shas.yml') as f:
+              data = yaml.safe_load(f)
+          image = 'datadog/dd-appsec-php-ci'
+          includes = []
+          for tag, sha in data[image].items():
+              # tag: "php-7.0-debug" or "php-7.0-release-zts"
+              ver, variant = tag[len('php-'):].split('-', 1)
+              includes.append({'php': ver, 'variant': variant, 'image_sha': sha})
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write('matrix=' + json.dumps({'include': includes}) + '\n')
+          EOF
+
+  linux:
+    name: PHP ${{ matrix.php }} (${{ matrix.variant }})
+    needs: generate-matrix
+    runs-on: ubuntu-latest
+    container:
+      image: datadog/dd-appsec-php-ci@${{ matrix.image_sha }}
+      options: --user root
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build and test
+        run: bash .github/scripts/build-and-test.sh
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-php${{ matrix.php }}-${{ matrix.variant }}
+          path: report.xml
+
+  windows:
+    name: Windows PHP 8.0 TS
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build and test
+        uses: php/php-windows-builder/extension@v1
+        with:
+          php-version: '8.0'
+          arch: x64
+          ts: ts
+          args: --enable-rar=shared
+          test-workers: 1
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-windows-php8.0-ts
+          path: '*.xml'

@@ -47,3 +47,5 @@
 /php-rar.creator.user
 /compile_commands.json
 /.clangd
+/report.xml
+/.worktrees
