@@ -16,4 +16,4 @@ $a[0] = "jjj";
 echo "\n";
 echo "Done.\n";
 --EXPECTF--
-Fatal error: main(): A RarArchive object is not writable in %s on line %d
+Fatal error: main(): A RarArchive object is not writable in %s on line %d%A

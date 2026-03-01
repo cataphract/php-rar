@@ -246,8 +246,8 @@ void minit_rarerror(TSRMLS_D) /* {{{ */
 	rarexception_ce_ptr = zend_register_internal_class_ex(&ce,
 		zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
 #else
-	rarexception_ce_ptr = zend_register_internal_class_ex(&ce,
-		zend_exception_get_default(TSRMLS_C));
+	/* zend_exception_get_default() was removed in PHP 8.5; use the global directly */
+	rarexception_ce_ptr = zend_register_internal_class_ex(&ce, zend_ce_exception);
 #endif
 	rarexception_ce_ptr->ce_flags |= ZEND_ACC_FINAL;
 	zend_declare_property_bool(rarexception_ce_ptr, "usingExceptions",

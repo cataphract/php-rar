@@ -18,4 +18,4 @@ unset($a[0]["jj"]);
 echo "\n";
 echo "Done.\n";
 --EXPECTF--
-Fatal error: main(): A RarArchive object is not modifiable in %s on line %d
+Fatal error: main(): A RarArchive object is not modifiable in %s on line %d%A
