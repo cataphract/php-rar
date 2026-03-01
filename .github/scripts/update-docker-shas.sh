@@ -17,6 +17,7 @@ TAGS=(
     php-7.4-debug       php-7.4-release-zts
     php-8.0-debug       php-8.0-release-zts
     php-8.1-debug       php-8.1-release-zts
+    php-8.2-debug       php-8.2-release-zts
 )
 
 get_index_digest() {

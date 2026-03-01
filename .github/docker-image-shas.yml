@@ -17,3 +17,5 @@ datadog/dd-appsec-php-ci:
   php-8.0-release-zts: "sha256:b6243199f6aea0792a97583c9036f0b191ad9efb96ea337632fbaca76289a4da"
   php-8.1-debug:       "sha256:1a1e5b44cf043e59768c65fd7c94aaefdacde5fa96d83102d35db11ad86f24c6"
   php-8.1-release-zts: "sha256:5b8a269b4228d9191420059daef820b660110be0aca6776557924172fd1ff0c8"
+  php-8.2-debug:       "sha256:52ad14560672fc8c5130f5758bbee3fa401bc1d35b412f4a230c6258143291a5"
+  php-8.2-release-zts: "sha256:cb143d915b394f16a2d78018765705460f3d1b788fdd2a90ef50fad5f8f5918c"
