@@ -177,7 +177,7 @@ void Unpack::DoUnpack(uint Method,bool Solid,bool suspendAfterInit)
 //      write more than one dictionary for same loop pass. So we would need
 //      larger buffers of unknown size. Also we do not support multithreading
 //      in fragmented window mode.
-          if (!Fragmented)
+          if (!Fragmented && !suspendAfterInit)
           {
             Unpack5MT(Solid);
             break;

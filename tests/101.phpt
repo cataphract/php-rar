@@ -2,7 +2,6 @@
 Supports version 5 RAR files
 --SKIPIF--
 <?php if(!extension_loaded("rar")) die("skip");
-if (isset($_ENV['APPVEYOR'])) die("skip failing on appveyor");
 --FILE--
 <?php
 RarException::setUsingExceptions(true);
