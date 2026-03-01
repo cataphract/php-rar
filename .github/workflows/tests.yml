@@ -53,7 +53,7 @@ jobs:
           path: report.xml
 
   windows:
-    name: Windows PHP 8.0 TS
+    name: Windows PHP 8.1 TS
     runs-on: windows-2022
     steps:
       - name: Checkout
@@ -62,7 +62,7 @@ jobs:
       - name: Build and test
         uses: php/php-windows-builder/extension@v1
         with:
-          php-version: '8.0'
+          php-version: '8.1'
           arch: x64
           ts: ts
           args: --enable-rar=shared
@@ -73,5 +73,5 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: test-results-windows-php8.0-ts
+          name: test-results-windows-php8.1-ts
           path: '*.xml'
