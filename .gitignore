@@ -1,5 +1,6 @@
 *.o
 *.lo
+/run-tests.php
 /tests/*.sh
 /tests/*.exp
 /tests/*.diff
@@ -7,7 +8,6 @@
 /tests/*.php
 /tests/*.out
 /tests/*.mem
-/run-tests.php
 /modules
 /missing
 /.deps

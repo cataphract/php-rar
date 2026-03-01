@@ -1,6 +1,5 @@
+.PHONY: replace-run-tests
 replace-run-tests:
-	@if ! grep -q 'Minimum required PHP version: 5\.3\.0' run-tests.php; then \
-		cp run-tests8.php run-tests.php; \
-	fi
+	cp run-tests-rar.php run-tests.php
 
 test: replace-run-tests

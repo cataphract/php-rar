@@ -66,6 +66,7 @@ jobs:
           arch: x64
           ts: ts
           args: --enable-rar=shared
+          test-runner: ${{ github.workspace }}/run-tests-rar.php
           test-workers: 1
 
       - name: Upload test results
