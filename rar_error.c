@@ -70,11 +70,7 @@ void _rar_handle_ext_error(const char *format TSRMLS_DC, ...) /* {{{ */
 	va_list arg;
 	char *message;
 
-#if defined(ZTS) && PHP_MAJOR_VERSION < 7
-	va_start(arg, TSRMLS_C);
-#else
 	va_start(arg, format);
-#endif
 	vspprintf(&message, 0, format, arg);
 	va_end(arg);
 
@@ -91,13 +87,8 @@ int _rar_using_exceptions(TSRMLS_D)
 	zval *pval;
 	pval = zend_read_static_property(rarexception_ce_ptr, "usingExceptions",
 		sizeof("usingExceptions") -1, (zend_bool) 1 TSRMLS_CC);
-#if PHP_MAJOR_VERSION < 7
-	assert(Z_TYPE_P(pval) == IS_BOOL);
-	return Z_BVAL_P(pval);
-#else
 	assert(Z_TYPE_P(pval) == IS_TRUE || Z_TYPE_P(pval) == IS_FALSE);
 	return Z_TYPE_P(pval) == IS_TRUE;
-#endif
 }
 
 /* returns a string or NULL if not an error */
@@ -186,39 +177,22 @@ PHP_METHOD(rarexception, setUsingExceptions)
    Return whether exceptions are being used */
 PHP_METHOD(rarexception, isUsingExceptions)
 {
-#if PHP_MAJOR_VERSION < 7
-	zval **pval;
-#else
 	zval *pval;
-#endif
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "") == FAILURE ) {
 		return;
 	}
 
 	/* or zend_read_static_property, which calls zend_std_get... after chg scope */
-#if PHP_VERSION_ID < 50399
-	pval = zend_std_get_static_property(rarexception_ce_ptr, "usingExceptions",
-		sizeof("usingExceptions") -1, (zend_bool) 0 TSRMLS_CC);
-#elif PHP_MAJOR_VERSION < 7
-	pval = zend_std_get_static_property(rarexception_ce_ptr, "usingExceptions",
-		sizeof("usingExceptions") -1, (zend_bool) 0, NULL TSRMLS_CC);
-#else
 	zend_string *prop_name =
 		zend_string_init("usingExceptions", sizeof("usingExceptions") - 1, 0);
 	pval = zend_std_get_static_property(rarexception_ce_ptr, prop_name,
 		(zend_bool) 0);
 	zend_string_release(prop_name);
-#endif
 	/* property always exists */
 	assert(pval != NULL);
-#if PHP_MAJOR_VERSION < 7
-	assert(Z_TYPE_PP(pval) == IS_BOOL);
-	RETURN_ZVAL(*pval, 0, 0);
-#else
 	assert(Z_TYPE_P(pval) == IS_TRUE || Z_TYPE_P(pval) == IS_FALSE);
 	RETURN_ZVAL(pval, 0, 0);
-#endif
 }
 /* }}} */
 
@@ -242,13 +216,8 @@ void minit_rarerror(TSRMLS_D) /* {{{ */
 	zend_class_entry ce;
 
 	INIT_CLASS_ENTRY(ce, "RarException", php_rarexception_class_functions);
-#if PHP_MAJOR_VERSION < 7
-	rarexception_ce_ptr = zend_register_internal_class_ex(&ce,
-		zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
-#else
 	/* zend_exception_get_default() was removed in PHP 8.5; use the global directly */
 	rarexception_ce_ptr = zend_register_internal_class_ex(&ce, zend_ce_exception);
-#endif
 	rarexception_ce_ptr->ce_flags |= ZEND_ACC_FINAL;
 	zend_declare_property_bool(rarexception_ce_ptr, "usingExceptions",
 		sizeof("usingExceptions") -1, 0L /* FALSE */,

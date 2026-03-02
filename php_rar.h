@@ -107,11 +107,7 @@ typedef struct rar {
 } rar_file_t;
 
 /* Misc */
-#if defined(ZTS) && PHP_MAJOR_VERSION < 7
-# define RAR_TSRMLS_TC	, void ***
-#else
 # define RAR_TSRMLS_TC
-#endif
 
 #define RAR_RETNULL_ON_ARGS() \
 	if (zend_parse_parameters_none() == FAILURE) { \
@@ -158,33 +154,6 @@ ZEND_EXTERN_MODULE_GLOBALS(rar);
 # define RAR_G(v) (rar_globals.v)
 #endif
 
-/* PHP 5.2 compatibility */
-#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION < 3
-#define zend_parse_parameters_none() \
-	zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "")
-#define Z_DELREF_P ZVAL_DELREF
-# define STREAM_ASSUME_REALPATH 0
-# define ALLOC_PERMANENT_ZVAL(z) \
-        (z) = (zval*) malloc(sizeof(zval));
-# define OPENBASEDIR_CHECKPATH(filename) \
-	(PG(safe_mode) && \
-	(!php_checkuid(filename, NULL, CHECKUID_CHECK_FILE_AND_DIR))) \
-	|| php_check_open_basedir(filename TSRMLS_CC)
-# undef ZEND_BEGIN_ARG_INFO_EX
-# define ZEND_BEGIN_ARG_INFO_EX(name, pass_rest_by_reference, return_reference, required_num_args) \
-	static const zend_arg_info name[] = { \
-		{ NULL, 0, NULL, 0, 0, 0, pass_rest_by_reference, return_reference, required_num_args },
-#endif
-
-/* Other compatibility quirks */
-/* PHP 5.3 doesn't have ZVAL_COPY_VALUE */
-#if !defined(ZEND_COPY_VALUE) && PHP_MAJOR_VERSION == 5
-#define ZVAL_COPY_VALUE(z, v)					\
-	do {										\
-		(z)->value = (v)->value;				\
-		Z_TYPE_P(z) = Z_TYPE_P(v);				\
-	} while (0)
-#endif
 
 #if !defined(HAVE_STRNLEN) || !HAVE_STRNLEN
 size_t _rar_strnlen(const char *s, size_t maxlen);

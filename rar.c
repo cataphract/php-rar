@@ -161,12 +161,8 @@ void _rar_destroy_userdata(rar_cb_user_data *udata) /* {{{ */
 	}
 
 	if (udata->callable != NULL) {
-#if PHP_MAJOR_VERSION < 7
-		zval_ptr_dtor(&udata->callable);
-#else
 		zval_ptr_dtor(udata->callable);
 		efree(udata->callable);
-#endif
 	}
 
 	udata->password = NULL;
@@ -447,50 +443,26 @@ static int _rar_unrar_volume_user_callback(char* dst_buffer,
 										   zend_fcall_info_cache *cache
 										   TSRMLS_DC) /* {{{ */
 {
-#if PHP_MAJOR_VERSION < 7
-	zval *failed_vol,
-		 *retval_ptr = NULL,
-		 **params;
-#else
 	zval failed_vol,
 		 retval,
 		 *params,
 		 *const retval_ptr = &retval;
-#endif
 	int  ret = -1;
 
-#if PHP_MAJOR_VERSION < 7
-	MAKE_STD_ZVAL(failed_vol);
-	RAR_ZVAL_STRING(failed_vol, dst_buffer, 1);
-	params = &failed_vol;
-	fci->retval_ptr_ptr = &retval_ptr;
-	fci->params = &params;
-#else
 	ZVAL_STRING(&failed_vol, dst_buffer);
 	ZVAL_NULL(&retval);
 	params = &failed_vol;
 	fci->retval = &retval;
 	fci->params = params;
-#endif
 	fci->param_count = 1;
 
-#if PHP_MAJOR_VERSION < 7
-	if (zend_call_function(fci, cache TSRMLS_CC) != SUCCESS ||
-			fci->retval_ptr_ptr == NULL ||
-			*fci->retval_ptr_ptr == NULL) {
-#else
 	if (zend_call_function(fci, cache TSRMLS_CC) != SUCCESS || EG(exception)) {
-#endif
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,
 			"Failure to call volume find callback");
 		goto cleanup;
 	}
 
-#if PHP_MAJOR_VERSION < 7
-	assert(*fci->retval_ptr_ptr == retval_ptr);
-#else
 	assert(fci->retval == &retval);
-#endif
 	if (Z_TYPE_P(retval_ptr) == IS_NULL) {
 		/* let return -1 */
 	}
@@ -529,15 +501,8 @@ static int _rar_unrar_volume_user_callback(char* dst_buffer,
 	}
 
 cleanup:
-#if PHP_MAJOR_VERSION < 7
-	zval_ptr_dtor(&failed_vol);
-	if (retval_ptr != NULL) {
-		zval_ptr_dtor(&retval_ptr);
-	}
-#else
 	zval_ptr_dtor(&failed_vol);
 	zval_ptr_dtor(&retval);
-#endif
 	return ret;
 }
 /* }}} */
@@ -553,17 +518,6 @@ static int _rar_make_userdata_fcall(zval *callable,
 
 	*cache = empty_fcall_info_cache;
 
-#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION == 2
-	if (zend_fcall_info_init(callable, fci, cache TSRMLS_CC) != SUCCESS) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,
-			"The RAR file was not opened in rar_open/RarArchive::open with a "
-			"valid callback.", error);
-		return FAILURE;
-	}
-	else {
-		return SUCCESS;
-	}
-#else
 	if (zend_fcall_info_init(callable, IS_CALLABLE_STRICT, fci, cache, NULL,
 			&error TSRMLS_CC) == SUCCESS) {
 		if (error) {
@@ -583,7 +537,6 @@ static int _rar_make_userdata_fcall(zval *callable,
 		}
 		return FAILURE;
 	}
-#endif
 
 }
 /* }}} */
@@ -651,11 +604,7 @@ static zend_function_entry rar_functions[] = {
 /* {{{ Globals' related activities */
 ZEND_DECLARE_MODULE_GLOBALS(rar);
 
-#if PHP_MAJOR_VERSION < 7
-static int _rar_array_apply_remove_first(void *pDest TSRMLS_DC)
-#else
 static int _rar_array_apply_remove_first(zval *pDest TSRMLS_DC)
-#endif
 {
 	return (ZEND_HASH_APPLY_STOP | ZEND_HASH_APPLY_REMOVE);
 }
@@ -673,13 +622,7 @@ static void _rar_contents_cache_put(const char *key,
 		assert(zend_hash_num_elements(cc->data) == cur_size - 1);
 	}
 	rar_zval_add_ref(&zv);
-#if PHP_MAJOR_VERSION < 7
-	assert(Z_REFCOUNT_P(zv) > 1);
-	SEPARATE_ZVAL(&zv); /* ensure we store a heap allocated copy */
-	zend_hash_update(cc->data, key, key_len, &zv, sizeof(zv), NULL);
-#else
 	zend_hash_str_update(cc->data, key, key_len, zv);
-#endif
 }
 
 static zval *_rar_contents_cache_get(const char *key,
@@ -688,15 +631,7 @@ static zval *_rar_contents_cache_get(const char *key,
 {
 	rar_contents_cache *cc = &RAR_G(contents_cache);
 	zval *element = NULL;
-#if PHP_MAJOR_VERSION < 7
-	zval **element_p = NULL;
-	zend_hash_find(cc->data, key, key_len, (void **) &element_p);
-	if (element_p) {
-		element = *element_p;
-	}
-#else
 	element = zend_hash_str_find(cc->data, key, key_len);
-#endif
 
 	if (element != NULL) {
 		cc->hits++;
@@ -761,10 +696,6 @@ ZEND_MODULE_STARTUP_D(rar)
 	REGISTER_LONG_CONSTANT("RAR_HOST_UNIX",		HOST_UNIX,	CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("RAR_HOST_MACOS",	HOST_MACOS,	CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("RAR_HOST_BEOS",		HOST_BEOS,	CONST_CS | CONST_PERSISTENT);
-	/* PHP < 5.3 doesn't have the PHP_MAXPATHLEN constant */
-#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION < 3
-	REGISTER_LONG_CONSTANT("RAR_MAXPATHLEN",	MAXPATHLEN,	CONST_CS | CONST_PERSISTENT);
-#endif
 	return SUCCESS;
 }
 /* }}} */

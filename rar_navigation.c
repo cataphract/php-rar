@@ -73,9 +73,7 @@ static void _rar_nav_get_depth_and_length(wchar_t *filenamew, const size_t file_
 										  int *depth_out, size_t *wlen_out TSRMLS_DC);
 static int _rar_nav_get_depth(const wchar_t *filenamew, const size_t file_size);
 static int _rar_nav_compare_entries(const void *op1, const void *op2 TSRMLS_DC);
-#if PHP_MAJOR_VERSION >= 7
 static void _rar_nav_swap_entries(void *op1, void *op2);
-#endif
 static int _rar_nav_compare_entries_std(const void *op1, const void *op2);
 static inline int _rar_nav_compare_values(const wchar_t *str1, const int depth1,
 								   const wchar_t *str2, const int depth2,
@@ -116,15 +114,9 @@ void _rar_entry_search_start(rar_file_t *rar,
 			sizeof rar->entries->entries_array_s[0]);
 		memcpy(rar->entries->entries_array_s, rar->entries->entries_array,
 			rar->entries->num_entries * sizeof rar->entries->entries_array[0]);
-#if PHP_MAJOR_VERSION < 7
-		zend_qsort(rar->entries->entries_array_s, rar->entries->num_entries,
-			sizeof *rar->entries->entries_array_s, _rar_nav_compare_entries
-			TSRMLS_CC);
-#else
 		zend_qsort(rar->entries->entries_array_s, rar->entries->num_entries,
 			sizeof *rar->entries->entries_array_s, _rar_nav_compare_entries,
 			_rar_nav_swap_entries);
-#endif
 	}
 }
 /* }}} */
@@ -496,7 +488,6 @@ static int _rar_nav_compare_entries(const void *op1, const void *op2 TSRMLS_DC) 
 }
 /* }}} */
 
-#if PHP_MAJOR_VERSION >= 7
 static void _rar_nav_swap_entries(void *op1, void *op2) /* {{{ */
 {
 	/* just swaps two pointer values */
@@ -509,7 +500,6 @@ static void _rar_nav_swap_entries(void *op1, void *op2) /* {{{ */
 
 }
 /* }}} */
-#endif
 
 static int _rar_nav_compare_entries_std(const void *op1, const void *op2) /* {{{ */
 {

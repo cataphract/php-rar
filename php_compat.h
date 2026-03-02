@@ -15,7 +15,6 @@ typedef zend_object handler_this_t;
 typedef zval handler_this_t;
 #endif
 
-#if PHP_MAJOR_VERSION >= 7
 typedef zend_object* rar_obj_ref;
 
 #define rar_zval_add_ref(ppzv) zval_add_ref(*ppzv)
@@ -53,20 +52,3 @@ typedef size_t zpp_s_size_t;
 #define INIT_ZVAL(zv) ZVAL_UNDEF(&zv)
 
 #define ZEND_ACC_FINAL_CLASS ZEND_ACC_FINAL
-
-#else /* PHP 5.x */
-typedef zend_object_handle rar_obj_ref;
-
-#define rar_zval_add_ref zval_add_ref
-#define ZVAL_ALLOC_DUP(dst, src) \
-    do { \
-        zval *z_src = src; \
-        dst = z_src; \
-        zval_add_ref(&dst); \
-        SEPARATE_ZVAL(&dst); \
-    } while (0)
-#define RAR_ZVAL_STRING ZVAL_STRING
-#define RAR_RETURN_STRINGL(s, l, duplicate) RETURN_STRINGL(s, l, duplicate)
-typedef int zpp_s_size_t;
-#define zend_hash_str_del zend_hash_del
-#endif

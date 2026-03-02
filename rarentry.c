@@ -51,7 +51,7 @@ static void _rar_dos_date_to_text(unsigned dos_time, char *date_string);
 /* {{{ Functions with external linkage */
 /* should be passed the last entry that corresponds to a given file
  * only that one has the correct CRC. Still, it may have a wrong packedSize */
-/* parent is zval to RarArchive object. The object (not the zval, in PHP 5.x)
+/* parent is zval to RarArchive object. The object
  * will have its refcount increased */
 void _rar_entry_to_zval(zval *parent,
 						struct RARHeaderDataEx *entry,
@@ -67,13 +67,6 @@ void _rar_entry_to_zval(zval *parent,
 		 filename_len;
 	zend_long unp_size; /* zend_long is the portable PHP integer type (always 64-bit in PHP 7+) */
 	zval *parent_copy = parent;
-#if PHP_MAJOR_VERSION < 7
-	/* allocate zval on the heap */
-	zval_addref_p(parent_copy);
-	SEPARATE_ZVAL(&parent_copy);
-	/* set refcount to 0; zend_update_property will increase it */
-	Z_DELREF_P(parent_copy);
-#endif
 
 	object_init_ex(object, rar_class_entry_ptr);
 #if PHP_MAJOR_VERSION >= 8
@@ -181,13 +174,6 @@ static int _rar_decl_priv_prop_null(zend_class_entry *ce, const char *name,
 									 int name_length, char *doc_comment,
 									 int doc_comment_len TSRMLS_DC) /* {{{ */
 {
-#if PHP_MAJOR_VERSION < 7
-	zval *property;
-	ALLOC_PERMANENT_ZVAL(property);
-	INIT_ZVAL(*property);
-	return zend_declare_property_ex(ce, name, name_length, property,
-		ZEND_ACC_PRIVATE, doc_comment, doc_comment_len TSRMLS_CC);
-#else
 	zval property;
 	zend_string *name_str,
 				*doc_str;
@@ -207,16 +193,13 @@ static int _rar_decl_priv_prop_null(zend_class_entry *ce, const char *name,
 	zend_string_release(name_str);
 	zend_string_release(doc_str);
 	return ret;
-#endif
 }
 /* }}} */
 
 static zval *_rar_entry_get_property(zval *entry_obj, char *name, int namelen TSRMLS_DC) /* {{{ */
 {
 	zval *tmp;
-#if PHP_MAJOR_VERSION >= 7
 	zval zv;
-#endif
 #if PHP_VERSION_ID < 70100
 	zend_class_entry *orig_scope = EG(scope);
 
@@ -225,10 +208,8 @@ static zval *_rar_entry_get_property(zval *entry_obj, char *name, int namelen TS
 
 #if PHP_MAJOR_VERSION >= 8
 	tmp = zend_read_property(Z_OBJCE_P(entry_obj), Z_OBJ_P(entry_obj), name, namelen, 1, &zv);
-#elif PHP_MAJOR_VERSION >= 7
-	tmp = zend_read_property(Z_OBJCE_P(entry_obj), entry_obj, name, namelen, 1, &zv);
 #else
-	tmp = zend_read_property(Z_OBJCE_P(entry_obj), entry_obj, name, namelen, 1 TSRMLS_CC);
+	tmp = zend_read_property(Z_OBJCE_P(entry_obj), entry_obj, name, namelen, 1, &zv);
 #endif
 	if (tmp == NULL) {
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,

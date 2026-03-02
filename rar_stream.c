@@ -179,11 +179,7 @@ static ssize_t php_rar_ops_read(php_stream *stream, char *buf, size_t count)
 		stream->eof = 1;
 	}
 
-#if PHP_VERSION_ID < 50400
-	return n;
-#else
 	return (ssize_t) n;
-#endif
 }
 /* }}} */
 
@@ -424,19 +420,10 @@ static ssize_t php_rar_dir_ops_read(php_stream *stream, char *buf, size_t count 
 		entry.d_name, sizeof entry.d_name);
 
 	if (!self->no_encode) { /* urlencode entry */
-#if PHP_MAJOR_VERSION < 7
-		int new_len;
-		char *encoded_name;
-		encoded_name = php_url_encode(entry.d_name, strlen(entry.d_name),
-			&new_len);
-		strlcpy(entry.d_name, encoded_name, sizeof entry.d_name);
-		efree(encoded_name);
-#else
 		zend_string *encoded_name =
 				php_url_encode(entry.d_name, strlen(entry.d_name));
 		strlcpy(entry.d_name, encoded_name->val, sizeof entry.d_name);
 		zend_string_release(encoded_name);
-#endif
 	}
 
 
@@ -452,11 +439,7 @@ static int php_rar_dir_ops_close(php_stream *stream, int close_handle TSRMLS_DC)
 {
 	STREAM_DIR_DATA_FROM_STREAM
 
-#if PHP_MAJOR_VERSION < 7
-	zval_dtor(&self->rar_obj);
-#else
 	zval_ptr_dtor(&self->rar_obj);
-#endif
 	efree(self->directory);
 	efree(self->state);
 	efree(self);
@@ -587,67 +570,6 @@ cleanup:
 
 /* {{{ Wrapper stuff */
 
-#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION < 3
-/* PHP 5.2 has no zend_resolve_path. Adapted from 5.3's php_resolve_path */
-static char *zend_resolve_path(const char *filename,
-							  int filename_length TSRMLS_DC) /* {{{ */
-{
-	const char *path = PG(include_path);
-	char resolved_path[MAXPATHLEN];
-	char trypath[MAXPATHLEN];
-	const char *ptr, *end;
-	char *actual_path;
-
-	if (filename == NULL || filename[0] == '\0') {
-		return NULL;
-	}
-
-	/* do not use the include path in these circumstances */
-	if ((*filename == '.' && (IS_SLASH(filename[1]) ||
-			((filename[1] == '.') && IS_SLASH(filename[2])))) ||
-			IS_ABSOLUTE_PATH(filename, filename_length) ||
-			path == NULL || path[0] == '\0') {
-		if (tsrm_realpath(filename, resolved_path TSRMLS_CC)) {
-			return estrdup(resolved_path);
-		} else {
-			return NULL;
-		}
-	}
-
-	ptr = path;
-	while (ptr && *ptr) {
-		end = strchr(ptr, DEFAULT_DIR_SEPARATOR);
-		if (end) {
-			if ((end-ptr) + 1 + filename_length + 1 >= MAXPATHLEN) {
-				ptr = end + 1;
-				continue;
-			}
-			memcpy(trypath, ptr, end-ptr);
-			trypath[end-ptr] = '/';
-			memcpy(trypath+(end-ptr)+1, filename, filename_length+1);
-			ptr = end+1;
-		} else {
-			int len = strlen(ptr);
-
-			if (len + 1 + filename_length + 1 >= MAXPATHLEN) {
-				break;
-			}
-			memcpy(trypath, ptr, len);
-			trypath[len] = '/';
-			memcpy(trypath+len+1, filename, filename_length+1);
-			ptr = NULL;
-		}
-		actual_path = trypath;
-		if (tsrm_realpath(actual_path, resolved_path TSRMLS_CC)) {
-			return estrdup(resolved_path);
-		}
-	} /* end provided path */
-
-	return NULL;
-}
-/* }}} */
-#endif
-
 /* {{{ php_rar_process_context */
 /* memory is to be managed externally */
 static void php_rar_process_context(php_stream_context *context,
@@ -658,9 +580,6 @@ static void php_rar_process_context(php_stream_context *context,
 									zval **volume_cb TSRMLS_DC)
 {
 	zval *ctx_opt;
-#if PHP_MAJOR_VERSION < 7
-	zval **ctx_opt_p = NULL;
-#endif
 
 	assert(context != NULL);
 	assert(open_password != NULL);
@@ -670,14 +589,8 @@ static void php_rar_process_context(php_stream_context *context,
 
 	/* TODO: don't know if I can log errors and not fail. check that */
 
-#if PHP_MAJOR_VERSION < 7
-	if (php_stream_context_get_option(
-				context, "rar", "open_password", &ctx_opt_p) == SUCCESS) {
-	ctx_opt = *ctx_opt_p;
-#else
 	if ((ctx_opt = php_stream_context_get_option(
 			 context, "rar", "open_password"))) {
-#endif
 		if (Z_TYPE_P(ctx_opt) != IS_STRING)
 			php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
 				"RAR open password was provided, but not a string.");
@@ -685,14 +598,8 @@ static void php_rar_process_context(php_stream_context *context,
 			*open_password = Z_STRVAL_P(ctx_opt);
 	}
 
-#if PHP_MAJOR_VERSION < 7
-	if (file_password != NULL && php_stream_context_get_option(context, "rar",
-			"file_password", &ctx_opt_p) == SUCCESS) {
-		ctx_opt = *ctx_opt_p;
-#else
 	if (file_password != NULL && (ctx_opt = php_stream_context_get_option(
 			context, "rar", "file_password"))) {
-#endif
 		if (Z_TYPE_P(ctx_opt) != IS_STRING)
 			php_stream_wrapper_log_error(wrapper, options TSRMLS_CC,
 				"RAR file password was provided, but not a string.");
@@ -700,19 +607,9 @@ static void php_rar_process_context(php_stream_context *context,
 			*file_password = Z_STRVAL_P(ctx_opt);
 	}
 
-#if PHP_MAJOR_VERSION < 7
-	if (php_stream_context_get_option(context, "rar", "volume_callback",
-			&ctx_opt_p) == SUCCESS) {
-		ctx_opt = *ctx_opt_p;
-#else
 	if ((ctx_opt = php_stream_context_get_option(
 			 context, "rar", "volume_callback"))) {
-#endif
-#if PHP_MAJOR_VERSION == 5 && PHP_MINOR_VERSION == 2
-		if (zend_is_callable(ctx_opt, IS_CALLABLE_STRICT, NULL)) {
-#else
 		if (zend_is_callable(ctx_opt, IS_CALLABLE_STRICT, NULL TSRMLS_CC)) {
-#endif
 			*volume_cb = ctx_opt;
 		}
 		else
@@ -781,23 +678,19 @@ static int _rar_get_archive_and_fragment(php_stream_wrapper *wrapper,
 
 	if (!(options & STREAM_ASSUME_REALPATH)) {
 		if (options & USE_PATH) {
-#if PHP_MAJOR_VERSION < 7
-			*archive = zend_resolve_path(tmp_archive, tmp_arch_len TSRMLS_CC);
-#else
-#  if PHP_VERSION_ID < 80100
+#if PHP_VERSION_ID < 80100
 			zend_string *arc_str = zend_resolve_path(tmp_archive, tmp_arch_len);
-#  else
+#else
 			zend_string *tmp_archive_str = zend_string_init_fast(tmp_archive, tmp_arch_len);
 			zend_string *arc_str = zend_resolve_path(tmp_archive_str);
 			zend_string_free(tmp_archive_str);
-#  endif
+#endif
 			if (arc_str != NULL) {
 				*archive = estrndup(arc_str->val, arc_str->len);
 			} else {
 				*archive = NULL;
 			}
 			zend_string_release(arc_str);
-#endif
 		}
 		if (*archive == NULL) {
 			if ((*archive = expand_filepath(tmp_archive, NULL TSRMLS_CC))
@@ -865,17 +758,10 @@ cleanup:
 
 /* {{{ php_stream_rar_opener */
 static php_stream *php_stream_rar_opener(php_stream_wrapper *wrapper,
-#if PHP_MAJOR_VERSION < 7
-										 char *filename,
-										 char *mode,
-										 int options,
-										 char **opened_path,
-#else
 										 const char *filename,
 										 const char *mode,
 										 int options,
 										 zend_string **opened_path,
-#endif
 										 php_stream_context *context
 										 STREAMS_DC TSRMLS_DC)
 {
@@ -987,12 +873,8 @@ cleanup:
 
 	if (tmp_open_path != NULL) {
 		if (opened_path != NULL) {
-#if PHP_MAJOR_VERSION < 7
-			*opened_path = tmp_open_path;
-#else
 			*opened_path =
 				zend_string_init(tmp_open_path, strlen(tmp_open_path), 0);
-#endif
 		} else {
 			efree(tmp_open_path);
 		}
@@ -1048,11 +930,7 @@ static int _rar_get_cachable_rararch(php_stream_wrapper *wrapper,
 	zval		*cache_zv;
 
 	assert(rar_obj != NULL);
-#if PHP_MAJOR_VERSION < 7
-	INIT_ZVAL(*rar_obj);
-#else
 	ZVAL_UNDEF(rar_obj);
-#endif
 
 	_rar_arch_cache_get_key(arch_path, open_passwd, volume_cb, &cache_key,
 		&cache_key_len);
@@ -1115,56 +993,26 @@ cleanup:
 		efree(cache_key);
 
 	if (ret != SUCCESS && Z_TYPE_P(rar_obj) == IS_OBJECT) {
-#if PHP_MAJOR_VERSION < 7
-		zval_dtor(rar_obj);
-		Z_TYPE_P(rar_obj) = IS_NULL;
-#else
 		zval_ptr_dtor(rar_obj);
 		ZVAL_UNDEF(rar_obj);
-#endif
 	}
 
 	return ret;
 }
 /* }}} */
 
-/* {{{ _rar_stream_tidy_wrapper_error_log
- *     These two different versions are because of PHP commit 7166298 */
-#if PHP_VERSION_ID <= 50310 || PHP_VERSION_ID == 50400
-/* copied from main/streams/streams.c because it's an internal function */
-static void _rar_stream_tidy_wrapper_error_log(php_stream_wrapper *wrapper TSRMLS_DC)
-{
-	if (wrapper) {
-		/* tidy up the error stack */
-		int i;
-
-		for (i = 0; i < wrapper->err_count; i++) {
-			efree(wrapper->err_stack[i]);
-		}
-		if (wrapper->err_stack) {
-			efree(wrapper->err_stack);
-		}
-		wrapper->err_stack = NULL;
-		wrapper->err_count = 0;
-	}
-}
-#else
+/* {{{ _rar_stream_tidy_wrapper_error_log */
 static void _rar_stream_tidy_wrapper_error_log(php_stream_wrapper *wrapper TSRMLS_DC)
 {
 	if (wrapper && FG(wrapper_errors)) {
 		zend_hash_str_del(FG(wrapper_errors), (const char*)&wrapper, sizeof wrapper);
 	}
 }
-#endif
 /* }}} */
 
 /* {{{ php_stream_rar_stater */
 static int php_stream_rar_stater(php_stream_wrapper *wrapper,
-#if PHP_MAJOR_VERSION < 7
-								 char *url,
-#else
 								 const char *url,
-#endif
 								 int flags,
 								 php_stream_statbuf *ssb,
 								 php_stream_context *context TSRMLS_DC)
@@ -1183,11 +1031,7 @@ static int php_stream_rar_stater(php_stream_wrapper *wrapper,
 	int ret = FAILURE;
 
 	/* {{{ preliminaries */
-#if PHP_MAJOR_VERSION < 7
-	Z_TYPE(rararch) = IS_NULL;
-#else
 	ZVAL_UNDEF(&rararch);
-#endif
 
 	if (_rar_get_archive_and_fragment(wrapper, url, options, 1,
 			&open_path, &fragment, NULL TSRMLS_CC) == FAILURE) {
@@ -1238,11 +1082,7 @@ cleanup:
 	}
 
 	if (Z_TYPE(rararch) == IS_OBJECT) {
-#if PHP_MAJOR_VERSION < 7
-		zval_dtor(&rararch);
-#else
 		zval_ptr_dtor(&rararch);
-#endif
 	}
 	if (state != NULL) {
 		_rar_entry_search_end(state);
@@ -1265,17 +1105,10 @@ cleanup:
 
 /* {{{ php_stream_rar_dir_opener */
 static php_stream *php_stream_rar_dir_opener(php_stream_wrapper *wrapper,
-#if PHP_MAJOR_VERSION < 7
-											 char *filename,
-											 char *mode,
-											 int options,
-											 char **opened_path,
-#else
 											 const char *filename,
 											 const char *mode,
 											 int options,
 											 zend_string **opened_path,
-#endif
 											 php_stream_context *context
 											 STREAMS_DC TSRMLS_DC)
 {
@@ -1374,12 +1207,8 @@ cleanup:
 
 	if (tmp_open_path != NULL) {
 		if (opened_path != NULL) {
-#if PHP_MAJOR_VERSION < 7
-			*opened_path = tmp_open_path;
-#else
 			*opened_path =
 					zend_string_init(tmp_open_path, strlen(tmp_open_path), 0);
-#endif
 		} else {
 			efree(tmp_open_path);
 		}
@@ -1390,11 +1219,7 @@ cleanup:
 	if (stream == NULL) { /* failed */
 		if (self != NULL) {
 			if (Z_TYPE(self->rar_obj) == IS_OBJECT) {
-#if PHP_MAJOR_VERSION < 7
-				zval_dtor(&self->rar_obj);
-#else
 				zval_ptr_dtor(&self->rar_obj);
-#endif
 			}
 			if (self->directory != NULL) {
 				efree(self->directory);
