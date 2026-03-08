@@ -1,5 +1,6 @@
 #include "rar.hpp"
 
+#ifdef _WIN_ALL
 DWORD WinNT()
 {
   static int dwPlatformId=-1;
@@ -34,17 +35,17 @@ static bool WMI_IsWindows10()
 
   HRESULT hres = CoCreateInstance(CLSID_WbemLocator,0,CLSCTX_INPROC_SERVER,
                           IID_IWbemLocator,(LPVOID *)&pLoc);
- 
+
   if (FAILED(hres))
     return false;
 
   IWbemServices *pSvc = NULL;
- 
+
   hres = pLoc->ConnectServer(_bstr_t(L"ROOT\\CIMV2"),NULL,NULL,0,NULL,0,0,&pSvc);
-    
+
   if (FAILED(hres))
   {
-    pLoc->Release();     
+    pLoc->Release();
     return false;
   }
 
@@ -54,14 +55,14 @@ static bool WMI_IsWindows10()
   if (FAILED(hres))
   {
     pSvc->Release();
-    pLoc->Release();     
+    pLoc->Release();
     return false;
   }
 
   IEnumWbemClassObject *pEnumerator = NULL;
   hres = pSvc->ExecQuery(bstr_t("WQL"), bstr_t("SELECT * FROM Win32_OperatingSystem"),
          WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY, NULL, &pEnumerator);
-    
+
   if (FAILED(hres))
   {
     pSvc->Release();
@@ -71,7 +72,7 @@ static bool WMI_IsWindows10()
 
   IWbemClassObject *pclsObj = NULL;
   ULONG uReturn = 0;
-   
+
   bool Win10=false;
   while (pEnumerator!=NULL)
   {
@@ -106,9 +107,10 @@ bool IsWindows11OrGreater()
     OSVERSIONINFO WinVer;
     WinVer.dwOSVersionInfoSize=sizeof(WinVer);
     GetVersionEx(&WinVer);
-    IsWin11=WinVer.dwMajorVersion>10 || 
+    IsWin11=WinVer.dwMajorVersion>10 ||
           WinVer.dwMajorVersion==10 && WinVer.dwBuildNumber >= 22000 && !WMI_IsWindows10();
     IsSet=true;
   }
   return IsWin11;
 }
+#endif
