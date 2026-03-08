@@ -26,10 +26,12 @@ Archive::Archive(CommandData *InitCmd)
   FailedHeaderDecryption=false;
   BrokenHeader=false;
   LastReadBlock=0;
+  CurHeaderType=HEAD_UNKNOWN;
 
   CurBlockPos=0;
   NextBlockPos=0;
 
+  RecoveryPercent=-1;
 
   MainHead.Reset();
   CryptHead={};
@@ -67,7 +69,7 @@ void Archive::CheckArc(bool EnableBroken)
     // password is incorrect.
     if (!FailedHeaderDecryption)
       uiMsg(UIERROR_BADARCHIVE,FileName);
-    ErrHandler.Exit(RARX_FATAL);
+    ErrHandler.Exit(RARX_BADARC);
   }
 }
 

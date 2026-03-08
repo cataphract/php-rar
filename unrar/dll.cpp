@@ -49,7 +49,7 @@ HANDLE PASCAL RAROpenArchiveEx(struct RAROpenArchiveDataEx *r)
       AnsiArcName=r->ArcName;
 #ifdef _WIN_ALL
       if (!AreFileApisANSI())
-        IntToExt(r->ArcName,AnsiArcName);
+        OemToExt(r->ArcName,AnsiArcName);
 #endif
     }
 
@@ -333,7 +333,7 @@ int PASCAL RARReadHeaderEx(HANDLE hArcData,struct RARHeaderDataEx *D)
   {
     return Data->Cmd.DllError!=0 ? Data->Cmd.DllError : RarErrorToDll(ErrCode);
   }
-  return ERAR_SUCCESS;
+  return Data->Cmd.DllError!=0 ? Data->Cmd.DllError : RarErrorToDll(ErrHandler.GetErrorCode());
 }
 
 
@@ -388,7 +388,7 @@ int PASCAL ProcessFile(HANDLE hArcData, int Operation, char *DestPath,
         // We must not apply OemToCharBuffA directly to DestPath,
         // because we do not know DestPath length and OemToCharBuffA
         // does not stop at 0.
-        IntToExt(ExtrPathA,ExtrPathA);
+        OemToExt(ExtrPathA,ExtrPathA);
 #endif
         CharToWide(ExtrPathA,Data->Cmd.ExtrPath);
         AddEndSlash(Data->Cmd.ExtrPath);
@@ -400,7 +400,7 @@ int PASCAL ProcessFile(HANDLE hArcData, int Operation, char *DestPath,
         // We must not apply OemToCharBuffA directly to DestName,
         // because we do not know DestName length and OemToCharBuffA
         // does not stop at 0.
-        IntToExt(DestNameA,DestNameA);
+        OemToExt(DestNameA,DestNameA);
 #endif
         CharToWide(DestNameA,Data->Cmd.DllDestName);
       }
@@ -481,7 +481,7 @@ int PASCAL ProcessFile(HANDLE hArcData, int Operation, char *DestPath,
   {
     return Data->Cmd.DllError!=0 ? Data->Cmd.DllError : RarErrorToDll(ErrCode);
   }
-  return Data->Cmd.DllError;
+  return Data->Cmd.DllError!=0 ? Data->Cmd.DllError : RarErrorToDll(ErrHandler.GetErrorCode());
 }
 
 
@@ -583,6 +583,8 @@ static int RarErrorToDll(RAR_EXIT ErrCode)
       return ERAR_BAD_PASSWORD;
     case RARX_SUCCESS:
       return ERAR_SUCCESS; // 0.
+    case RARX_BADARC:
+      return ERAR_BAD_ARCHIVE;
     default:
       return ERAR_UNKNOWN;
   }

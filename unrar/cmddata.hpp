@@ -8,7 +8,7 @@
 #define CUSTOM_CMDLINE_PARSER
 #endif
 
-#define DefaultStoreList L"7z;ace;arj;bz2;cab;gz;jpeg;jpg;lha;lz;lzh;mp3;rar;taz;tbz;tbz2;tgz;txz;xz;z;zip;zipx;zst;tzst"
+#define DefaultStoreList L"7z;arj;bz2;cab;gz;jpeg;jpg;lha;lz;lzh;mp3;rar;taz;tbz;tbz2;tgz;txz;xz;z;zip;zipx;zst;tzst"
 
 enum RAR_CMD_LIST_MODE {RCLM_AUTO,RCLM_REJECT_LISTS,RCLM_ACCEPT_LISTS};
 
@@ -24,7 +24,7 @@ class CommandData:public RAROptions
     void SetTimeFilters(const wchar *Mod,bool Before,bool Age);
     void SetStoreTimeMode(const wchar *S);
 #endif
-    int64 GetVolSize(const wchar *S,uint DefMultiplier);
+    int64 GetModSize(const wchar *S,uint DefMultiplier);
 
     bool FileLists;
     bool NoMoreSwitches;

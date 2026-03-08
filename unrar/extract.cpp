@@ -72,7 +72,7 @@ void CmdExtract::DoExtract()
   }
 
   Cmd->ArcNames.Rewind();
-  while (Cmd->GetArcName(ArcName))
+  for (uint ArcCount=0;Cmd->GetArcName(ArcName);ArcCount++)
   {
     if (Cmd->ManualPassword)
       Cmd->Password.Clean(); // Clean user entered password before processing next archive.
@@ -81,6 +81,12 @@ void CmdExtract::DoExtract()
     UseExactVolName=false; // Must be reset here, not in ExtractArchiveInit().
     while (true)
     {
+      // 2025.05.11: Add the empty line between tested archives here instead
+      // of printing two leading "\n" in "\n\nExtracting from", which caused
+      // the extra empty line after the copyright message.
+      if (ArcCount>0)
+        mprintf(L"\n");
+
       EXTRACT_ARC_CODE Code=ExtractArchive();
       if (Code!=EXTRACT_ARC_REPEAT)
         break;
@@ -192,12 +198,18 @@ EXTRACT_ARC_CODE CmdExtract::ExtractArchive()
     }
 #endif
 
-    mprintf(St(MNotRAR),ArcName.c_str());
-
+    bool RarExt=false;
 #ifndef SFX_MODULE
-    if (CmpExt(ArcName,L"rar"))
+    RarExt=CmpExt(ArcName,L"rar");
 #endif
-      ErrHandler.SetErrorCode(RARX_WARNING);
+
+    if (RarExt)
+      uiMsg(UIERROR_BADARCHIVE,ArcName); // Non-archive .rar file.
+    else
+      mprintf(St(MNotRAR),ArcName.c_str()); // Non-archive not .rar file, likely in "rar x *.*".
+
+    if (RarExt)
+      ErrHandler.SetErrorCode(RARX_BADARC);
     return EXTRACT_ARC_NEXT;
   }
 
@@ -713,6 +725,7 @@ bool CmdExtract::ExtractCurrentFile(Archive &Arc,size_t HeaderSize,bool &Repeat)
           if (!CheckWinLimit(Arc,ArcFileName))
             return false;
 
+          // 2025.09.03: OpenIndiana info is likely outdated, see https://www.illumos.org/issues/2000
           // Read+write mode is required to set "Compressed" attribute.
           // Other than that prefer the write only mode to avoid
           // OpenIndiana NAS problem with SetFileTime and read+write files.
@@ -818,7 +831,7 @@ bool CmdExtract::ExtractCurrentFile(Archive &Arc,size_t HeaderSize,bool &Repeat)
 
       uint64 Preallocated=0;
       if (!TestMode && !Arc.BrokenHeader && Arc.FileHead.UnpSize>1000000 &&
-          Arc.FileHead.PackSize*1024>Arc.FileHead.UnpSize && Arc.IsSeekable() &&
+          Arc.FileHead.PackSize>Arc.FileHead.UnpSize/1024 && Arc.IsSeekable() &&
           (Arc.FileHead.UnpSize<100000000 || Arc.FileLength()>Arc.FileHead.PackSize))
       {
         CurFile.Prealloc(Arc.FileHead.UnpSize);
@@ -847,6 +860,7 @@ bool CmdExtract::ExtractCurrentFile(Archive &Arc,size_t HeaderSize,bool &Repeat)
           // processed correctly.
           SlashToNative(Arc.FileHead.RedirName,RedirName);
 
+          // Ensure that target is inside of destination folder.
           ConvertPath(&RedirName,&RedirName);
 
           std::wstring NameExisting;
@@ -1615,8 +1629,10 @@ void CmdExtract::AnalyzeArchive(const std::wstring &ArcName,bool Volume,bool New
 
         if (!Arc.FileHead.SplitBefore)
         {
-          if (!MatchFound && !Arc.FileHead.Solid) // Can start extraction from here.
+          if (!MatchFound && !Arc.FileHead.Solid && !Arc.FileHead.Dir &&
+              Arc.FileHead.RedirType==FSREDIR_NONE && Arc.FileHead.Method!=0)
           {
+            // Can start extraction from here.
             // We would gain nothing and unnecessarily complicate extraction
             // if we set StartName for first volume or StartPos for first
             // archived file.

@@ -45,10 +45,8 @@ UIASKREP_RESULT uiAskReplace(std::wstring &Name,int64 FileSize,RarTime *FileTime
   if (AllowRename && Choice==5)
   {
     mprintf(St(MAskNewName));
-    if (getwstr(Name))
-      return UIASKREP_R_RENAME;
-    else
-      return UIASKREP_R_SKIP; // Process fwgets failure as if user answered 'No'.
+    getwstr(Name);
+    return UIASKREP_R_RENAME;
   }
   return UIASKREP_R_CANCEL;
 }
@@ -507,7 +505,17 @@ const wchar *uiGetMonthName(uint Month)
          MMonthJan,MMonthFeb,MMonthMar,MMonthApr,MMonthMay,MMonthJun,
          MMonthJul,MMonthAug,MMonthSep,MMonthOct,MMonthNov,MMonthDec
   };
-  return St(MonthID[Month]);
+  return Month<ASIZE(MonthID) ? St(MonthID[Month]):L"";
+}
+
+
+const wchar *uiGetWeekDayName(uint Day)
+{
+  static MSGID DayID[7]={
+         MWeekDaySun,MWeekDayMon,MWeekDayTue,MWeekDayWed,MWeekDayThu,
+         MWeekDayFri,MWeekDaySat
+  };
+  return Day<ASIZE(DayID) ? St(DayID[Day]):L"";
 }
 #endif
 

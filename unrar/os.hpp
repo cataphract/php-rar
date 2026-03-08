@@ -55,6 +55,8 @@
 #pragma comment(lib, "Shlwapi.lib")
 #include <PowrProf.h>
 #pragma comment(lib, "PowrProf.lib")
+#include <psapi.h>
+#pragma comment(lib, "Psapi.lib") // For GetProcessMemoryInfo().
 #include <shellapi.h>
 #include <shlobj.h>
 #include <winioctl.h>
@@ -141,6 +143,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stddef.h> // Needed for ptrdiff_t in some UnRAR source builds.
 #include <string.h>
 #include <ctype.h>
 #include <fcntl.h>
