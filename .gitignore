@@ -49,3 +49,6 @@
 /.clangd
 /report.xml
 /.worktrees
+*.dep
+/configure~
+/.cache/
