@@ -67,10 +67,12 @@
 #include <ntsecapi.h>
 
 
-// For WMI requests.
+// For WMI requests (C++ only).
+#ifdef __cplusplus
 #include <comdef.h>
 #include <Wbemidl.h>
 #pragma comment(lib, "wbemuuid.lib")
+#endif
 
 
 #include <sys/types.h>
