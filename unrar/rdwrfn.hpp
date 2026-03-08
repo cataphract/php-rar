@@ -6,10 +6,6 @@ class CmdAdd;
 class Unpack;
 class ArcFileSearch;
 
-#if 0
-// We use external i/o calls for Benchmark command.
-#define COMPRDATAIO_EXTIO
-#endif
 
 class ComprDataIO
 {
@@ -71,9 +67,8 @@ class ComprDataIO
     void SetFiles(File *SrcFile,File *DestFile);
     void SetCommand(CmdAdd *Cmd) {Command=Cmd;}
     void SetSubHeader(FileHeader *hd,int64 *Pos) {SubHead=hd;SubHeadPos=Pos;}
-    void SetEncryption(bool Encrypt,CRYPT_METHOD Method,SecPassword *Password,
+    bool SetEncryption(bool Encrypt,CRYPT_METHOD Method,SecPassword *Password,
          const byte *Salt,const byte *InitV,uint Lg2Cnt,byte *HashKey,byte *PswCheck);
-    void SetAV15Encryption();
     void SetCmt13Encryption();
     void SetUnpackToMemory(byte *Addr,size_t Size); //changed by me
     void SetCurrentCommand(wchar Cmd) {CurrentCommand=Cmd;}

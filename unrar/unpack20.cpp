@@ -2,7 +2,8 @@
 
 void Unpack::CopyString20(uint Length,uint Distance)
 {
-  LastDist=OldDist[OldDistPtr++]=Distance;
+  LastDist=Distance;
+  OldDist[OldDistPtr++]=Distance;
   OldDistPtr = OldDistPtr & 3; // Needed if RAR 1.5 file is called after RAR 2.0.
   LastLength=Length;
   DestUnpSize-=Length;
@@ -38,6 +39,9 @@ void Unpack::Unpack20(bool Solid,bool SuspendAfterInit)
   while (DestUnpSize>=0)
   {
     UnpPtr&=MaxWinMask;
+
+    FirstWinDone|=(PrevPtr>UnpPtr);
+    PrevPtr=UnpPtr;
 
     if (Inp.InAddr>ReadTop-30)
       if (!UnpReadBuf())
@@ -112,7 +116,7 @@ void Unpack::Unpack20(bool Solid,bool SuspendAfterInit)
     }
     if (Number<261)
     {
-      uint Distance=OldDist[(OldDistPtr-(Number-256)) & 3];
+      uint Distance=(uint)OldDist[(OldDistPtr-(Number-256)) & 3];
       uint LengthNumber=DecodeNumber(Inp,&BlockTables.RD);
       uint Length=LDecode[LengthNumber]+2;
       if ((Bits=LBits[LengthNumber])>0)

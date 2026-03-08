@@ -19,6 +19,7 @@
 #define ERAR_MISSING_PASSWORD   22
 #define ERAR_EREFERENCE         23
 #define ERAR_BAD_PASSWORD       24
+#define ERAR_LARGE_DICT         25
 
 #define RAR_OM_LIST              0
 #define RAR_OM_EXTRACT           1
@@ -32,7 +33,7 @@
 #define RAR_VOL_ASK           0
 #define RAR_VOL_NOTIFY        1
 
-#define RAR_DLL_VERSION       8
+#define RAR_DLL_VERSION       9
 #define RAR_DLL_EXT_VERSION   1 //added by me
 
 #define RAR_HASH_NONE         0
@@ -130,9 +131,13 @@ struct RARHeaderDataEx
   unsigned int CtimeHigh;
   unsigned int AtimeLow;
   unsigned int AtimeHigh;
+  wchar_t      *ArcNameEx;
+  unsigned int ArcNameExSize;
+  wchar_t      *FileNameEx;
+  unsigned int FileNameExSize;
   /* removed by me: we don't need to retain binary compatibility in case new
    * fields are added, so we avoid wasting space here */
-  /* unsigned int Reserved[988]; */
+  /* unsigned int Reserved[982]; */
   /* added by me */
   size_t WinSize; /* window size */
 };
@@ -184,7 +189,7 @@ struct RAROpenArchiveDataEx
 
 enum UNRARCALLBACK_MESSAGES {
   UCM_CHANGEVOLUME,UCM_PROCESSDATA,UCM_NEEDPASSWORD,UCM_CHANGEVOLUMEW,
-  UCM_NEEDPASSWORDW
+  UCM_NEEDPASSWORDW,UCM_LARGEDICT
 };
 
 typedef int (PASCAL *CHANGEVOLPROC)(char *ArcName,int Mode);
