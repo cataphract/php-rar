@@ -265,7 +265,7 @@ PHP_METHOD(rarentry, extract)
 							*tmp_position;
 	rar_file_t				*rar = NULL;
 	zval					*entry_obj = getThis();
-	struct RARHeaderDataEx	entry;
+	struct RARHeaderDataEx	entry = {0};
 	HANDLE					extract_handle = NULL;
 	int						result;
 	int						found;
