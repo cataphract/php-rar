@@ -29,7 +29,8 @@ unrar_sources="unrar/sha256.cpp unrar/qopen.cpp \
                unrar/arcread.cpp unrar/filefn.cpp \
                unrar/global.cpp unrar/list.cpp \
                unrar/encname.cpp unrar/file.cpp \
-               unrar/secpassword.cpp unrar/options.cpp"
+               unrar/secpassword.cpp unrar/options.cpp \
+               unrar/largepage.cpp"
 
 
 AC_LANG_PUSH([C++])
