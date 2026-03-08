@@ -1,18 +1,31 @@
 {
-    "name": "rar",
-    "type": "extension",
-    "license": [
-        "PHP License"
-    ],
+    "name": "cataphract/rar",
+    "type": "php-ext",
+    "description": "PHP extension for reading RAR archives using bundled unRAR library",
+    "license": "PHP-3.01",
     "authors": [
         {
             "name": "Gustavo Lopes",
-            "email": "cataphract@php.net"
+            "email": "cataphract@php.net",
+            "role": "lead"
         },
         {
             "name": "Antony Dovgal",
-            "email": "tony@daylessday.org"
+            "email": "tony@daylessday.org",
+            "role": "developer"
         }
     ],
-    "description": "rar extension"
+    "require": {
+        "php": "^7.0 || ^8.0"
+    },
+    "replace": {
+        "ext-rar": "*"
+    },
+    "support": {
+        "source": "https://github.com/cataphract/php-rar"
+    },
+    "php-ext": {
+        "extension-name": "rar",
+        "download-url-method": ["pre-packaged-binary", "composer-default"]
+    }
 }

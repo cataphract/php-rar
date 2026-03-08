@@ -23,11 +23,11 @@ http://pear.php.net/dtd/package-2.0.xsd">
   <active>no</active>
  </developer>
 
- <date>2020-12-06</date>
+ <date>2026-03-08</date>
  <time>20:00:00</time>
  <version>
-  <release>4.2.0</release>
-  <api>4.2.0</api>
+  <release>4.3.0</release>
+  <api>4.0.0</api>
  </version>
 
  <stability>
@@ -36,9 +36,10 @@ http://pear.php.net/dtd/package-2.0.xsd">
  </stability>
 
  <license uri="http://www.php.net/license">PHP License</license>
- <notes>- Support PHP 8.
-- Merge unrar 6.0.2.
-- RarArchive implements IteratorAggregate (PHP 8 only).
+ <notes>- Add PHP 8.1, 8.2, 8.3, 8.4, 8.5 support.
+- Drop PHP 5 support; minimum PHP version is now 7.0.
+- Update bundled unrar to 7.2.4.
+- Fix Windows bug
  </notes>
  <contents>
   <dir name="/">
@@ -111,8 +112,6 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file role="test" name="065.phpt"/>
     <file role="test" name="066.phpt"/>
     <file role="test" name="067.phpt"/>
-    <file role="test" name="068.phpt"/>
-    <file role="test" name="069.phpt"/>
     <file role="test" name="070.phpt"/>
     <file role="test" name="071.phpt"/>
     <file role="test" name="072.phpt"/>
@@ -148,7 +147,6 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file role="test" name="102.phpt"/>
     <file role="test" name="103.phpt"/>
     <file role="test" name="104.phpt"/>
-    <file role="test" name="105.phpt"/>
     <file role="test" name="106.phpt"/>
     <file role="test" name="107.phpt"/>
     <file role="test" name="108.phpt"/>
@@ -193,7 +191,6 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file name="archive.cpp" role="src" />
     <file name="archive.hpp" role="src" />
     <file name="arcread.cpp" role="src" />
-    <file name="array.hpp" role="src" />
     <file name="blake2s.cpp" role="src" />
     <file name="blake2s.hpp" role="src" />
     <file name="blake2s_sse.cpp" role="src" />
@@ -248,6 +245,8 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file name="headers5.hpp" role="src" />
     <file name="isnt.cpp" role="src" />
     <file name="isnt.hpp" role="src" />
+    <file name="largepage.cpp" role="src" />
+    <file name="largepage.hpp" role="src" />
     <file name="LICENSE.txt" role="doc" />
     <file name="list.cpp" role="src" />
     <file name="list.hpp" role="src" />
@@ -258,6 +257,8 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file name="match.hpp" role="src" />
     <file name="model.cpp" role="src" />
     <file name="model.hpp" role="src" />
+    <file name="motw.cpp" role="src" />
+    <file name="motw.hpp" role="src" />
     <file name="options.cpp" role="src" />
     <file name="options.hpp" role="src" />
     <file name="os.hpp" role="src" />
@@ -307,7 +308,6 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file name="rijndael.hpp" role="src" />
     <file name="rs.cpp" role="src" />
     <file name="rs.hpp" role="src" />
-    <file name="savepos.hpp" role="src" />
     <file name="scantree.cpp" role="src" />
     <file name="scantree.hpp" role="src" />
     <file name="secpassword.cpp" role="src" />
@@ -341,7 +341,6 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file name="win32stm.cpp" role="src" />
    </dir> <!-- /unrar -->
     <file name="config.m4" role="src" />
-    <file name="config.m4" role="src" />
     <file name="config.w32" role="src" />
     <file name="CREDITS" role="doc" />
     <file name="LICENSE" role="doc" />
@@ -356,7 +355,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file name="rarentry.c" role="src" />
     <file name="rar_error.c" role="src" />
     <file name="rar_time.c" role="src" />
-    <file name="run-tests8.php" role="test" />
+    <file name="run-tests-rar.php" role="test" />
     <file role="src" name="rar_navigation.c"/>
   </dir> <!-- / -->
  </contents>
@@ -364,7 +363,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
  <dependencies>
   <required>
    <php>
-    <min>5.3.0</min>
+    <min>7.0.0</min>
    </php>
    <pearinstaller>
     <min>1.4.0</min>
@@ -376,6 +375,44 @@ http://pear.php.net/dtd/package-2.0.xsd">
 
  <extsrcrelease />
  <changelog>
+  <release>
+   <version>
+    <release>4.3.0</release>
+    <api>4.0.0</api>
+   </version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api>
+   </stability>
+   <date>2026-03-08</date>
+   <notes>Changes in this version:
+- Add PHP 8.1, 8.2, 8.3 support.
+- Drop PHP 5 support; minimum PHP version is now 7.0.
+- Update bundled unrar to 7.2.4.
+- Fix segfault caused by uninitialized RARHeaderDataEx.
+- Fix dll.cpp: don't propagate non-fatal ErrHandler errors as failures.
+- Fix RAR5 chunk extraction spurious warning on Windows with multi-core CPUs.
+- Migrate CI from Azure Pipelines/Appveyor to GitHub Actions.
+  </notes>
+  </release>
+
+  <release>
+   <version>
+    <release>4.2.0</release>
+    <api>4.0.0</api>
+   </version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api>
+   </stability>
+   <date>2020-12-06</date>
+   <notes>Changes in this version:
+- Support PHP 8.
+- Merge unrar 6.0.2.
+- RarArchive implements IteratorAggregate (PHP 8 only).
+  </notes>
+  </release>
+
   <release>
    <version>
     <release>4.1.0</release>

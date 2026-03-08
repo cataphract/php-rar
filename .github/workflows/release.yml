@@ -1,0 +1,119 @@
+name: Release binaries
+
+on:
+  push:
+    tags:
+      - 'v[0-9]*.[0-9]*.[0-9]*'
+
+permissions:
+  contents: read
+
+jobs:
+  create-draft-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-tags: 'true'
+          ref: ${{ github.ref }}
+
+      - name: Create draft release from tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" --title "${{ github.ref_name }}" --draft --notes-from-tag
+
+  linux-binaries:
+    needs: [create-draft-release]
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ['8.0', '8.1', '8.2', '8.3', '8.4', '8.5']
+        zts-mode: [ts, nts]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+        env:
+          phpts: ${{ matrix.zts-mode }}
+
+      - name: Build Linux binaries
+        uses: php/pie-ext-binary-builder@0.0.2
+        with:
+          configure-flags: '--enable-rar=shared LDFLAGS=-static-libstdc++'
+          release-tag: ${{ github.ref_name }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  windows-extension-matrix:
+    needs: [create-draft-release]
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.extension-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get the extension matrix
+        id: extension-matrix
+        uses: php/php-windows-builder/extension-matrix@v1
+        with:
+          php-version-list: '8.0, 8.1, 8.2, 8.3, 8.4, 8.5'
+
+  windows-build:
+    needs: [windows-extension-matrix]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.windows-extension-matrix.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the extension for Windows
+        uses: php/php-windows-builder/extension@v1
+        with:
+          php-version: ${{ matrix.php-version }}
+          arch: ${{ matrix.arch }}
+          ts: ${{ matrix.ts }}
+          args: --enable-rar=shared
+          test-runner: run-tests-rar.php
+
+  windows-release:
+    needs: [windows-build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Upload artifacts to the release
+        uses: php/php-windows-builder/release@v1
+        with:
+          release: ${{ github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          draft: 'true'
+
+  pecl-package:
+    needs: [create-draft-release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: pecl
+
+      - name: Build PECL package
+        run: pecl package
+
+      - name: Upload PECL package to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.ref_name }}" rar-*.tgz
