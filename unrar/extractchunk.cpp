@@ -40,22 +40,21 @@ bool CmdExtract::ExtractCurrentFileChunkInit(Archive &Arc,
 
   if (Arc.FileHead.SplitBefore && FirstFile)
   {
-    wchar CurVolName[NM];
-    wcsncpyz(CurVolName,ArcName,ASIZE(CurVolName));
-    VolNameToFirstName(ArcName,ArcName,ASIZE(ArcName),Arc.NewNumbering);
+    std::wstring CurVolName=ArcName;
+    VolNameToFirstName(ArcName,ArcName,Arc.NewNumbering);
 
     if (wcsicomp(ArcName,CurVolName)!=0 && FileExist(ArcName))
     {
       // If first volume name does not match the current name and if such
       // volume name really exists, let's unpack from this first volume.
-      *ArcName=0;
+      ArcName.clear();
       Repeat=true;
       ErrHandler.SetErrorCode(RARX_WARNING);
       /* Actually known. The problem is that the file doesn't start on this volume. */
       Cmd->DllError = ERAR_UNKNOWN;
       return false;
     }
-    wcsncpyz(ArcName,CurVolName,ASIZE(ArcName));
+    ArcName=CurVolName;
   }
 
   DataIO.UnpVolume=Arc.FileHead.SplitAfter;
@@ -73,16 +72,16 @@ bool CmdExtract::ExtractCurrentFileChunkInit(Archive &Arc,
     }
   }
 
-  if (*Cmd->DllDestName!=0)
+  if (!Cmd->DllDestName.empty())
   {
-    wcsncpyz(DestFileName,Cmd->DllDestName,ASIZE(DestFileName));
+    DestFileName=Cmd->DllDestName;
 //      Do we need this code?
 //      if (Cmd->DllOpMode!=RAR_EXTRACT)
 //        ExtrFile=false;
   }
 
-  wchar ArcFileName[NM];
-  ConvertPath(Arc.FileHead.FileName,ArcFileName,ASIZE(ArcFileName));
+  std::wstring ArcFileName;
+  ConvertPath(&Arc.FileHead.FileName,&ArcFileName);
   if (!CheckUnpVer(Arc,ArcFileName))
   {
     ErrHandler.SetErrorCode(RARX_FATAL);
