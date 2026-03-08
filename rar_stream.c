@@ -164,7 +164,7 @@ static ssize_t php_rar_ops_read(php_stream *stream, char *buf, size_t count)
 		if (self->cursor > self->file_size) {
 			php_error_docref(NULL TSRMLS_CC, E_WARNING,
 					"The file size is supposed to be %lu bytes, but "
-					"we read more: %lu bytes (corruption/wrong pwd)",
+					"we read more: %" PRIu64 " bytes (corruption/wrong pwd)",
 					self->file_size, self->cursor);
 		}
 	}
