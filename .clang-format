@@ -1,0 +1,88 @@
+---
+# Formatting style for php-rar C source files.
+# Does NOT apply to unrar/ (see unrar/.clang-format).
+Language: Cpp
+BasedOnStyle: LLVM
+
+# Indentation: real tabs, width 4 (matches vim modeline: noet sw=4 ts=4)
+UseTab: Always
+TabWidth: 4
+IndentWidth: 4
+ContinuationIndentWidth: 4
+
+# Disable line-length wrapping to preserve hand-formatted long lines
+ColumnLimit: 0
+
+# Brace style:
+#   - Functions: brace on its own line (Allman)
+#   - Structs/unions/enums/extern "C": brace attached (K&R)
+#   - Control statements: brace attached (K&R)
+#   - else/else if: on its own line (after closing })
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterCaseLabel: false
+  AfterClass: false
+  AfterControlStatement: Never
+  AfterEnum: false
+  AfterFunction: true
+  AfterNamespace: false
+  AfterObjCDeclaration: false
+  AfterStruct: false
+  AfterUnion: false
+  AfterExternBlock: false
+  BeforeCatch: false
+  BeforeElse: true
+  BeforeLambdaBody: false
+  BeforeWhile: false
+  IndentBraces: false
+  SplitEmptyFunction: false
+  SplitEmptyRecord: false
+  SplitEmptyNamespace: false
+
+# Preserve indentation of preprocessor directives (# include, # define inside #ifdef)
+IndentPPDirectives: AfterHash
+PPIndentWidth: 1
+
+# Pointer star attached to variable name: char *ptr
+PointerAlignment: Right
+DerivePointerAlignment: false
+
+# Spaces
+SpaceBeforeParens: ControlStatements
+SpaceAfterCStyleCast: true
+SpacesInParentheses: false
+SpaceInEmptyParentheses: false
+SpaceBeforeAssignmentOperators: true
+
+# Don't align backslashes in multi-line macros (just 1 space before \)
+AlignEscapedNewlines: DontAlign
+
+# ZEND_BEGIN/END_ARG_INFO_EX act as block delimiters so ZEND_ARG_INFO lines
+# inside them keep their indentation.
+MacroBlockBegin: "^ZEND_BEGIN_ARG_INFO"
+MacroBlockEnd: "^ZEND_END_ARG_INFO"
+
+# Align continuation arguments after opening paren; when ( is last on the line,
+# fall back to a block indent (ContinuationIndentWidth).
+AlignAfterOpenBracket: Align
+
+# Preserve existing include order
+SortIncludes: Never
+
+# case labels are indented one level inside switch
+IndentCaseLabels: true
+
+# Don't collapse or expand short constructs
+AllowShortBlocksOnASingleLine: Never
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+
+# Alignment: leave hand-aligned blocks alone
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignTrailingComments: false
+
+# Blank lines
+MaxEmptyLinesToKeep: 2
+KeepEmptyLinesAtTheStartOfBlocks: true

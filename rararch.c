@@ -29,9 +29,6 @@
 
 #include "zend_types.h"
 #include <zend_API.h>
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #ifndef _GNU_SOURCE
 # define _GNU_SOURCE
@@ -45,6 +42,7 @@ extern "C" {
 #include "php_compat.h"
 
 /* {{{ Type definitions reserved for this translation unit */
+/* clang-format off */
 typedef struct _ze_rararch_object {
 	rar_file_t  *rar_file;
 	zend_object parent;
@@ -56,6 +54,7 @@ typedef struct _rararch_iterator {
 	zval					value;
 	int						empty_iterator; /* iterator should give nothing */
 } rararch_iterator;
+/* clang-format on */
 /* }}} */
 
 /* {{{ Globals with internal linkage */
@@ -875,6 +874,7 @@ ZEND_END_ARG_INFO()
 #endif
 /* }}} */
 
+	/* clang-format off */
 static zend_function_entry php_rararch_class_functions[] = {
 	PHP_ME_MAPPING(open,			rar_open,				arginfo_rararchive_open,		ZEND_ACC_STATIC | ZEND_ACC_PUBLIC)
 	PHP_ME_MAPPING(getEntries,		rar_list,				arginfo_rararchive_void,		ZEND_ACC_PUBLIC)
@@ -894,6 +894,7 @@ static zend_function_entry php_rararch_class_functions[] = {
 #endif
 	{NULL, NULL, NULL}
 };
+/* clang-format on */
 
 /* {{{ Iteration. Very boring stuff indeed. */
 
@@ -1093,7 +1094,3 @@ void minit_rararch(TSRMLS_D)
 	zend_class_implements(rararch_ce_ptr TSRMLS_CC, 1, zend_ce_traversable);
 #endif
 }
-
-#ifdef __cplusplus
-}
-#endif

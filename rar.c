@@ -28,11 +28,7 @@
 /* $Id$ */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#ifdef __cplusplus
-extern "C" {
+# include "config.h"
 #endif
 
 #define _GNU_SOURCE
@@ -49,8 +45,6 @@ extern "C" {
 #include <zend_exceptions.h>
 #include <ext/standard/info.h>
 #include <ext/spl/spl_exceptions.h>
-
-#if HAVE_RAR
 
 #include "php_rar.h"
 
@@ -587,6 +581,7 @@ ZEND_END_ARG_INFO()
 /* {{{ rar_functions[]
  *
  */
+/* clang-format off */
 static zend_function_entry rar_functions[] = {
 	PHP_FE(rar_open,				arginfo_rar_open)
 	PHP_FE(rar_list,				arginfo_rar_void_archmeth)
@@ -599,6 +594,7 @@ static zend_function_entry rar_functions[] = {
 	PHP_FE(rar_wrapper_cache_stats,	arginfo_rar_wrapper_cache_stats)
 	{NULL, NULL, NULL}
 };
+/* clang-format on */
 /* }}} */
 
 /* {{{ Globals' related activities */
@@ -690,12 +686,14 @@ ZEND_MODULE_STARTUP_D(rar)
 
 	php_register_url_stream_wrapper("rar", &php_stream_rar_wrapper TSRMLS_CC);
 
+	/* clang-format off */
 	REGISTER_LONG_CONSTANT("RAR_HOST_MSDOS",	HOST_MSDOS,	CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("RAR_HOST_OS2",		HOST_OS2,	CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("RAR_HOST_WIN32",	HOST_WIN32,	CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("RAR_HOST_UNIX",		HOST_UNIX,	CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("RAR_HOST_MACOS",	HOST_MACOS,	CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("RAR_HOST_BEOS",		HOST_BEOS,	CONST_CS | CONST_PERSISTENT);
+	/* clang-format on */
 	return SUCCESS;
 }
 /* }}} */
@@ -759,12 +757,6 @@ zend_module_entry rar_module_entry = {
 	STANDARD_MODULE_PROPERTIES_EX,
 };
 /* }}} */
-
-#endif /* HAVE_RAR */
-
-#ifdef __cplusplus
-}
-#endif
 
 /*
  * Local variables:

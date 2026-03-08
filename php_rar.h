@@ -77,6 +77,7 @@ extern zend_module_entry rar_module_entry;
 #include "unrar/dll.hpp"
 #include "unrar/version.hpp"
 /* These are in unrar/headers.hpp, but that header depends on several other */
+/* clang-format off */
 enum HOST_SYSTEM {
   HOST_MSDOS=0,HOST_OS2=1,HOST_WIN32=2,HOST_UNIX=3,HOST_MACOS=4,
   HOST_BEOS=5,HOST_MAX
@@ -85,10 +86,12 @@ enum FILE_SYSTEM_REDIRECT {
   FSREDIR_NONE=0, FSREDIR_UNIXSYMLINK, FSREDIR_WINSYMLINK, FSREDIR_JUNCTION,
   FSREDIR_HARDLINK, FSREDIR_FILECOPY
 };
+/* clang-format on */
 
 /* maximum comment size if 64KB */
 #define RAR_MAX_COMMENT_SIZE 65536
 
+/* clang-format off */
 typedef struct _rar_cb_user_data {
 	char					*password;	/* can be NULL */
 	zval					*callable;  /* can be NULL */
@@ -105,6 +108,7 @@ typedef struct rar {
 	rar_cb_user_data			cb_userdata;
 	int							allow_broken;
 } rar_file_t;
+/* clang-format on */
 
 /* Misc */
 # define RAR_TSRMLS_TC

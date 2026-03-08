@@ -25,10 +25,6 @@
 +----------------------------------------------------------------------+
 */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <php.h>
 #include <zend_exceptions.h>
 #include "php_rar.h"
@@ -205,11 +201,13 @@ ZEND_BEGIN_ARG_INFO(arginfo_rarexception_void, 0)
 ZEND_END_ARG_INFO()
 /* }}} */
 
+/* clang-format off */
 static zend_function_entry php_rarexception_class_functions[] = {
 	PHP_ME(rarexception,	setUsingExceptions,	arginfo_rarexception_sue,	ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	PHP_ME(rarexception,	isUsingExceptions,	arginfo_rarexception_void,	ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 	{NULL, NULL, NULL}
 };
+/* clang-format on */
 
 void minit_rarerror(TSRMLS_D) /* {{{ */
 {
@@ -224,7 +222,3 @@ void minit_rarerror(TSRMLS_D) /* {{{ */
 		ZEND_ACC_STATIC TSRMLS_CC);
 }
 /* }}} */
-
-#ifdef __cplusplus
-}
-#endif

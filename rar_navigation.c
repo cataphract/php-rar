@@ -25,21 +25,16 @@
 */
 
 #ifdef HAVE_CONFIG_H
-#   include "config.h"
-#endif
-
-#ifdef __cplusplus
-extern "C" {
+# include "config.h"
 #endif
 
 #include <php.h>
 #include <wchar.h>
 #include "php_rar.h"
 
-#if HAVE_RAR
-
 /* {{{ Structure definitions */
 
+/* clang-format off */
 typedef struct _rar_find_state {
 	rar_find_output			out;
 	rar_file_t				*rar;
@@ -65,6 +60,7 @@ struct _rar_entries {
 	struct _rar_unique_entry	*last_accessed;
 	int							list_result; /* tell whether the archive's broken */
 };
+/* clang-format on */
 /* }}} */
 
 
@@ -604,12 +600,6 @@ static size_t _rar_nav_position_on_dir_start(const wchar_t *dir_name,
 
 /* end functions with internal linkage */
 
-#endif /* HAVE_RAR */
-
-#ifdef __cplusplus
-}
-#endif
-
 /*
  * Local variables:
  * tab-width: 4
@@ -618,5 +608,3 @@ static size_t _rar_nav_position_on_dir_start(const wchar_t *dir_name,
  * vim600: noet sw=4 ts=4 fdm=marker
  * vim<600: noet sw=4 ts=4
  */
-
-

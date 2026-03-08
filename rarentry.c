@@ -720,6 +720,7 @@ ZEND_END_ARG_INFO()
 #endif
 /* }}} */
 
+	/* clang-format off */
 static zend_function_entry php_rar_class_functions[] = {
 	PHP_ME(rarentry,		extract,			arginfo_rarentry_extract,	ZEND_ACC_PUBLIC)
 	PHP_ME(rarentry,		getPosition,		arginfo_rar_void,	ZEND_ACC_PUBLIC)
@@ -742,6 +743,7 @@ static zend_function_entry php_rar_class_functions[] = {
 	PHP_ME_MAPPING(__construct,	rar_bogus_ctor,	arginfo_rar_void,	ZEND_ACC_PRIVATE | ZEND_ACC_CTOR)
 	{NULL, NULL, NULL}
 };
+/* clang-format on */
 
 void minit_rarentry(TSRMLS_D)
 {
@@ -768,6 +770,7 @@ void minit_rarentry(TSRMLS_D)
 	REG_RAR_PROPERTY("redir_to_directory", "Whether the redirection target is a directory");
 	REG_RAR_PROPERTY("redir_target", "Target of the redirectory");
 
+	/* clang-format off */
 	REG_RAR_CLASS_CONST_LONG("HOST_MSDOS",	HOST_MSDOS);
 	REG_RAR_CLASS_CONST_LONG("HOST_OS2",	HOST_OS2);
 	REG_RAR_CLASS_CONST_LONG("HOST_WIN32",	HOST_WIN32);
@@ -819,4 +822,5 @@ void minit_rarentry(TSRMLS_D)
 	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_UNIX_REGULAR_FILE",			0x08000L);
 	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_UNIX_SYM_LINK",				0x0A000L);
 	REG_RAR_CLASS_CONST_LONG("ATTRIBUTE_UNIX_SOCKET",				0x0C000L);
+	/* clang-format on */
 }

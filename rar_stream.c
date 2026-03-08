@@ -27,16 +27,10 @@
 /* $Id$ */
 
 #ifdef HAVE_CONFIG_H
-#   include "config.h"
-#endif
-
-#ifdef __cplusplus
-extern "C" {
+# include "config.h"
 #endif
 
 #include <php.h>
-
-#if HAVE_RAR
 
 #include <wchar.h>
 
@@ -47,6 +41,7 @@ extern "C" {
 #include <ext/standard/php_string.h>
 #include <ext/standard/file.h>
 
+/* clang-format off */
 typedef struct php_rar_stream_data_t {
 	struct RAROpenArchiveDataEx	open_data;
 	struct RARHeaderDataEx		header_data;
@@ -73,12 +68,15 @@ typedef struct php_rar_dir_stream_data_t {
 	int							no_encode; /* do not urlencode entry names */
 	php_stream					*stream;
 } php_rar_dir_stream_data, *php_rar_dir_stream_data_P;
+/* clang-format on */
 
+/* clang-format off */
 #define STREAM_DATA_FROM_STREAM \
 	php_rar_stream_data_P self = (php_rar_stream_data_P) stream->abstract;
 
 #define STREAM_DIR_DATA_FROM_STREAM \
 	php_rar_dir_stream_data_P self = (php_rar_dir_stream_data_P) stream->abstract;
+/* clang-format on */
 
 /* len can be -1 (calculate) */
 static char *_rar_wide_to_utf_with_alloc(const wchar_t *wide, int len)
@@ -1255,12 +1253,6 @@ php_stream_wrapper php_stream_rar_wrapper = {
 };
 
 /* end wrapper stuff }}} */
-
-#endif /* HAVE_RAR */
-
-#ifdef __cplusplus
-}
-#endif
 
 /*
  * Local variables:

@@ -1,7 +1,3 @@
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <php.h>
 #include "php_rar.h"
 
@@ -57,7 +53,3 @@ int rar_dos_time_convert(unsigned dos_time, time_t *to) /* {{{ */
 	return SUCCESS;
 }
 /* }}} */
-
-#ifdef __cplusplus
-}
-#endif
