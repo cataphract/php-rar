@@ -599,11 +599,10 @@ bool CmdExtract::ExtractCurrentFile(Archive &Arc,size_t HeaderSize,bool &Repeat)
         // and cancelled passwords differently sometimes.
         if (!Cmd->Password.IsSet())
         {
-        ErrHandler.SetErrorCode(RARX_WARNING);
-        Cmd->DllError=ERAR_MISSING_PASSWORD;
-        ExtrFile=false;
-      }
-      }
+          ErrHandler.SetErrorCode(RARX_WARNING);
+          Cmd->DllError=ERAR_MISSING_PASSWORD;
+          ExtrFile=false;
+        }
 
         // Set a password before creating the file, so we can skip creating
         // in case of wrong password.
