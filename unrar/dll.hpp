@@ -183,8 +183,9 @@ struct RAROpenArchiveDataEx
   LPARAM        UserData;
   unsigned int  OpFlags;
   wchar_t      *CmtBufW;
-  /* removed by me */
-  /* unsigned int  Reserved[25]; */
+  wchar_t      *MarkOfTheWeb;
+  /* removed by me: we don't need to retain binary compatibility */
+  /* unsigned int  Reserved[23]; */
 };
 
 enum UNRARCALLBACK_MESSAGES {
