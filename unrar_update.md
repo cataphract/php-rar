@@ -1,5 +1,7 @@
 This file contains the procedure to update to a new version of unrar.
 
+## Obtaining new versions of unrar
+
 There is a separate branch, `unrar` with the unaltered source code of unrar.
 Each commit is a new version of `unrar`. They are committed sequentially by
 version number, as `unrar` doesn't generally have minor updates for older
@@ -23,4 +25,25 @@ To update to new versions of unrar, follow this procedure:
 5. Commit with the correct message.
 6. If you handled the latest version, you are done. Otherwise, go to step 3.
 
-<!-- vim: set tw=80 -->
+## Updating the extension
+
+After the unrar branch has the latest version of unrar, it's time to merge the
+unrar branch.
+
+1. First, use `git merge-base HEAD unrar` to determine the last unrar version
+   that was merged.
+2. Determine how the unrar extension was modified in the `master` branch.
+   Compare the contents of the `unrar` subdirectory in `master` branch to the
+   original content in the `unrar` branch. This will inform your conflict
+   resolution afterwards. Note in a file what these changes are, so you can
+   refer to them later.
+3. Upgrade to next minor (not patch, not major) version that hasn't been merged
+   yet.
+4. Resolve any conflicts that may have arisen, preserving the functionality that
+   was added to the unrar library and the associated extension functionality.
+5. Test. Inspect the `Justfile`. Run the tests for 7.0 and the latest supported
+   PHP version (debug and release-zts).
+7. Continue with the next minor version on step 3, until we're synced with the
+   `unrar` branch.
+
+<!-- vim: set tw=80: -->
