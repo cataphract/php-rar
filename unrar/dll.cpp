@@ -333,7 +333,16 @@ int PASCAL RARReadHeaderEx(HANDLE hArcData,struct RARHeaderDataEx *D)
   {
     return Data->Cmd.DllError!=0 ? Data->Cmd.DllError : RarErrorToDll(ErrCode);
   }
-  return Data->Cmd.DllError!=0 ? Data->Cmd.DllError : RarErrorToDll(ErrHandler.GetErrorCode());
+  if (Data->Cmd.DllError!=0)
+    return Data->Cmd.DllError;
+  // Non-fatal errors like RARX_CRC (bad header checksum) or RARX_WARNING
+  // can be set during a successful header read and should not be reported
+  // as failures here; callers use BrokenHeader flag or the listing result to
+  // detect them. Only propagate errors severe enough to warrant stopping.
+  RAR_EXIT ErrCode=ErrHandler.GetErrorCode();
+  if (ErrCode==RARX_SUCCESS || ErrCode==RARX_WARNING || ErrCode==RARX_CRC)
+    return ERAR_SUCCESS;
+  return RarErrorToDll(ErrCode);
 }
 
 
@@ -481,7 +490,17 @@ int PASCAL ProcessFile(HANDLE hArcData, int Operation, char *DestPath,
   {
     return Data->Cmd.DllError!=0 ? Data->Cmd.DllError : RarErrorToDll(ErrCode);
   }
-  return Data->Cmd.DllError!=0 ? Data->Cmd.DllError : RarErrorToDll(ErrHandler.GetErrorCode());
+  if (Data->Cmd.DllError!=0)
+    return Data->Cmd.DllError;
+  // Non-fatal errors like RARX_CRC (bad header checksum) or RARX_WARNING
+  // can be set during a successful header read and should not cause skip/list
+  // operations to fail. Only propagate errors severe enough to warrant stopping.
+  {
+    RAR_EXIT ErrCode=ErrHandler.GetErrorCode();
+    if (ErrCode==RARX_SUCCESS || ErrCode==RARX_WARNING || ErrCode==RARX_CRC)
+      return ERAR_SUCCESS;
+    return RarErrorToDll(ErrCode);
+  }
 }
 
 
