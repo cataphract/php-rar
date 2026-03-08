@@ -1,6 +1,7 @@
 #ifndef _RAR_DATAIO_
 #define _RAR_DATAIO_
 
+class Archive;
 class CmdAdd;
 class Unpack;
 class ArcFileSearch;
@@ -29,6 +30,7 @@ class ComprDataIO
     byte *UnpWrAddr;
 
     int64 UnpPackedSize;
+    int64 UnpPackedLeft;
 
     bool ShowProgress;
     bool TestMode;
@@ -62,7 +64,7 @@ class ComprDataIO
     void EnableShowProgress(bool Show) {ShowProgress=Show;}
     void GetUnpackedData(byte **Data,size_t *Size);
     size_t GetUnpackToMemorySizeLeft(void) { return UnpackToMemorySize; }
-    void SetPackedSizeToRead(int64 Size) {UnpPackedSize=Size;}
+    void SetPackedSizeToRead(int64 Size) {UnpPackedSize=UnpPackedLeft=Size;}
     void SetTestMode(bool Mode) {TestMode=Mode;}
     void SetSkipUnpCRC(bool Skip) {SkipUnpCRC=Skip;}
     void SetNoFileHeader(bool Mode) {NoFileHeader=Mode;}
@@ -75,18 +77,21 @@ class ComprDataIO
     void SetCmt13Encryption();
     void SetUnpackToMemory(byte *Addr,size_t Size); //changed by me
     void SetCurrentCommand(wchar Cmd) {CurrentCommand=Cmd;}
+    void AdjustTotalArcSize(Archive *Arc);
 
 
     bool PackVolume;
     bool UnpVolume;
     bool NextVolumeMissing;
-    int64 UnpArcSize;
     int64 CurPackRead,CurPackWrite,CurUnpRead,CurUnpWrite;
 
 
     // Size of already processed archives.
     // Used to calculate the total operation progress.
     int64 ProcessedArcSize;
+
+    // Last extracted archive size up to QO or RR block.
+    int64 LastArcSize;
 
     int64 TotalArcSize;
 
