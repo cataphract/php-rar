@@ -111,6 +111,15 @@ typedef struct rar {
 /* clang-format on */
 
 /* Misc */
+# if defined(__GNUC__) || defined(__clang__)
+#  define ARR_SIZE(arr) \
+		 (sizeof(arr) / sizeof((arr)[0]) + \
+		  0 * sizeof(char[1 - 2 * __builtin_types_compatible_p( \
+									  __typeof__(arr), __typeof__(&(arr)[0]))]))
+# else
+#  define ARR_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+# endif
+
 # define RAR_TSRMLS_TC
 
 #define RAR_RETNULL_ON_ARGS() \

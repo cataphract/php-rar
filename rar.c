@@ -46,6 +46,8 @@
 #include <ext/standard/info.h>
 #include <ext/spl/spl_exceptions.h>
 
+#include "unrar/rardefs.hpp"
+
 #include "php_rar.h"
 
 /* {{{ Function prototypes for functions with internal linkage */
@@ -230,13 +232,16 @@ int _rar_find_file_w(struct RAROpenArchiveDataEx *open_data, /* IN */
 
 	while ((result = RARReadHeaderEx(*arc_handle, used_header_data)) == 0) {
 #if WCHAR_MAX > 0xffff
-			_rar_fix_wide(used_header_data->FileNameW, NM);
+		_rar_fix_wide(used_header_data->FileNameW,
+					  ARR_SIZE(used_header_data->FileNameW));
 #endif
 
-		if (wcsncmp(used_header_data->FileNameW, file_name, NM) == 0) {
+		if (wcsncmp(used_header_data->FileNameW, file_name,
+					ARR_SIZE(used_header_data->FileNameW)) == 0) {
 			*found = TRUE;
 			goto cleanup;
-		} else {
+		}
+		else {
 			process_result = RARProcessFile(*arc_handle, RAR_SKIP, NULL, NULL);
 		}
 		if (process_result != 0) {
@@ -373,6 +378,7 @@ int CALLBACK _rar_unrar_callback(UINT msg, LPARAM UserData, LPARAM P1, LPARAM P2
 			return ret;
 		}
 	}
+	// TODO: maybe support UCM_NEEDPASSWORDW and UCM_CHANGEVOLUMEW
 
 	return 0;
 }
@@ -415,7 +421,7 @@ PHP_FUNCTION(rar_wrapper_cache_stats) /* {{{ */
 static void _rar_fix_wide(wchar_t *str, size_t max_size) /* {{{ */
 {
 	wchar_t *write,
-		    *read,
+			*read,
 			*max_fin;
 	max_fin = str + max_size;
 	for (write = str, read = str; *read != L'\0' && read != max_fin; read++) {
@@ -432,7 +438,7 @@ static void _rar_fix_wide(wchar_t *str, size_t max_size) /* {{{ */
  * because, in case we're using exceptions, we want to let an exception with
  * error code ERAR_EOPEN to be thrown.
  */
-static int _rar_unrar_volume_user_callback(char* dst_buffer,
+static int _rar_unrar_volume_user_callback(char* dst_buffer, // MAXPATHSIZE
 										   zend_fcall_info *fci,
 										   zend_fcall_info_cache *cache
 										   TSRMLS_DC) /* {{{ */
@@ -462,7 +468,7 @@ static int _rar_unrar_volume_user_callback(char* dst_buffer,
 	}
 	else if (Z_TYPE_P(retval_ptr) == IS_STRING) {
 		char *filename = Z_STRVAL_P(retval_ptr);
-		char resolved_path[MAXPATHLEN];
+		char resolved_path[MAXPATHSIZE];
 		size_t resolved_len;
 
 		if (OPENBASEDIR_CHECKPATH(filename)) {
@@ -474,17 +480,15 @@ static int _rar_unrar_volume_user_callback(char* dst_buffer,
 			goto cleanup;
 		}
 
-		resolved_len = _rar_strnlen(resolved_path, MAXPATHLEN);
-		/* dst_buffer size is NM; first condition won't happen short of a bug
-		 * in expand_filepath */
-		if (resolved_len == MAXPATHLEN || resolved_len > NM - 1) {
+		resolved_len = _rar_strnlen(resolved_path, MAXPATHSIZE);
+		if (resolved_len > MAXPATHSIZE - 1) {
 			php_error_docref(NULL TSRMLS_CC, E_WARNING,
 				"Resolved path is too big for the unRAR library");
 			goto cleanup;
 		}
 
-		strncpy(dst_buffer, resolved_path, NM);
-		dst_buffer[NM - 1] = '\0';
+		strncpy(dst_buffer, resolved_path, MAXPATHSIZE);
+		dst_buffer[MAXPATHSIZE - 1] = '\0';
 		ret = 1; /* try this new filename */
 	}
 	else {

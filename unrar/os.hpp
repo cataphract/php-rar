@@ -277,9 +277,4 @@
 #define ALLOW_MISALIGNED
 #endif
 
-// NM was removed from upstream unrar but is still used by the PHP extension.
-#ifndef NM
-#define NM 2048
-#endif
-
 #endif // _RAR_OS_
