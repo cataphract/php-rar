@@ -65,7 +65,7 @@ void _rar_entry_to_zval(zval *parent,
 	char *filename;
 	int  filename_size,
 		 filename_len;
-	zend_long unp_size; /* zend_long is the portable PHP integer type (always 64-bit in PHP 7+) */
+	zend_long unp_size;
 	zval *parent_copy = parent;
 
 	object_init_ex(object, rar_class_entry_ptr);
@@ -79,8 +79,8 @@ void _rar_entry_to_zval(zval *parent,
 		sizeof("rararch") - 1, parent_copy TSRMLS_CC);
 
 	{
-		zend_ulong raw_size = (zend_ulong)entry->UnpSizeHigh << 32 | entry->UnpSize;
-		unp_size = raw_size > (zend_ulong)ZEND_LONG_MAX
+		uint64_t raw_size = (uint64_t)entry->UnpSizeHigh << 32 | entry->UnpSize;
+		unp_size = raw_size > (uint64_t)ZEND_LONG_MAX
 			? ZEND_LONG_MAX : (zend_long)raw_size;
 	}
 
