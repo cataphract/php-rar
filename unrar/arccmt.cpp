@@ -106,7 +106,6 @@ bool Archive::DoGetComment(std::wstring &CmtData)
       }
     }
   }
-  }
   else
   {
     if (CmtLength==0)
