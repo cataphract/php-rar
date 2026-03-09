@@ -698,7 +698,7 @@ function main()
         $environment['TEST_PHP_EXECUTABLE'] = $php;
     }
 
-    if (strlen($conf_passed)) {
+    if (!empty($conf_passed)) {
         if (IS_WINDOWS) {
             $pass_options .= " -c " . escapeshellarg($conf_passed);
         } else {
@@ -864,11 +864,11 @@ More .INIs  : " , (function_exists(\'php_ini_scanned_files\') ? str_replace("\n"
     $info_params = [];
     settings2array($ini_overwrites, $info_params);
     $info_params = settings2params($info_params);
-    $php_info = `$php $pass_options $info_params $no_file_cache "$info_file"`;
-    define('TESTED_PHP_VERSION', `$php -n -r "echo PHP_VERSION;"`);
+    $php_info = shell_exec("$php $pass_options $info_params $no_file_cache \"$info_file\"");
+    define('TESTED_PHP_VERSION', shell_exec("$php -n -r \"echo PHP_VERSION;\""));
 
     if ($php_cgi && $php != $php_cgi) {
-        $php_info_cgi = `$php_cgi $pass_options $info_params $no_file_cache -q "$info_file"`;
+        $php_info_cgi = shell_exec("$php_cgi $pass_options $info_params $no_file_cache -q \"$info_file\"");
         $php_info_sep = "\n---------------------------------------------------------------------";
         $php_cgi_info = "$php_info_sep\nPHP         : $php_cgi $php_info_cgi$php_info_sep";
     } else {
@@ -876,7 +876,7 @@ More .INIs  : " , (function_exists(\'php_ini_scanned_files\') ? str_replace("\n"
     }
 
     if ($phpdbg) {
-        $phpdbg_info = `$phpdbg $pass_options $info_params $no_file_cache -qrr "$info_file"`;
+        $phpdbg_info = shell_exec("$phpdbg $pass_options $info_params $no_file_cache -qrr \"$info_file\"");
         $php_info_sep = "\n---------------------------------------------------------------------";
         $phpdbg_info = "$php_info_sep\nPHP         : $phpdbg $phpdbg_info$php_info_sep";
     } else {
@@ -891,7 +891,7 @@ More .INIs  : " , (function_exists(\'php_ini_scanned_files\') ? str_replace("\n"
     // load list of enabled extensions
     save_text($info_file,
         '<?php echo str_replace("Zend OPcache", "opcache", implode(",", get_loaded_extensions())); ?>');
-    $exts_to_test = explode(',', `$php $pass_options $info_params $no_file_cache "$info_file"`);
+    $exts_to_test = explode(',', shell_exec("$php $pass_options $info_params $no_file_cache \"$info_file\""));
     // check for extensions that need special handling and regenerate
     $info_params_ex = [
         'session' => ['session.auto_start=0'],
@@ -2170,9 +2170,9 @@ TEST $file
         $ext_params = [];
         settings2array($ini_overwrites, $ext_params);
         $ext_params = settings2params($ext_params);
-        $ext_dir = `$php $pass_options $extra_options $ext_params $no_file_cache -d display_errors=0 -r "echo ini_get('extension_dir');"`;
+        $ext_dir = shell_exec("$php $pass_options $extra_options $ext_params $no_file_cache -d display_errors=0 -r \"echo ini_get('extension_dir');\"");
         $extensions = preg_split("/[\n\r]+/", trim($section_text['EXTENSIONS']));
-        $loaded = explode(",", `$php $pass_options $extra_options $ext_params $no_file_cache -d display_errors=0 -r "echo implode(',', get_loaded_extensions());"`);
+        $loaded = explode(",", shell_exec("$php $pass_options $extra_options $ext_params $no_file_cache -d display_errors=0 -r \"echo implode(',', get_loaded_extensions());\""));
         $ext_prefix = IS_WINDOWS ? "php_" : "";
         foreach ($extensions as $req_ext) {
             if (!in_array($req_ext, $loaded)) {
@@ -2819,10 +2819,10 @@ case "$1" in
     gdb --args {$cmd}
     ;;
 "valgrind")
-    USE_ZEND_ALLOC=0 valgrind $2 ${cmd}
+    USE_ZEND_ALLOC=0 valgrind $2 {$cmd}
     ;;
 "rr")
-    rr record $2 ${cmd}
+    rr record $2 {$cmd}
     ;;
 *)
     {$cmd}

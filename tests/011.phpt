@@ -1,7 +1,10 @@
 --TEST--
 RarEntry::getStream() function (good RAR file, several volumes)
 --SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
+<?php
+if(!extension_loaded("rar")) die("skip");
+if(PHP_INT_SIZE < 8) die("skip 32-bit PHP not supported");
+?>
 --FILE--
 <?php
 

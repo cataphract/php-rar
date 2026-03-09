@@ -46,8 +46,10 @@ jobs:
 
       - name: Build Linux binaries
         uses: php/pie-ext-binary-builder@0.0.2
+        env:
+          LDFLAGS: "-static-libstdc++"
         with:
-          configure-flags: '--enable-rar=shared LDFLAGS=-static-libstdc++'
+          configure-flags: '--enable-rar=shared'
           release-tag: ${{ github.ref_name }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
