@@ -10,4 +10,22 @@ unrar/LICENSE.txt for details.
 Some modifications have been applied to the UnRAR library, mainly to allow
 streaming extraction of files without using threads.
 
-[![codecov](https://codecov.io/gh/cataphract/php-rar/branch/master/graph/badge.svg)](https://codecov.io/gh/cataphract/php-rar)
+## Installation
+
+### With PECL
+
+```sh
+pecl install rar
+```
+
+Then add `extension=rar` to your `php.ini`.
+
+### With PIE
+
+[PIE](https://github.com/php/pie) is the modern replacement for PECL, available from PHP 8.1+.
+
+```sh
+pie install rar
+```
+
+PIE automatically adds the extension to your `php.ini`.
