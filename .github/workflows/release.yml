@@ -9,7 +9,38 @@ permissions:
   contents: read
 
 jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check version consistency
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          HEADER_VERSION=$(grep -oP '(?<=#define PHP_RAR_VERSION ")[^"]+' php_rar.h)
+          PACKAGE_VERSION=$(python3 -c "
+          import xml.etree.ElementTree as ET
+          t = ET.parse('package.xml')
+          ns = {'p': 'http://pear.php.net/dtd/package-2.0'}
+          print(t.find('p:version/p:release', ns).text)
+          ")
+
+          echo "Tag version:     $TAG_VERSION"
+          echo "Header version:  $HEADER_VERSION"
+          echo "Package version: $PACKAGE_VERSION"
+
+          if [ "$TAG_VERSION" != "$HEADER_VERSION" ]; then
+            echo "ERROR: Tag version ($TAG_VERSION) does not match PHP_RAR_VERSION in php_rar.h ($HEADER_VERSION)"
+            exit 1
+          fi
+          if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "ERROR: Tag version ($TAG_VERSION) does not match version in package.xml ($PACKAGE_VERSION)"
+            exit 1
+          fi
+          echo "All versions match: $TAG_VERSION"
+
   create-draft-release:
+    needs: [check-version]
     runs-on: ubuntu-latest
     permissions:
       contents: write

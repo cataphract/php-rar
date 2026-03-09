@@ -5,6 +5,21 @@ on:
   pull_request:
 
 jobs:
+  check-dev-version:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check PHP_RAR_VERSION ends in -dev
+        run: |
+          HEADER_VERSION=$(grep -oP '(?<=#define PHP_RAR_VERSION ")[^"]+' php_rar.h)
+          echo "Header version: $HEADER_VERSION"
+          if [[ "$HEADER_VERSION" != *-dev ]]; then
+            echo "ERROR: PHP_RAR_VERSION ($HEADER_VERSION) does not end in -dev on master"
+            exit 1
+          fi
+
   generate-matrix:
     runs-on: ubuntu-latest
     outputs:
