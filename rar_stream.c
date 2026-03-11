@@ -211,6 +211,12 @@ static int php_rar_ops_close(php_stream *stream, int close_handle TSRMLS_DC)
 		efree(self->open_data.ArcName);
 		self->open_data.ArcName = NULL;
 	}
+#ifdef PHP_WIN32
+	if (self->open_data.ArcNameW != NULL) {
+		efree(self->open_data.ArcNameW);
+		self->open_data.ArcNameW = NULL;
+	}
+#endif
 	_rar_destroy_userdata(&self->cb_userdata);
 	if (self->buffer != NULL) {
 		efree(self->buffer);
@@ -511,6 +517,13 @@ php_stream *php_stream_rar_open(char *arc_name,
 	self = ecalloc(1, sizeof *self);
 	self->open_data.ArcName		= estrdup(arc_name);
 	self->open_data.OpenMode		= RAR_OM_EXTRACT;
+#ifdef PHP_WIN32
+	{
+		size_t arcnamew_len = strlen(arc_name);
+		self->open_data.ArcNameW = safe_emalloc(arcnamew_len, sizeof(wchar_t), sizeof(wchar_t));
+		_rar_utf_to_wide(arc_name, self->open_data.ArcNameW, arcnamew_len + 1);
+	}
+#endif
 	/* deep copy the callback userdata */
 	if (cb_udata_ptr->password != NULL)
 		self->cb_userdata.password = estrdup(cb_udata_ptr->password);
@@ -553,6 +566,10 @@ cleanup:
 		if (self != NULL) {
 			if (self->open_data.ArcName != NULL)
 				efree(self->open_data.ArcName);
+#ifdef PHP_WIN32
+			if (self->open_data.ArcNameW != NULL)
+				efree(self->open_data.ArcNameW);
+#endif
 			_rar_destroy_userdata(&self->cb_userdata);
 			if (self->buffer != NULL)
 				efree(self->buffer);
@@ -803,6 +820,13 @@ static php_stream *php_stream_rar_opener(php_stream_wrapper *wrapper,
 	self = ecalloc(1, sizeof *self);
 	self->open_data.ArcName	= estrdup(tmp_open_path);
 	self->open_data.OpenMode = RAR_OM_EXTRACT;
+#ifdef PHP_WIN32
+	{
+		size_t arcnamew_len = strlen(tmp_open_path);
+		self->open_data.ArcNameW = safe_emalloc(arcnamew_len, sizeof(wchar_t), sizeof(wchar_t));
+		_rar_utf_to_wide(tmp_open_path, self->open_data.ArcNameW, arcnamew_len + 1);
+	}
+#endif
 	if (open_passwd != NULL)
 		self->cb_userdata.password = estrdup(open_passwd);
 	if (volume_cb != NULL) {
@@ -884,6 +908,10 @@ cleanup:
 		if (self != NULL) {
 			if (self->open_data.ArcName != NULL)
 				efree(self->open_data.ArcName);
+#ifdef PHP_WIN32
+			if (self->open_data.ArcNameW != NULL)
+				efree(self->open_data.ArcNameW);
+#endif
 			_rar_destroy_userdata(&self->cb_userdata);
 			if (self->buffer != NULL)
 				efree(self->buffer);

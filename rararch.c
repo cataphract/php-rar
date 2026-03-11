@@ -135,6 +135,15 @@ int _rar_create_rararch_obj(const char* resolved_path,
 	rar->list_open_data->CmtBufSize = RAR_MAX_COMMENT_SIZE;
 	rar->extract_open_data = ecalloc(1, sizeof *rar->extract_open_data);
 	rar->extract_open_data->ArcName = estrdup(resolved_path);
+#ifdef PHP_WIN32
+	{
+		size_t arcnamew_len = strlen(resolved_path);
+		rar->list_open_data->ArcNameW = safe_emalloc(arcnamew_len, sizeof(wchar_t), sizeof(wchar));
+		_rar_utf_to_wide(resolved_path, rar->list_open_data->ArcNameW, arcnamew_len + 1);
+		rar->extract_open_data->ArcNameW = safe_emalloc(arcnamew_len, sizeof(wchar_t), sizeof(wchar));
+		_rar_utf_to_wide(resolved_path, rar->extract_open_data->ArcNameW, arcnamew_len + 1);
+	}
+#endif
 	rar->extract_open_data->OpenMode = RAR_OM_EXTRACT;
 	rar->extract_open_data->CmtBuf = NULL; /* not interested in it again */
 	rar->cb_userdata.password = NULL;
@@ -167,8 +176,14 @@ int _rar_create_rararch_obj(const char* resolved_path,
 
 		efree(rar->list_open_data->ArcName);
 		efree(rar->list_open_data->CmtBuf);
+#ifdef PHP_WIN32
+		efree(rar->list_open_data->ArcNameW);
+#endif
 		efree(rar->list_open_data);
 		efree(rar->extract_open_data->ArcName);
+#ifdef PHP_WIN32
+		efree(rar->extract_open_data->ArcNameW);
+#endif
 		efree(rar->extract_open_data);
 		efree(rar);
 		return FAILURE;
@@ -304,8 +319,14 @@ static void rararch_ce_free_object_storage(zend_object *zobj)
 
 		efree(rar->list_open_data->ArcName);
 		efree(rar->list_open_data->CmtBuf);
+#ifdef PHP_WIN32
+		efree(rar->list_open_data->ArcNameW);
+#endif
 		efree(rar->list_open_data);
 		efree(rar->extract_open_data->ArcName);
+#ifdef PHP_WIN32
+		efree(rar->extract_open_data->ArcNameW);
+#endif
 		efree(rar->extract_open_data);
 		efree(rar);
 	}

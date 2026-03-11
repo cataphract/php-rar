@@ -341,12 +341,25 @@ PHP_METHOD(rarentry, extract)
 		cb_udata.password = password;
 
 	/* Do extraction */
+#ifdef PHP_WIN32
+	{
+		size_t path_w_len = strlen(considered_path_res);
+		wchar_t *path_w = safe_emalloc(path_w_len, sizeof(wchar_t), sizeof(wchar));
+		_rar_utf_to_wide(considered_path_res, path_w, path_w_len + 1);
+		if (!with_second_arg)
+			result = RARProcessFileW(extract_handle, RAR_EXTRACT, path_w, NULL);
+		else
+			result = RARProcessFileW(extract_handle, RAR_EXTRACT, NULL, path_w);
+		efree(path_w);
+	}
+#else
 	if (!with_second_arg)
 		result = RARProcessFile(extract_handle, RAR_EXTRACT,
 			considered_path_res, NULL);
 	else
 		result = RARProcessFile(extract_handle, RAR_EXTRACT,
 			NULL, considered_path_res);
+#endif
 
 	if (_rar_handle_error(result TSRMLS_CC) == FAILURE) {
 		RETVAL_FALSE;
