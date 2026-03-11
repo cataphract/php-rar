@@ -52,13 +52,15 @@ CXXFLAGS="$ac_saved_cxxflags"
 CXXC_FLAG_CHECK([-Wparentheses], [-Wno-parentheses])
 CXXC_FLAG_CHECK([-Wswitch], [-Wno-switch])
 CXXC_FLAG_CHECK([-Wdangling-else], [-Wno-dangling-else])
+CXXC_FLAG_CHECK([-Wlogical-op-parentheses], [-Wno-logical-op-parentheses])
+CXXC_FLAG_CHECK([-Wmissing-braces], [-Wno-missing-braces])
 CXXC_FLAG_CHECK([-Wunused-function], [-Wno-unused-function])
 CXXC_FLAG_CHECK([-Wunused-variable], [-Wno-unused-variable])
 CXXC_FLAG_CHECK([-Wsign-compare], [-Wno-sign-compare])
 CXXC_FLAG_CHECK([-Wmisleading-indentation], [-Wno-misleading-indentation])
 AC_LANG_POP([C++])
 
-extra_cxxflags="$cxxflags_null"
+extra_cxxflags="-Wall $cxxflags_null"
 echo "EXTRA_CXXFLAGS := \$(EXTRA_CXXFLAGS) $extra_cxxflags" >> Makefile.fragments
 cat Makefile.frag >> Makefile.fragments
 INCLUDES=`echo "$INCLUDES" | sed 's/-I/-isystem /g'`
@@ -69,6 +71,6 @@ if test "$PHP_RAR" != "no"; then
   PHP_REQUIRE_CXX()
   PHP_ADD_LIBRARY_WITH_PATH(stdc++, "", RAR_SHARED_LIBADD)
 
-  PHP_NEW_EXTENSION(rar, rar.c rar_error.c rararch.c rarentry.c rar_stream.c rar_navigation.c rar_time.c $unrar_sources, $ext_shared,,-DRARDLL -DSILENT -Wno-write-strings -Wall -fPIC -fvisibility=hidden -I@ext_srcdir@/unrar)
+  PHP_NEW_EXTENSION(rar, rar.c rar_error.c rararch.c rarentry.c rar_stream.c rar_navigation.c rar_time.c $unrar_sources, $ext_shared,,-DRARDLL -DSILENT -Wno-write-strings -fPIC -fvisibility=hidden -I@ext_srcdir@/unrar)
   PHP_ADD_BUILD_DIR($ext_builddir/unrar)
 fi
