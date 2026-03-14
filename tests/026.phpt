@@ -1,7 +1,5 @@
 --TEST--
 RarEntry::getStream() (file level password)
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 echo "--> should fail (no password):\n";

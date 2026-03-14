@@ -1,8 +1,5 @@
 --TEST--
 RAR directory-aware traversal with directory streams
---SKIPIF--
-<?php
-if(!extension_loaded("rar")) die("skip");
 --FILE--
 <?php
 $a = "rar://" . dirname(__FILE__) . '/dirs_and_extra_headers.rar';

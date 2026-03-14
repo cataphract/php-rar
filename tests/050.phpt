@@ -1,8 +1,5 @@
 --TEST--
 Stream wrapper basic test
---SKIPIF--
-<?php
-if(!extension_loaded("rar")) die("skip");
 --FILE--
 <?php
 $stream = fopen("rar://" .

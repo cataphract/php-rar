@@ -1,7 +1,5 @@
 --TEST--
 RarArchive read_property handler basic test
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 

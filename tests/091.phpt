@@ -1,7 +1,5 @@
 --TEST--
 RarArchive::isBroken/rar_broken_is test
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 

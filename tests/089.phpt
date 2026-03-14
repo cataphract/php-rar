@@ -1,7 +1,5 @@
 --TEST--
 RarArchive unset_property gives a fatal error
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 

@@ -2,7 +2,6 @@
 RarEntry::getUnpackedSize() on platforms with 32-bit longs
 --SKIPIF--
 <?php
-if(!extension_loaded("rar")) die("skip");
 if (PHP_INT_SIZE != 4) die("skip this test is for 32bit platforms only");
 --FILE--
 <?php

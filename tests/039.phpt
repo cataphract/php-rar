@@ -1,7 +1,5 @@
 --TEST--
 Access RAR archive with missing volumes
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 $rarF = RarArchive::open(dirname(__FILE__) . '/multi_broken.part1.rar');

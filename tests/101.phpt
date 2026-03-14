@@ -1,7 +1,5 @@
 --TEST--
 Supports version 5 RAR files
---SKIPIF--
-<?php if(!extension_loaded("rar")) die("skip");
 --FILE--
 <?php
 RarException::setUsingExceptions(true);

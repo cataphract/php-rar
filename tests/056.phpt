@@ -1,8 +1,5 @@
 --TEST--
 RAR file stream stat
---SKIPIF--
-<?php
-if(!extension_loaded("rar")) die("skip");
 --ENV--
 TZ=Asia/Tokyo
 --FILE--

@@ -1,7 +1,5 @@
 --TEST--
 File stream EOF behavior
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 

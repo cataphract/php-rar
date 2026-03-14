@@ -1,7 +1,5 @@
 --TEST--
 RarException::(set/is)UsingExceptions() test
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 echo "Initial state: " . (RarException::isUsingExceptions()?'yes':'no').".\n";

@@ -1,7 +1,7 @@
 --TEST--
 Clone of RarArchive is forbidden (PHP 7)
 --SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip";
+<?php
 if (!defined('PHP_VERSION_ID') || PHP_VERSION_ID < 70000) die("skip for PHP >= 7");
 --FILE--
 <?php

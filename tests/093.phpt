@@ -1,7 +1,5 @@
 --TEST--
 Traversal of RarArchive with foreach by reference gives error
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 

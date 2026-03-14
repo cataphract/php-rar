@@ -64,13 +64,28 @@ extra_cxxflags="-Wall $cxxflags_null"
 echo "EXTRA_CXXFLAGS := \$(EXTRA_CXXFLAGS) $extra_cxxflags" >> Makefile.fragments
 cat Makefile.frag >> Makefile.fragments
 INCLUDES=`echo "$INCLUDES" | sed 's/-I/-isystem /g'`
+dnl Move -Wall into CFLAGS/CXXFLAGS so it precedes EXTRA_CXXFLAGS in compile
+dnl commands; the -Wno-* suppression flags in EXTRA_CXXFLAGS must come last.
+CFLAGS="$CFLAGS -Wall"
+CXXFLAGS="$CXXFLAGS -Wall"
 
 if test "$PHP_RAR" != "no"; then
   AC_DEFINE(HAVE_RAR, 1, [Whether you have rar support])
   PHP_SUBST(RAR_SHARED_LIBADD)
   PHP_REQUIRE_CXX()
-  PHP_ADD_LIBRARY_WITH_PATH(stdc++, "", RAR_SHARED_LIBADD)
 
-  PHP_NEW_EXTENSION(rar, rar.c rar_error.c rararch.c rarentry.c rar_stream.c rar_navigation.c rar_time.c $unrar_sources, $ext_shared,,-DRARDLL -DSILENT -Wno-write-strings -fPIC -fvisibility=hidden -I@ext_srcdir@/unrar)
+  PHP_NEW_EXTENSION(rar, rar.c rar_error.c rararch.c rarentry.c rar_stream.c rar_navigation.c rar_time.c $unrar_sources, $ext_shared,,-DRARDLL -DSILENT -fPIC -fvisibility=hidden -I@ext_srcdir@/unrar, yes)
   PHP_ADD_BUILD_DIR($ext_builddir/unrar)
+
+  AC_MSG_CHECKING([whether linker supports version scripts])
+  rar_save_ldflags="$LDFLAGS"
+  LDFLAGS="$LDFLAGS -Wl,--version-script=$ext_srcdir/rar.map"
+  AC_LINK_IFELSE(
+    [AC_LANG_PROGRAM([[void get_module(void) {}]], [])],
+    [AC_MSG_RESULT([yes])
+     EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,--version-script=$ext_srcdir/rar.map"],
+    [AC_MSG_RESULT([no])]
+  )
+  LDFLAGS="$rar_save_ldflags"
+  PHP_SUBST(EXTRA_LDFLAGS)
 fi

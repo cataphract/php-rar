@@ -1,7 +1,5 @@
 --TEST--
 RarArchive::getEntries() basic test
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 $arch = RarArchive::open(dirname(__FILE__) . "/dirlink_unix.rar");

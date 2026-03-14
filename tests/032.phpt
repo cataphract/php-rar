@@ -1,7 +1,5 @@
 --TEST--
 RarArchive traversal with multi-part archive
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 $rarF = RarArchive::open(dirname(__FILE__) . '/multi.part1.rar');

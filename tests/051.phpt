@@ -1,8 +1,5 @@
 --TEST--
 Stream wrapper relative path test
---SKIPIF--
-<?php
-if(!extension_loaded("rar")) die("skip");
 --CLEAN--
 <?php
 unlink(dirname(__FILE__) . '/temp/tmp.rar');

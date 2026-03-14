@@ -2,7 +2,6 @@
 RarArchive::open() volume callback long return (case MAXPATHLEN <= NM)
 --SKIPIF--
 <?php
-if(!extension_loaded("rar")) die("skip");
 if (!defined("PHP_MAXPATHLEN"))
 	define("PHP_MAXPATHLEN", RAR_MAXPATHLEN);
 if (!(PHP_MAXPATHLEN <= 1024))

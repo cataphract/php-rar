@@ -1,7 +1,5 @@
 --TEST--
 RarArchive get iterator on closed file
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 $rarF = RarArchive::open(dirname(__FILE__) . '/latest_winrar.rar');

@@ -1,7 +1,5 @@
 --TEST--
 rar_close is called twice
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 

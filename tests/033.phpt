@@ -1,7 +1,5 @@
 --TEST--
 rar_solid_is() basic test
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 $arch1 = RarArchive::open(dirname(__FILE__) . "/store_method.rar");

@@ -1,7 +1,5 @@
 --TEST--
 RarArchive read_property gives a fatal error on a write context
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 

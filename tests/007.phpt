@@ -1,7 +1,5 @@
 --TEST--
 rar_open() function with a non-RAR
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 

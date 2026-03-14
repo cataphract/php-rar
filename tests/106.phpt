@@ -1,8 +1,5 @@
 --TEST--
 Stat times don't depend on timezone (cf. 056.phpt)
---SKIPIF--
-<?php
-if(!extension_loaded("rar")) die("skip");
 --ENV--
 TZ=UTC
 --FILE--

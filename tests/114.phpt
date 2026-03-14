@@ -2,7 +2,6 @@
 Bug 76592: solid files are partially extracted
 --SKIPIF--
 <?php
-if (!extension_loaded("rar")) die("skip");
 if (PHP_OS != 'Linux') die('skip for linux');
 if (PHP_VERSION_ID < 50400) die("skip for PHP 5.4+");
 --FILE--

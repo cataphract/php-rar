@@ -1,8 +1,5 @@
 --TEST--
 RarEntry::getPackedSize()
---SKIPIF--
-<?php
-if(!extension_loaded("rar")) die("skip");
 --FILE--
 <?php
 $a = rar_open(dirname(__FILE__) . '/4mb.rar');

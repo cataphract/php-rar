@@ -1,7 +1,5 @@
 --TEST--
 rar_list et al. give consistent results if called twice
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 

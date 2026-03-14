@@ -32,11 +32,13 @@ jobs:
           import yaml, json, os
           with open('.github/docker-image-shas.yml') as f:
               data = yaml.safe_load(f)
-          image = 'datadog/dd-appsec-php-ci'
+          image = 'ghcr.io/cataphract/php-minimal'
           includes = []
           for tag, sha in data[image].items():
-              # tag: "php-7.0-debug" or "php-7.0-release-zts"
-              ver, variant = tag[len('php-'):].split('-', 1)
+              # tag: "7.0-debug" or "7.0-release-zts"; skip glibc-only entries
+              ver, variant = tag.split('-', 1)
+              if variant not in ('debug', 'release-zts'):
+                  continue
               includes.append({'php': ver, 'variant': variant, 'image_sha': sha})
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
               f.write('matrix=' + json.dumps({'include': includes}) + '\n')
@@ -47,7 +49,7 @@ jobs:
     needs: generate-matrix
     runs-on: ubuntu-latest
     container:
-      image: datadog/dd-appsec-php-ci@${{ matrix.image_sha }}
+      image: ghcr.io/cataphract/php-minimal@${{ matrix.image_sha }}
       options: --user root
     strategy:
       fail-fast: false
@@ -65,6 +67,68 @@ jobs:
         if: always()
         with:
           name: test-results-php${{ matrix.php }}-${{ matrix.variant }}
+          path: report.xml
+
+  glibc:
+    name: glibc (PHP 8.3 release, ${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read build image SHA
+        id: image-sha
+        run: |
+          python3 -c "
+          import yaml, os
+          with open('.github/docker-image-shas.yml') as f:
+              d = yaml.safe_load(f)
+          sha = d['ghcr.io/cataphract/php-minimal']['8.3-release']
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write('sha=' + sha + '\n')
+          "
+
+      - name: Install PHP 8.3 and patchelf
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y php8.3 php8.3-dev patchelf
+
+      - name: Build rar.so in musl container
+        run: |
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -w /workspace \
+            "ghcr.io/cataphract/php-minimal@${{ steps.image-sha.outputs.sha }}" \
+            sh -c 'phpize && ./configure --with-php-config=$(which php-config) && make -j$(nproc)'
+
+      - name: Remove musl DT_NEEDED from rar.so
+        run: patchelf --remove-needed "libc.musl-$(uname -m).so.1" modules/rar.so
+
+      - name: Run tests
+        run: |
+          TEST_PHP_EXECUTABLE=$(which php8.3) \
+          TEST_PHP_JUNIT=report.xml \
+          REPORT_EXIT_STATUS=1 \
+          NO_INTERACTION=1 \
+            php8.3 run-tests-rar.php \
+              -n -d extension_dir=modules/ -d extension=rar.so \
+              --set-timeout 300 --show-diff \
+              tests/
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-glibc-php8.3-release-${{ matrix.arch }}
           path: report.xml
 
   windows:

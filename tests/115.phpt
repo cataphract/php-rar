@@ -2,7 +2,6 @@
 getIterator() (PHP 8+)
 --SKIPIF--
 <?php
-if (!extension_loaded("rar")) die("skip");
 if (PHP_VERSION_ID < 80000) print "skip for PHP 8";
 ?>
 --FILE--

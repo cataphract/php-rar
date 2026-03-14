@@ -1,7 +1,5 @@
 --TEST--
 rar_entry_get() and RarEntry::getName() coherence
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 

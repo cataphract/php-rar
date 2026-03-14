@@ -2,7 +2,6 @@
 RarEntry::getUnpackedSize() on platforms with 64-bit longs
 --SKIPIF--
 <?php
-if(!extension_loaded("rar")) die("skip");
 if (PHP_INT_SIZE != 8) die("skip this test is for 64bit platforms only");
 --FILE--
 <?php

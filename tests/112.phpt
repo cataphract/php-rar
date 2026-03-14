@@ -1,8 +1,5 @@
 --TEST--
 RarEntry::getMethod()
---SKIPIF--
-<?php
-if(!extension_loaded("rar")) die("skip");
 --FILE--
 <?php
 $a = rar_open(dirname(__FILE__) . '/rar5-links.rar');

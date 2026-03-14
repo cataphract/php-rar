@@ -1,7 +1,5 @@
 --TEST--
 RarEntry::extract NULL can be given to indicate there's no password
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --CLEAN--
 <?php
 $dest = dirname(__FILE__) . "temp_file";

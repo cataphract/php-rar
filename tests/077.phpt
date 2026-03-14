@@ -1,7 +1,5 @@
 --TEST--
 RarArchive::open NULL can be given to indicate there's no password
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 

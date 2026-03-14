@@ -1,8 +1,5 @@
 --TEST--
 rar_open() with invalid volume callback
---SKIPIF--
-<?php
-if(!extension_loaded("rar")) die("skip");
 --FILE--
 <?php
 require __DIR__ . "/php8compat.php.inc";

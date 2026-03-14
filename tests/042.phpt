@@ -1,8 +1,5 @@
 --TEST--
 rar_open() with volume find callback basic test
---SKIPIF--
-<?php
-if(!extension_loaded("rar")) die("skip");
 --FILE--
 <?php
 chdir(dirname(__FILE__));

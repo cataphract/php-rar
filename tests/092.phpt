@@ -1,7 +1,5 @@
 --TEST--
 RarArchive::setAllowBroken has the desired effect
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 

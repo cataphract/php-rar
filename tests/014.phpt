@@ -1,7 +1,5 @@
 --TEST--
 RarEntry::getStream() on unicode entry
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 

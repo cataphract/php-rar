@@ -1,7 +1,5 @@
 --TEST--
 RarEntry::getPosition() test
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 

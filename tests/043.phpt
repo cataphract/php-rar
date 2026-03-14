@@ -1,8 +1,5 @@
 --TEST--
 rar_open() with volume find (callback variants 1)
---SKIPIF--
-<?php
-if(!extension_loaded("rar")) die("skip");
 --FILE--
 <?php
 class A {

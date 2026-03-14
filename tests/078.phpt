@@ -1,7 +1,5 @@
 --TEST--
 Traversal of volume with only an archive continue from last volume
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 

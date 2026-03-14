@@ -1,7 +1,5 @@
 --TEST--
 RarEntry::getCrc() method in multi-volume archives (PECL bug #9470)
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 

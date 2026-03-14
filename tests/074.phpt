@@ -1,7 +1,5 @@
 --TEST--
 RarEntry::extract handles files with non-unique entry names
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --CLEAN--
 <?php
 $dest = dirname(__FILE__) . "temp_file";

@@ -1,7 +1,5 @@
 --TEST--
 Bug #59939: Streaming empty file from archive issues a warning
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 

@@ -1,7 +1,5 @@
 --TEST--
 rar_entry_get() non-existent file with exceptions
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 RarException::setUsingExceptions(true);

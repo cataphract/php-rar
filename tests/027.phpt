@@ -1,7 +1,5 @@
 --TEST--
 RarEntry::getStream() with Linux directories and links
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 $rar = rar_open(dirname(__FILE__) . "/dirlink_unix.rar");

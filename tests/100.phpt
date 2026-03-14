@@ -1,7 +1,5 @@
 --TEST--
 fopen modes 'r' and 'rb' are the only allowed
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 

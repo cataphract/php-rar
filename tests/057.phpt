@@ -1,8 +1,5 @@
 --TEST--
 RAR file stream stat consistency with url stat
---SKIPIF--
-<?php
-if(!extension_loaded("rar")) die("skip");
 --FILE--
 <?php
 $u = "rar://" .

@@ -1,7 +1,5 @@
 --TEST--
 URL stat PHP_STREAM_URL_STAT_QUIET does not leak memory
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 

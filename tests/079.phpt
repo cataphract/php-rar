@@ -1,7 +1,5 @@
 --TEST--
 RarArchive count elements handler test
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 

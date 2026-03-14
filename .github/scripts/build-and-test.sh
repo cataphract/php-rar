@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
 # Build the extension and run the test suite.
-# Expected to run inside a datadog/dd-appsec-php-ci container from the repo root.
+# Expected to run inside a php-minimal container from the repo root.
 set -euo pipefail
 
-# Clean up artifacts from any previous build so stale objects don't survive a
-# PHP-version switch (safe in CI where the workspace is always fresh).
+# Clean up all generated files so stale objects from a previous PHP version or
+# build variant don't silently survive into this build.
 if [ -f Makefile ]; then
     make -f Makefile distclean
 fi
+# Remove any leftover object files even if Makefile is gone (e.g. after a
+# partial prior build that ended before distclean could run).
+find . -name '*.lo' -o -name '*.o' | xargs rm -f 2>/dev/null || true
+find . -name '.libs' -type d | xargs rm -rf 2>/dev/null || true
 
 phpize
 ./configure --with-php-config="$(which php-config)"

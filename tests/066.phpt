@@ -1,7 +1,5 @@
 --TEST--
 RarEntry::extract() (file level password)
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --CLEAN--
 @unlink(dirname(__FILE__).'/extract_temp');
 --FILE--

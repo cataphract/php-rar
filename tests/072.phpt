@@ -1,7 +1,5 @@
 --TEST--
 rar_list handles files with non-unique entry names
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 

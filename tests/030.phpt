@@ -1,7 +1,5 @@
 --TEST--
 RarArchive::getEntry() basic test
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 $rar_arch = RarArchive::open(dirname(__FILE__) . '/solid.rar');

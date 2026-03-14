@@ -1,7 +1,5 @@
 --TEST--
 Module info test
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 

@@ -1,7 +1,5 @@
 --TEST--
 rar_list()/rar_entry_get() with not first volume
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 $rar_file1 = rar_open(dirname(__FILE__).'/multi.part2.rar');

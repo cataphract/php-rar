@@ -1,7 +1,5 @@
 --TEST--
 rar_open()/RarEntry::extract() (headers level password)
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 $rar_file2 = rar_open(dirname(__FILE__).'/encrypted_headers.rar', 'samplepassword');

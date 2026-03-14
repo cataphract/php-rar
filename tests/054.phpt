@@ -1,8 +1,5 @@
 --TEST--
 Stream wrapper with header or file level passwords
---SKIPIF--
-<?php
-if(!extension_loaded("rar")) die("skip");
 --FILE--
 <?php
 

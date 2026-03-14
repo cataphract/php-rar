@@ -5,29 +5,38 @@
 # Justfile and tests.yml read from docker-image-shas.yml directly — no patching needed.
 set -euo pipefail
 
-IMAGE="datadog/dd-appsec-php-ci"
+IMAGE="ghcr.io/cataphract/php-minimal"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOCK_FILE="$SCRIPT_DIR/../docker-image-shas.yml"
 
 TAGS=(
-    php-7.0-debug       php-7.0-release-zts
-    php-7.1-debug       php-7.1-release-zts
-    php-7.2-debug       php-7.2-release-zts
-    php-7.3-debug       php-7.3-release-zts
-    php-7.4-debug       php-7.4-release-zts
-    php-8.0-debug       php-8.0-release-zts
-    php-8.1-debug       php-8.1-release-zts
-    php-8.2-debug       php-8.2-release-zts
-    php-8.3-debug       php-8.3-release-zts
-    php-8.4-debug       php-8.4-release-zts
-    php-8.5-debug       php-8.5-release-zts
+    7.0-debug       7.0-release-zts
+    7.1-debug       7.1-release-zts
+    7.2-debug       7.2-release-zts
+    7.3-debug       7.3-release-zts
+    7.4-debug       7.4-release-zts
+    8.0-debug       8.0-release-zts
+    8.1-debug       8.1-release-zts
+    8.2-debug       8.2-release-zts
+    8.3-debug       8.3-release     8.3-release-zts
+    8.4-debug       8.4-release-zts
+    8.5-debug       8.5-release-zts
 )
 
 get_index_digest() {
-    # The top-level "digest" field in the Hub tags API is the manifest-list
-    # (OCI index) digest, not a per-platform image digest.
-    curl -fsSL "https://hub.docker.com/v2/repositories/${IMAGE}/tags/$1" \
-        | python3 -c "import sys,json; print(json.load(sys.stdin)['digest'])"
+    local tag="$1" digest attempt
+    for attempt in 1 2 3; do
+        digest=$(docker buildx imagetools inspect "${IMAGE}:${tag}" \
+            | awk '/^Digest:/ { print $2; exit }')
+        if [[ -n "$digest" ]]; then
+            echo "$digest"
+            return 0
+        fi
+        echo "Attempt $attempt failed for $tag, retrying..." >&2
+        sleep $((attempt * 5))
+    done
+    echo "ERROR: could not fetch digest for $tag after 3 attempts" >&2
+    return 1
 }
 
 # Collect all digests first so we fail fast before touching any file.

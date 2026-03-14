@@ -1,7 +1,5 @@
 --TEST--
 RarArchive has_property handler is given a closed archive
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 

@@ -1,7 +1,7 @@
 --TEST--
 RarEntry::extract() process extended (Windows)
 --SKIPIF--
-<?php if(!extension_loaded("rar")) die("skip");
+<?php
 die("skip test is not working under run-tests");
 if (PHP_OS != 'WINNT') die("skip test for Windows NT");
 exec('cacls ' . escapeshellarg(dirname(__FILE__)), $perms);

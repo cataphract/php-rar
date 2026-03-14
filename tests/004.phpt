@@ -1,7 +1,5 @@
 --TEST--
 RarEntry::extract() method
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 

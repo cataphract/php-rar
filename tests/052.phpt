@@ -1,8 +1,5 @@
 --TEST--
 Stream wrapper archive/file not found
---SKIPIF--
-<?php
-if(!extension_loaded("rar")) die("skip");
 --FILE--
 <?php
 

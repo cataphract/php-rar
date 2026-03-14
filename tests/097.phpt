@@ -1,7 +1,5 @@
 --TEST--
 PECL bug #18449 (Extraction of uncompressed and encrypted files fails)
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --CLEAN--
 <?php
 	@unlink(dirname(__FILE__) . '/base.css');

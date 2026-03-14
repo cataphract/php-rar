@@ -1,7 +1,5 @@
 --TEST--
 RarEntry::getStream() function (good RAR file, one volume)
---SKIPIF--
-<?php if(!extension_loaded("rar")) print "skip"; ?>
 --FILE--
 <?php
 

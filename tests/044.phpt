@@ -2,7 +2,6 @@
 rar_open() with volume find (callback variants 2)
 --SKIPIF--
 <?php
-if(!extension_loaded("rar")) die("skip");
 if(!defined('PHP_VERSION_ID') || PHP_VERSION_ID<50300) die("skip");
 --FILE--
 <?php
