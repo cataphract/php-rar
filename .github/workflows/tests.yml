@@ -32,11 +32,11 @@ jobs:
           import yaml, json, os
           with open('.github/docker-image-shas.yml') as f:
               data = yaml.safe_load(f)
-          image = 'datadog/dd-appsec-php-ci'
+          image = 'ghcr.io/cataphract/php-minimal'
           includes = []
           for tag, sha in data[image].items():
-              # tag: "php-7.0-debug" or "php-7.0-release-zts"
-              ver, variant = tag[len('php-'):].split('-', 1)
+              # tag: "7.0-debug" or "7.0-release-zts"
+              ver, variant = tag.split('-', 1)
               includes.append({'php': ver, 'variant': variant, 'image_sha': sha})
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
               f.write('matrix=' + json.dumps({'include': includes}) + '\n')
@@ -47,7 +47,7 @@ jobs:
     needs: generate-matrix
     runs-on: ubuntu-latest
     container:
-      image: datadog/dd-appsec-php-ci@${{ matrix.image_sha }}
+      image: ghcr.io/cataphract/php-minimal@${{ matrix.image_sha }}
       options: --user root
     strategy:
       fail-fast: false
