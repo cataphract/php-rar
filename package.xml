@@ -23,10 +23,10 @@ http://pear.php.net/dtd/package-2.0.xsd">
   <active>no</active>
  </developer>
 
- <date>2026-03-08</date>
+ <date>2026-03-15</date>
  <time>20:00:00</time>
  <version>
-  <release>4.3.0</release>
+  <release>4.3.1</release>
   <api>4.0.0</api>
  </version>
 
@@ -36,10 +36,8 @@ http://pear.php.net/dtd/package-2.0.xsd">
  </stability>
 
  <license uri="http://www.php.net/license">PHP License</license>
- <notes>- Add PHP 8.1, 8.2, 8.3, 8.4, 8.5 support.
-- Drop PHP 5 support; minimum PHP version is now 7.0.
-- Update bundled unrar to 7.2.4.
-- Fix Windows bug
+ <notes>- Fix bug #75557: error opening archive with non-English characters in path on Windows.
+- Do not build unconditionally against listdc++.
  </notes>
  <contents>
   <dir name="/">
@@ -157,6 +155,8 @@ http://pear.php.net/dtd/package-2.0.xsd">
     <file role="test" name="113.phpt"/>
     <file role="test" name="114.phpt"/>
     <file role="test" name="115.phpt"/>
+    <file role="test" name="bug75557.phpt"/>
+    <file role="test" name="75557тест.rar"/>
     <file role="test" name="commented.rar"/>
     <file role="test" name="corrupted.rar"/>
     <file role="test" name="directories.rar"/>
@@ -375,6 +375,22 @@ http://pear.php.net/dtd/package-2.0.xsd">
 
  <extsrcrelease />
  <changelog>
+  <release>
+   <version>
+    <release>4.3.1</release>
+    <api>4.0.0</api>
+   </version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api>
+   </stability>
+   <date>2026-03-15</date>
+   <notes>Changes in this version:
+- Fix bug #75557: error opening archive with non-English characters in path on Windows.
+- Do not build unconditionally against listdc++.
+  </notes>
+  </release>
+
   <release>
    <version>
     <release>4.3.0</release>
