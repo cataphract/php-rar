@@ -16,11 +16,11 @@ TAGS=(
     7.3-debug       7.3-release-zts
     7.4-debug       7.4-release-zts
     8.0-debug       8.0-release-zts
-    8.1-debug       8.1-release-zts
-    8.2-debug       8.2-release-zts
+    8.1-debug       8.1-release     8.1-release-zts
+    8.2-debug       8.2-release     8.2-release-zts
     8.3-debug       8.3-release     8.3-release-zts
-    8.4-debug       8.4-release-zts
-    8.5-debug       8.5-release-zts
+    8.4-debug       8.4-release     8.4-release-zts
+    8.5-debug       8.5-release     8.5-release-zts
 )
 
 get_index_digest() {

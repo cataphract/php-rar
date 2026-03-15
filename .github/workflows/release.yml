@@ -55,6 +55,74 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "${{ github.ref_name }}" --title "${{ github.ref_name }}" --draft --notes-from-tag
 
+  linux-extension-matrix:
+    needs: [create-draft-release]
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: set-matrix
+        run: |
+          python3 <<'EOF'
+          import yaml, json, os
+          with open('.github/docker-image-shas.yml') as f:
+              data = yaml.safe_load(f)
+          image = 'ghcr.io/cataphract/php-minimal'
+          includes = []
+          for tag, sha in data[image].items():
+              ver, variant = tag.split('-', 1)
+              if variant not in ('release', 'release-zts'):
+                  continue
+              if float(ver) < 8.1:
+                  continue
+              for arch, runner in [('x86_64', 'ubuntu-latest'), ('aarch64', 'ubuntu-24.04-arm')]:
+                  includes.append({'php': ver, 'variant': variant, 'image_sha': sha,
+                                   'arch': arch, 'runner': runner})
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write('matrix=' + json.dumps({'include': includes}) + '\n')
+          EOF
+
+  linux-build:
+    name: Linux PHP ${{ matrix.php }} (${{ matrix.variant }}, ${{ matrix.arch }})
+    needs: [linux-extension-matrix]
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.linux-extension-matrix.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install patchelf
+        run: sudo apt-get install -y patchelf
+
+      - name: Build rar.so in musl container
+        run: |
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -w /workspace \
+            "ghcr.io/cataphract/php-minimal@${{ matrix.image_sha }}" \
+            sh -c 'phpize && ./configure --with-php-config=$(which php-config) && make -j$(nproc)'
+
+      - name: Remove musl DT_NEEDED from rar.so
+        run: patchelf --remove-needed "libc.musl-$(uname -m).so.1" modules/rar.so
+
+      - name: Package and upload to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          ARCH="${{ matrix.arch }}"
+          [ "$ARCH" = "aarch64" ] && ARCH="arm64"
+          ZTS_SUFFIX=""
+          [[ "${{ matrix.variant }}" == "release-zts" ]] && ZTS_SUFFIX="-zts"
+          ARTIFACT="php_rar-${VERSION}_php${{ matrix.php }}-${ARCH}-linux${ZTS_SUFFIX}.zip"
+          zip -j "$ARTIFACT" modules/rar.so
+          gh release upload "${{ github.ref_name }}" "$ARTIFACT" --clobber
+
   windows-extension-matrix:
     needs: [create-draft-release]
     runs-on: ubuntu-latest
