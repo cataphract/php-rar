@@ -87,11 +87,11 @@ int fstatat(int dirfd, const char *restrict pathname, void *restrict statbuf, in
 // On amd64, even though pthread_atfork is exported by glibc, it should not be
 // used. Code that uses pthread_atfork will compile to an import to
 // __register_atfork(), but here we're compiling against musl, resulting in an
-// an import to pthread_atfork. This will cause a runtime error after the test
-// that unloads our module. The reason is that when we call pthread_atfork in
-// glibc, __register_atfork() is called with the __dso_handle of libc6.so, not
-// the __dso_handle of our module. So the fork handler is not unregistered when
-// our module is unloaded.
+// an import to pthread_atfork. This will cause a runtime error when unloading
+// a shared module. The reason is that when we call pthread_atfork in glibc,
+// __register_atfork() is called with the __dso_handle of libc6.so, not the
+// __dso_handle of our module. So the fork handler is not unregistered when our
+// module is unloaded.
 
 extern void *__dso_handle __attribute__((weak));
 int __register_atfork(void (*prepare)(void), void (*parent)(void),
@@ -236,8 +236,14 @@ int memfd_create(const char *name, unsigned flags) {
   return syscall(MEMFD_CREATE_SYSCALL, name, flags);
 }
 
-// __flt_rounds is a musl internal that returns the FLT_ROUNDS value.
-// glibc doesn't export it; fegetround() provides the same information.
+// __flt_rounds is the backing function behind musl's FLT_ROUNDS macro: musl's
+// <float.h> defines FLT_ROUNDS as (__flt_rounds()), making it dynamic — it
+// reflects the current rounding mode after fesetround(). glibc/GCC does not
+// export __flt_rounds; GCC's <float.h> defines FLT_ROUNDS as the compile-time
+// constant 1 (round-to-nearest), so it never tracks fesetround() at all (GCC
+// bug #59046 — GCC's own float.h has the comment "??? This is supposed to
+// change with calls to fesetround in <fenv.h>"). fegetround() provides the
+// actual hardware rounding mode on both.
 int __flt_rounds(void)
 {
     switch (fegetround()) {
@@ -249,20 +255,23 @@ int __flt_rounds(void)
     }
 }
 
-// glibc 2.39 no longer exports sigsetjmp as a dynamic symbol (it became a
-// compiler builtin / inlined via headers). Only __sigsetjmp is exported.
-// Musl-compiled code references sigsetjmp directly, so we bridge to __sigsetjmp.
+// glibc has never exported sigsetjmp as a dynamic symbol — it is defined in
+// <setjmp.h> as a macro expanding to __sigsetjmp, so only __sigsetjmp appears
+// in the DSO. Musl exports both sigsetjmp ajd __sigsetjmp as real symbols.
+// sigsetjmp is referenced directly in compiled code, so we provide this
+// bridge.
 int sigsetjmp(sigjmp_buf env, int savemask)
 {
     int __sigsetjmp(sigjmp_buf, int);
     return __sigsetjmp(env, savemask);
 }
 
-// glibc 2.39 no longer exports res_init as a dynamic symbol. Only __res_init
-// is exported. Musl-compiled code references res_init directly.
-// __res_init is declared weak so linking succeeds on musl (where it doesn't
-// exist). At runtime: on glibc it's non-NULL and called directly; on musl
-// it's NULL and we fall through to dlopen musl's own res_init.
+// glibc no longer exports res_init as a dynamic symbol (it never did for amd64
+// or aarch64, only for older archs). Only __res_init is exported.
+// Musl-compiled code references res_init directly. __res_init is declared weak
+// so linking succeeds on musl (where it doesn't exist). At runtime: on glibc
+// it's non-NULL and called directly; on musl it's NULL and we fall through to
+// dlopen musl's own res_init.
 extern int __res_init(void) __attribute__((weak));
 
 int res_init(void)
@@ -278,12 +287,20 @@ int res_init(void)
 #    else
         void *handle = dlopen("libc.musl-x86_64.so.1", RTLD_LAZY);
 #    endif
-        if (handle)
+        if (handle) {
             musl_res_init = dlsym(handle, "res_init");
+        } else {
+            (void)fprintf(stderr, "Aborting because dlopen() of musl failed\n");
+            abort();
+        }
     }
-    if (musl_res_init)
+    if (musl_res_init) {
         return musl_res_init();
-    return 0;
+    } else {
+        (void)fprintf(stderr, "Aborting because res_init/__res_init could not "
+                "be found");
+        abort();
+    }
 }
 
 #endif
