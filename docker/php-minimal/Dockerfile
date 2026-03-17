@@ -81,6 +81,8 @@ RUN \
         --disable-fpm \
         --without-pear \
         --enable-cli \
+        --enable-session \
+        --enable-pdo \
         --with-external-pcre \
         ${DEBUG_FLAG} \
         ${ZTS_FLAG} && \
@@ -114,3 +116,5 @@ RUN echo "Dynamic dependencies of PHP binary:" && \
     else \
         echo "OK: PHP depends only on musl libc"; \
     fi
+
+# vim: set et:
