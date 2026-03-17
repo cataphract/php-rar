@@ -63,7 +63,7 @@ RUN \
 # always links -lglibc_compat so the binary works on both musl and glibc.
 RUN \
     DEBUG_FLAG=$([ "${PHP_ENABLE_DEBUG}" = "yes" ] && echo "--enable-debug" || echo "") && \
-    ZTS_FLAG=$([ "${PHP_ENABLE_ZTS}" = "yes" ] && echo "--enable-zts" || echo "") && \
+    ZTS_FLAG=$([ "${PHP_ENABLE_ZTS}" = "yes" ] && echo "--enable-zts --disable-zend-signals" || echo "") && \
     VER_MAJOR=$(echo "${PHP_VERSION}" | cut -d. -f1) && \
     VER_MINOR=$(echo "${PHP_VERSION}" | cut -d. -f2) && \
     COMPAT_FLAGS=$([ "${VER_MAJOR}" = "7" ] || { [ "${VER_MAJOR}" = "8" ] && [ "${VER_MINOR}" -le 1 ]; } && echo "-DCOOKIE_SEEKER_USES_OFF64_T -D__off64_t=long -Doff64_t=long" || echo "") && \
