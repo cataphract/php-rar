@@ -31,7 +31,7 @@ RUN test -n "${ARCH}" || (echo "ARCH build arg is required (aarch64 or x86_64)" 
 # PHP build-time dependencies (re2c for lexer, autoconf for configure regeneration)
 RUN apk --no-cache add \
     autoconf bison re2c \
-    libxml2-dev openssl-dev
+    libxml2-dev openssl-dev pcre2-dev
 
 # Download PHP source
 RUN wget -q "https://www.php.net/distributions/php-${PHP_VERSION}.tar.gz" && \
@@ -81,6 +81,7 @@ RUN \
         --disable-fpm \
         --without-pear \
         --enable-cli \
+        --with-external-pcre \
         ${DEBUG_FLAG} \
         ${ZTS_FLAG} && \
     make -j$(nproc) && \
