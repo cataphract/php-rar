@@ -249,14 +249,35 @@ int __flt_rounds(void)
     }
 }
 
-// glibc 2.39 no longer exports sigsetjmp as a dynamic symbol (it became a
-// compiler builtin / inlined via headers). Only __sigsetjmp is exported.
-// Musl-compiled code references sigsetjmp directly, so we bridge to __sigsetjmp.
-int sigsetjmp(sigjmp_buf env, int savemask)
-{
-    int __sigsetjmp(sigjmp_buf, int);
-    return __sigsetjmp(env, savemask);
-}
+// glibc has never exported sigsetjmp as a dynamic symbol -- it is defined in
+// <setjmp.h> as a macro expanding to __sigsetjmp, so only __sigsetjmp appears
+// in the DSO. Musl-compiled code references sigsetjmp directly, so we provide
+// this bridge.
+//
+// IMPORTANT: this MUST be a bare tail-call with NO C function frame.
+// A C function wrapper adds push rbp / mov rbp,rsp before calling __sigsetjmp.
+// glibc's __sigsetjmp saves whatever rbp it sees into the jmp_buf; with an
+// extra frame it saves the wrapper's frame pointer, not the caller's.
+// After siglongjmp restores that wrong rbp, every rbp-relative stack access
+// in the caller reads from the wrong address.
+// Use a module-level asm definition so no prologue is emitted.
+#ifdef __x86_64__
+__asm__(
+    ".globl sigsetjmp\n"
+    ".type  sigsetjmp, @function\n"
+    "sigsetjmp:\n"
+    "    jmp __sigsetjmp@plt\n"
+    ".size  sigsetjmp, . - sigsetjmp\n"
+);
+#elif defined(__aarch64__)
+__asm__(
+    ".globl sigsetjmp\n"
+    ".type  sigsetjmp, @function\n"
+    "sigsetjmp:\n"
+    "    b __sigsetjmp\n"
+    ".size  sigsetjmp, . - sigsetjmp\n"
+);
+#endif
 
 // glibc 2.39 no longer exports res_init as a dynamic symbol. Only __res_init
 // is exported. Musl-compiled code references res_init directly.
