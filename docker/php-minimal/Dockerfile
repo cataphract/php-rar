@@ -33,6 +33,31 @@ RUN apk --no-cache add \
     autoconf bison re2c \
     libxml2-dev openssl-dev
 
+# Build libpcre2_compat.a and inject it into the musl-clang wrappers and
+# CMake toolchain so that every extension built in this image automatically
+# gets the php_pcre2_* stub layer and its dlsym constructor.
+COPY pcre2_compat.c pcre2_compat.S /tmp/
+RUN ARCH=$(uname -m) && \
+    SYSROOT="/sysroot/${ARCH}-none-linux-musl" && \
+    clang \
+        --target="${ARCH}-none-linux-musl" \
+        --sysroot="${SYSROOT}" \
+        -rtlib=compiler-rt \
+        -fpie -O2 -fno-omit-frame-pointer -ggdb3 \
+        -c /tmp/pcre2_compat.c -o /tmp/pcre2_compat_resolve.o && \
+    clang \
+        --target="${ARCH}-none-linux-musl" \
+        --sysroot="${SYSROOT}" \
+        -c /tmp/pcre2_compat.S -o /tmp/pcre2_compat_stubs.o && \
+    ar rcs "${SYSROOT}/usr/lib/libpcre2_compat.a" \
+        /tmp/pcre2_compat_resolve.o /tmp/pcre2_compat_stubs.o && \
+    rm /tmp/pcre2_compat.c /tmp/pcre2_compat.S \
+       /tmp/pcre2_compat_resolve.o /tmp/pcre2_compat_stubs.o && \
+    sed -i 's/-lglibc_compat/-lglibc_compat -lpcre2_compat/' \
+        /usr/local/bin/musl-clang /usr/local/bin/musl-clang++ && \
+    sed -i 's/-lglibc_compat -Wl,-Bdynamic/-lglibc_compat -lpcre2_compat -Wl,-Bdynamic/' \
+        "${SYSROOT}/Toolchain.cmake"
+
 # Download PHP source
 RUN wget -q "https://www.php.net/distributions/php-${PHP_VERSION}.tar.gz" && \
     tar -xf "php-${PHP_VERSION}.tar.gz" && \
