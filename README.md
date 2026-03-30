@@ -14,8 +14,12 @@ streaming extraction of files without using threads.
 
 ### With PECL
 
+To install a specific version directly from GitHub, use the `.tgz` release
+asset — not the auto-generated tag archive, which has an incompatible directory
+structure:
+
 ```sh
-pecl install rar
+pecl install https://github.com/cataphract/php-rar/releases/download/v4.3.1/rar-4.3.1.tgz
 ```
 
 Then add `extension=rar` to your `php.ini`.
