@@ -55,6 +55,15 @@ done
 
 # Check if libNAME.a exists in any search path.
 has_static() {
+    # Never statically link libc. The output (shared object or executable) must
+    # resolve libc dynamically against the host's libc at runtime, exactly like
+    # the PHP binary does. Statically linking libc would (a) duplicate symbols
+    # that glibc_compat deliberately overrides (strerror_r, sigsetjmp, atexit,
+    # ...) and (b) embed a second, uninitialized libc state -- e.g. getauxval()
+    # dereferencing a NULL auxv pointer and crashing when the object is dlopen'd
+    # into an already-running process. It also lets the host's sanitizer
+    # interceptors see the object's libc calls instead of bypassing them.
+    [[ "$1" == "c" ]] && return 1
     for _dir in "${lib_paths[@]}"; do
         [[ -f "$_dir/lib${1}.a" ]] && return 0
     done

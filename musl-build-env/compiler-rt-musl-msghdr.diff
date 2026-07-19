@@ -1,0 +1,75 @@
+diff --git a/compiler-rt/lib/sanitizer_common/sanitizer_platform_limits_posix.cpp b/compiler-rt/lib/sanitizer_common/sanitizer_platform_limits_posix.cpp
+index 6d61d27..c0835ab 100644
+--- a/compiler-rt/lib/sanitizer_common/sanitizer_platform_limits_posix.cpp
++++ b/compiler-rt/lib/sanitizer_common/sanitizer_platform_limits_posix.cpp
+@@ -1068,17 +1068,17 @@ CHECK_TYPE_SIZE(msghdr);
+ CHECK_SIZE_AND_OFFSET(msghdr, msg_name);
+ CHECK_SIZE_AND_OFFSET(msghdr, msg_namelen);
+ CHECK_SIZE_AND_OFFSET(msghdr, msg_iov);
+-#if SANITIZER_GLIBC || SANITIZER_ANDROID
++#if SANITIZER_GLIBC || SANITIZER_ANDROID || SANITIZER_MUSL
+ CHECK_SIZE_AND_OFFSET(msghdr, msg_iovlen);
+ #endif
+ CHECK_SIZE_AND_OFFSET(msghdr, msg_control);
+-#if SANITIZER_GLIBC || SANITIZER_ANDROID
++#if SANITIZER_GLIBC || SANITIZER_ANDROID || SANITIZER_MUSL
+ CHECK_SIZE_AND_OFFSET(msghdr, msg_controllen);
+ #endif
+ CHECK_SIZE_AND_OFFSET(msghdr, msg_flags);
+ 
+ CHECK_TYPE_SIZE(cmsghdr);
+-#if SANITIZER_GLIBC || SANITIZER_ANDROID
++#if SANITIZER_GLIBC || SANITIZER_ANDROID || SANITIZER_MUSL
+ CHECK_SIZE_AND_OFFSET(cmsghdr, cmsg_len);
+ #endif
+ CHECK_SIZE_AND_OFFSET(cmsghdr, cmsg_level);
+diff --git a/compiler-rt/lib/sanitizer_common/sanitizer_platform_limits_posix.h b/compiler-rt/lib/sanitizer_common/sanitizer_platform_limits_posix.h
+index 58244c9..df7dbd5 100644
+--- a/compiler-rt/lib/sanitizer_common/sanitizer_platform_limits_posix.h
++++ b/compiler-rt/lib/sanitizer_common/sanitizer_platform_limits_posix.h
+@@ -456,6 +456,45 @@ struct __sanitizer_cmsghdr {
+   int cmsg_level;
+   int cmsg_type;
+ };
++#elif SANITIZER_MUSL
++// ASAN's __sanitizer_msghdr uses glibc's layout where msg_iovlen and
++// msg_controllen are 8-byte size_t; musl defines them as 4-byte int/socklen_t
++// with explicit padding. The interceptor reads 8 bytes at msg_controllen's
++// offset, picking up uninitialized padding as the high word and computing a
++// bogus ~81 GB length, which aborts with "CHECK failed: size <= 1ULL<<40".
++// This branch adds the correct 4-byte field widths for musl.
++struct __sanitizer_msghdr {
++  void *msg_name;
++  unsigned msg_namelen;
++  struct __sanitizer_iovec *msg_iov;
++#if defined(__BIG_ENDIAN__) || __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
++  int __pad1;
++  int msg_iovlen;
++#else
++  int msg_iovlen;
++  int __pad1;
++#endif
++  void *msg_control;
++#if defined(__BIG_ENDIAN__) || __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
++  int __pad2;
++  unsigned msg_controllen;
++#else
++  unsigned msg_controllen;
++  int __pad2;
++#endif
++  int msg_flags;
++};
++struct __sanitizer_cmsghdr {
++#if defined(__BIG_ENDIAN__) || __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
++  int __pad1;
++  unsigned cmsg_len;
++#else
++  unsigned cmsg_len;
++  int __pad1;
++#endif
++  int cmsg_level;
++  int cmsg_type;
++};
+ #  else
+ // In POSIX, int msg_iovlen; socklen_t msg_controllen; socklen_t cmsg_len; but
+ // many implementations don't conform to the standard.

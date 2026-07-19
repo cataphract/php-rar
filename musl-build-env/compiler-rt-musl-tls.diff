@@ -1,0 +1,38 @@
+diff --git a/compiler-rt/lib/sanitizer_common/sanitizer_linux_libcdep.cpp b/compiler-rt/lib/sanitizer_common/sanitizer_linux_libcdep.cpp
+index 7e7372a655d3..1b02f7f0b422 100644
+--- a/compiler-rt/lib/sanitizer_common/sanitizer_linux_libcdep.cpp
++++ b/compiler-rt/lib/sanitizer_common/sanitizer_linux_libcdep.cpp
+@@ -564,7 +564,33 @@ static void GetTls(uptr *addr, uptr *size) {
+   // arm and aarch64 reserve two words at TP, so this underestimates the range.
+   // However, this is sufficient for the purpose of finding the pointers to
+   // thread-specific data keys.
++#if SANITIZER_MUSL
++  // aarch64 uses ELF TLS Variant I regardless of libc (musl's internal name
++  // for the layout is TLS_ABOVE_TP): the static TLS block sits above the
++  // thread pointer (TP) and the pthread descriptor immediately below it:
++  //
++  //   low addr                                            high addr
++  //   +--------------+------------------+----+-----+-----------+
++  //   |  worker stk  |  struct pthread  | TP | 16B | static TLS|
++  //   +--------------+------------------+----+-----+-----------+
++  //                   ^                  ^          ^
++  //                   pthread_self()  thread ptr   *addr (from dl_iterate_phdr)
++  //
++  // GetStaticTlsBoundary() sets *addr = TP+16. The layout being ABI, what
++  // differs on musl is only the descriptor size: ThreadDescriptorSize() has
++  // no musl symbol to query and falls back to the glibc hardcoded value of
++  // 1776 B for aarch64, but musl's struct pthread is only ~200 B, so
++  // "*addr -= ThreadDescriptorSize()" moves *addr ~1560 B past the
++  // descriptor into the worker stack. ASAN then sees TLS overlapping the
++  // stack and crashes during thread startup. pthread_self() is by definition
++  // the base of the pthread descriptor, so (*addr - pthread_self()) gives
++  // the exact gap. The guard prevents unsigned wraparound if
++  // GetStaticTlsBoundary() returns 0.
++  const uptr pthread_addr = reinterpret_cast<uptr>(pthread_self());
++  const uptr tcb_size = *addr > pthread_addr ? *addr - pthread_addr : 0;
++#else
+   const uptr tcb_size = ThreadDescriptorSize();
++#endif
+   *addr -= tcb_size;
+   *size += tcb_size;
+ #endif

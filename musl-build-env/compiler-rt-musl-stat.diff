@@ -1,0 +1,54 @@
+--- a/compiler-rt/lib/sanitizer_common/sanitizer_platform_interceptors.h
++++ b/compiler-rt/lib/sanitizer_common/sanitizer_platform_interceptors.h
+@@ -515,7 +515,13 @@
+ #define SANITIZER_INTERCEPT_SEND_SENDTO SI_POSIX
+ #define SANITIZER_INTERCEPT_EVENTFD_READ_WRITE (SI_LINUX || SI_FREEBSD)
+
+-#define SI_STAT_LINUX (SI_LINUX && __GLIBC_PREREQ(2, 33))
++// On glibc >= 2.33 the stat family (stat/fstat/lstat/...) are real exported
++// symbols rather than __xstat/__fxstat wrappers, and SI_STAT_LINUX gates the
++// interceptors for them. musl also exports plain stat/fstat/lstat directly and
++// never uses the __xstat wrappers, so enable the stat interceptors there too;
++// otherwise the struct stat filled by fstat() is never unpoisoned (MSan) and
++// triggers a false use-of-uninitialized-value.
++#define SI_STAT_LINUX (SI_LINUX && (__GLIBC_PREREQ(2, 33) || SANITIZER_MUSL))
+ #define SANITIZER_INTERCEPT_STAT                                    \
+   (SI_FREEBSD || SI_MAC || SI_ANDROID || SI_NETBSD || SI_SOLARIS || \
+    SI_STAT_LINUX || !SI_NOT_AIX)
+--- a/compiler-rt/lib/msan/msan_interceptors.cpp
++++ b/compiler-rt/lib/msan/msan_interceptors.cpp
+@@ -779,6 +779,15 @@
+ }
+
+-#define SANITIZER_STAT_LINUX (SANITIZER_LINUX && __GLIBC_PREREQ(2, 33))
++// MSan's own fstat/fstat64/fstatat interceptors are gated on this macro. As with
++// SI_STAT_LINUX in sanitizer_platform_interceptors.h, it is 0 on musl because
++// __GLIBC_PREREQ is 0, so fstat() (used by nginx's ngx_fd_info) is not
++// intercepted and the struct stat it fills stays poisoned under MSan. musl uses
++// plain fstat/fstatat directly (not glibc's __fxstat), so enable them on musl.
++// The fstat64/fstatat64 blocks below are additionally guarded by
++// SANITIZER_HAS_STAT64 (0 on musl, which has no struct stat64) so they only
++// reference struct_stat64_sz where it is actually defined.
++#define SANITIZER_STAT_LINUX \
++    (SANITIZER_LINUX && (__GLIBC_PREREQ(2, 33) || SANITIZER_MUSL))
+ #if SANITIZER_FREEBSD || SANITIZER_NETBSD || SANITIZER_STAT_LINUX
+ INTERCEPTOR(int, fstat, int fd, void *buf) {
+   ENSURE_MSAN_INITED();
+@@ -792,7 +799,7 @@
+ #define MSAN_MAYBE_INTERCEPT_FSTAT
+ #endif
+
+-#if SANITIZER_STAT_LINUX
++#if SANITIZER_STAT_LINUX && SANITIZER_HAS_STAT64
+ INTERCEPTOR(int, fstat64, int fd, void *buf) {
+   ENSURE_MSAN_INITED();
+   int res = REAL(fstat64)(fd, buf);
+@@ -843,7 +850,7 @@
+ #  define MSAN_MAYBE_INTERCEPT_FSTATAT
+ #endif
+
+-#if SANITIZER_STAT_LINUX
++#if SANITIZER_STAT_LINUX && SANITIZER_HAS_STAT64
+ INTERCEPTOR(int, fstatat64, int fd, char *pathname, void *buf, int flags) {
+   ENSURE_MSAN_INITED();
+   int res = REAL(fstatat64)(fd, pathname, buf, flags);

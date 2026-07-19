@@ -1,0 +1,18 @@
+--- a/compiler-rt/lib/sanitizer_common/sanitizer_platform_limits_posix.cpp
++++ b/compiler-rt/lib/sanitizer_common/sanitizer_platform_limits_posix.cpp
+@@ -307,6 +307,15 @@
+   unsigned struct_statvfs64_sz = sizeof(struct statvfs64);
+ #endif // SANITIZER_GLIBC
+ 
++#if SANITIZER_MUSL
++// musl has no separate 64-bit resource/statvfs variants; the *64 names alias
++// the base structs. MSan's getrlimit64/prlimit64 interceptors still reference
++// struct_rlimit64_sz, so define the sizes here to match the base structs and
++// avoid an undefined reference when linking the MSan runtime against musl.
++unsigned struct_rlimit64_sz = sizeof(struct rlimit);
++unsigned struct_statvfs64_sz = sizeof(struct statvfs);
++#endif // SANITIZER_MUSL
++
+ #if SANITIZER_LINUX && !SANITIZER_ANDROID
+   unsigned struct_timex_sz = sizeof(struct timex);
+   unsigned struct_msqid_ds_sz = sizeof(struct msqid_ds);

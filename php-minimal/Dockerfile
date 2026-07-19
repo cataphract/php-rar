@@ -86,14 +86,41 @@ RUN \
 # --disable-all: disable all optional extensions (minimal build).
 # musl-clang wrapper encodes the target triple, sysroot, clang flags, and
 # always links -lglibc_compat so the binary works on both musl and glibc.
+#
+# Debug builds host the sanitizer runtime for all the instrumented code in the
+# process: PHP links and exports the ASan + UBSan runtimes, and the dlopen'd
+# extension and the instrumented libc++ resolve __asan_*/__ubsan_* from it.
+#
+# This "main executable statically holds the runtime and exports it; instrumented
+# .so's resolve against it at load" arrangement is the DEFAULT LLVM/Clang model,
+# not a workaround: sanitizer runtimes ship as static archives, get linked into
+# the -fsanitize executable, which is marked --export-dynamic. (ASan in
+# particular MUST live in the main executable -- it installs interceptors and
+# shadow memory before main(), so it cannot be brought in lazily via dlopen.)
+#
+# The one non-default wrinkle is WHICH runtime PHP has to carry. Normally the C++
+# driver (clang++) is what pulls in libclang_rt.ubsan_standalone_cxx, so a
+# C++-linked host (like nginx) gets it for free. PHP is a C program linked with
+# the C driver, which pulls libclang_rt.ubsan_standalone (C) but NOT the _cxx
+# half -- and that half holds the vptr handler
+# __ubsan_handle_dynamic_type_cache_miss that the vptr-instrumented libc++.so
+# (from /usr/asan) needs. So SAN_LDEXTRA links the cxx runtime explicitly:
+# --whole-archive forces it in
+# (comma-joined so libtool keeps the bracket), its own .syms dynamic-list
+# exports exactly the __ubsan_* interface (the same list clang would use for a
+# C++ program), and the shared libc++abi supplies the handler's typeinfo /
+# __dynamic_cast.
 RUN \
     DEBUG_FLAG=$([ "${PHP_ENABLE_DEBUG}" = "yes" ] && echo "--enable-debug" || echo "") && \
     ZTS_FLAG=$([ "${PHP_ENABLE_ZTS}" = "yes" ] && echo "--enable-zts --disable-zend-signals" || echo "") && \
     VER_MAJOR=$(echo "${PHP_VERSION}" | cut -d. -f1) && \
     VER_MINOR=$(echo "${PHP_VERSION}" | cut -d. -f2) && \
     COMPAT_FLAGS=$([ "${VER_MAJOR}" = "7" ] || { [ "${VER_MAJOR}" = "8" ] && [ "${VER_MINOR}" -le 1 ]; } && echo "-DCOOKIE_SEEKER_USES_OFF64_T -D__off64_t=long -Doff64_t=long" || echo "") && \
-    ASAN_CFLAGS=$([ "${PHP_ENABLE_DEBUG}" = "yes" ] && echo "-fsanitize=address" || echo "") && \
-    ASAN_LDFLAGS=$([ "${PHP_ENABLE_DEBUG}" = "yes" ] && echo "-fsanitize=address" || echo "") && \
+    SAN_FLAGS="-fsanitize=address,undefined -fno-sanitize=function" && \
+    ASAN_CFLAGS=$([ "${PHP_ENABLE_DEBUG}" = "yes" ] && echo "${SAN_FLAGS}" || echo "") && \
+    UBSAN_CXX=$(ls /usr/lib/llvm*/lib/clang/*/lib/linux/libclang_rt.ubsan_standalone_cxx-*.a | head -1) && \
+    SAN_LDEXTRA="-Wl,--whole-archive,${UBSAN_CXX},--no-whole-archive -Wl,--dynamic-list=${UBSAN_CXX}.syms -L/usr/asan/lib -Wl,-rpath,/usr/asan/lib /usr/asan/lib/libc++abi.so" && \
+    ASAN_LDFLAGS=$([ "${PHP_ENABLE_DEBUG}" = "yes" ] && echo "${SAN_FLAGS} ${SAN_LDEXTRA}" || echo "") && \
     OPT_FLAG=$([ "${PHP_ENABLE_DEBUG}" = "yes" ] && echo "-O0" || echo "-O2") && \
     cd "php-${PHP_VERSION}" && \
     CC=musl-clang \
@@ -118,15 +145,51 @@ RUN rm -rf "/php-${PHP_VERSION}"
 # Ensure extension builds (phpize + configure) use our musl toolchain.
 ENV CC=musl-clang CXX=musl-clang++
 
-# For debug builds: patch the musl-clang wrappers to add -fsanitize=address
-# so that extensions compiled inside this image (e.g. by build-and-test.sh)
-# are also ASAN-instrumented. This prevents the ASAN __cxa_throw interceptor
-# crash that occurs when a non-instrumented extension (with statically-linked
-# libc++) is loaded into an ASAN-instrumented PHP process.
+# For debug builds: patch the musl-clang wrappers so that extensions compiled
+# inside this image (e.g. by build-and-test.sh) are ASAN/UBSan-instrumented.
+#
+# 1. Inject -fsanitize=address,undefined into every compile/link (matching the
+#    PHP build above). -fno-sanitize=function: the function-pointer-type check
+#    fires constantly on intentional type-punned calls (PHP core's zend_sort,
+#    module ctors, hashtable dtors, ...) -- pure noise, disabled like upstream
+#    PHP does. This also prevents the ASAN __cxa_throw interceptor crash that
+#    occurs when a non-instrumented extension (with statically-linked libc++) is
+#    loaded into an ASAN-instrumented PHP process. The sanitizer runtime symbols
+#    (__asan_* / __ubsan_handle_*) resolve at dlopen against the export-dynamic
+#    PHP binary, which is itself built with the same flags.
+#
+# 2. Append the compiler-rt builtins archive to the link. libtool links the
+#    extension with -nostdlib, which drops the builtins clang would normally add
+#    via -rtlib=compiler-rt. Sanitizer-instrumented code emits helpers that live
+#    there: the aarch64 outline-atomics (__aarch64_*, used by the asan shadow
+#    updates) and UBSan's overflow helpers (e.g. __muloti4). Without it the .so
+#    fails to load with "symbol not found". (libc stays dynamic -- see the
+#    has_static note in the musl-clang wrappers -- so the outline-atomics
+#    getauxval ifunc resolver runs against the host's initialized libc.)
+#
+# 3. Set MUSL_CLANG_SANITIZE_CXX=address so musl-clang++ links the
+#    ASAN-instrumented shared libc++/libc++abi/libunwind from /usr/asan (built in
+#    musl-build-env) instead of the plain static libc++, keeping libc++'s
+#    container-overflow annotations consistent with the instrumented extension.
+#
+# Then force the PHP binary to load that shared C++ runtime at startup
+# (DT_NEEDED libc++.so.1, which pulls libc++abi.so.1 / libunwind.so.1). PHP is
+# pure C and would otherwise only load libc++ late, when the extension is
+# dlopen'd -- after ASAN has initialized. ASAN's __cxa_throw interceptor
+# resolves the real __cxa_throw via dlsym at init; if libc++abi isn't loaded yet
+# it caches NULL, and the first C++ exception thrown from the extension (e.g.
+# unrar's error handler on a missing password) aborts with
+# "CHECK failed: real___cxa_throw != 0". The dynamic loader loads DT_NEEDED libs
+# before ASAN's preinit, so adding the dependency makes the real symbol
+# available in time.
 RUN if [ "${PHP_ENABLE_DEBUG}" = "yes" ]; then \
         for f in /usr/local/bin/musl-clang /usr/local/bin/musl-clang++; do \
-            sed -i 's|"$@"|"-fsanitize=address" "$@"|' "$f"; \
+            sed -i 's|"$@"|"-fsanitize=address,undefined" "-fno-sanitize=function" "$@"|' "$f"; \
+            sed -i 's#-l:libglibc_compat.a#-l:libglibc_compat.a /usr/lib/libclang_rt.builtins.a#' "$f"; \
+            sed -i '1a export MUSL_CLANG_SANITIZE_CXX=address' "$f"; \
         done; \
+        patchelf --add-rpath /usr/asan/lib /usr/local/bin/php; \
+        patchelf --add-needed libc++.so.1 /usr/local/bin/php; \
     fi
 
 # Verify: PHP binary should depend only on musl libc
