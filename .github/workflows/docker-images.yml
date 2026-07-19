@@ -30,22 +30,49 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Build for validation
+        uses: docker/build-push-action@v6
+        with:
+          context: musl-build-env
+          platforms: ${{ matrix.platform }}
+          load: true
+          tags: musl-build-env:ci
+          build-args: ARCH=${{ matrix.arch }}
+          cache-from: type=gha,scope=musl-build-env-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=musl-build-env-${{ matrix.arch }}
+
+      - name: Test with Ubuntu 20.04 and Alpine 3.24
+        working-directory: musl-build-env-tests
+        run: >-
+          ./gradlew test --no-daemon
+          -PbuildEnvImage=musl-build-env:ci
+          -PglibcImage=ubuntu:20.04
+          -PmuslImage=alpine:3.24
+
+      - name: Test with Ubuntu 26.04 and Alpine 3.24
+        working-directory: musl-build-env-tests
+        run: >-
+          ./gradlew test --no-daemon
+          -PbuildEnvImage=musl-build-env:ci
+          -PglibcImage=ubuntu:26.04
+          -PmuslImage=alpine:3.24
+
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: musl-build-env
-          platforms: ${{ matrix.platform }}
-          push: true
-          tags: ${{ env.MUSL_ENV_IMAGE }}:latest-${{ matrix.arch }}
-          build-args: ARCH=${{ matrix.arch }}
-          cache-from: type=gha,scope=musl-build-env-${{ matrix.arch }}
-          cache-to: type=gha,mode=max,scope=musl-build-env-${{ matrix.arch }}
+      - name: Push validated image
+        run: |
+          docker tag musl-build-env:ci \
+            ${{ env.MUSL_ENV_IMAGE }}:latest-${{ matrix.arch }}
+          docker push ${{ env.MUSL_ENV_IMAGE }}:latest-${{ matrix.arch }}
 
   # ── Push: build php-minimal for all PHP versions and variants ─────────────
   php-minimal:

@@ -1,38 +1,130 @@
 diff --git a/compiler-rt/lib/sanitizer_common/sanitizer_linux_libcdep.cpp b/compiler-rt/lib/sanitizer_common/sanitizer_linux_libcdep.cpp
-index 7e7372a655d3..1b02f7f0b422 100644
+index 7e7372a655d3..9594524ee703 100644
 --- a/compiler-rt/lib/sanitizer_common/sanitizer_linux_libcdep.cpp
 +++ b/compiler-rt/lib/sanitizer_common/sanitizer_linux_libcdep.cpp
-@@ -564,7 +564,33 @@ static void GetTls(uptr *addr, uptr *size) {
-   // arm and aarch64 reserve two words at TP, so this underestimates the range.
-   // However, this is sufficient for the purpose of finding the pointers to
-   // thread-specific data keys.
-+#if SANITIZER_MUSL
-+  // aarch64 uses ELF TLS Variant I regardless of libc (musl's internal name
-+  // for the layout is TLS_ABOVE_TP): the static TLS block sits above the
-+  // thread pointer (TP) and the pthread descriptor immediately below it:
+@@ -96,4 +96,39 @@ extern "C" int __sys_sigaction(int signum, const struct sigaction *act,
+ #    include <unistd.h>
+ #  endif
+-
++#  if SANITIZER_MUSL && (defined(__aarch64__) || defined(__x86_64__))
++extern "C" SANITIZER_WEAK_ATTRIBUTE const char *gnu_get_libc_version();
++#  endif
++
+ namespace __sanitizer {
++
++#  if SANITIZER_MUSL && (defined(__aarch64__) || defined(__x86_64__))
++// musl does not expose whether a thread owns its stack/TLS mapping. Mirror the
++// version-coupled prefix used by the checked Alpine/musl package so LSan can
++// use pthread_create's recorded bounds instead of guessing from a VMA.
++struct MuslPthreadPrefix {
++  void *self;
++#    if defined(__x86_64__)
++  void *dtv;
++#    endif
++  void *prev;
++  void *next;
++  uptr sysinfo;
++#    if defined(__x86_64__)
++  uptr canary;
++#    endif
++  int tid;
++  int errno_value;
++  volatile int detach_state;
++  volatile int cancel;
++  volatile unsigned char cancel_disable;
++  volatile unsigned char cancel_async;
++  unsigned char flags;
++  unsigned char *map_base;
++  uptr map_size;
++};
++#    if defined(__x86_64__)
++static_assert(__builtin_offsetof(MuslPthreadPrefix, map_base) == 72);
++#    else
++static_assert(__builtin_offsetof(MuslPthreadPrefix, map_base) == 56);
++#    endif
++#  endif
+@@ -595,7 +630,83 @@ static void GetTls(uptr *addr, uptr *size) {
+ #    elif SANITIZER_FREEBSD || SANITIZER_LINUX || SANITIZER_SOLARIS
+   uptr align;
+   GetStaticTlsBoundary(addr, size, &align);
+-#      if defined(__x86_64__) || defined(__i386__) || defined(__s390__) || \
++#      if SANITIZER_MUSL && (defined(__aarch64__) || defined(__x86_64__))
++  // GetStaticTlsBoundary reports only the static TLS blocks. LSan must also
++  // scan values installed by pthread_setspecific. A musl worker keeps its
++  // pthread descriptor and separate TSD array in the same readable mapping as
++  // its initial static TLS allocation, so cover that mapping through its end.
++  // This remains valid if dlopen replaces musl's DTV with an out-of-line one.
 +  //
-+  //   low addr                                            high addr
-+  //   +--------------+------------------+----+-----+-----------+
-+  //   |  worker stk  |  struct pthread  | TP | 16B | static TLS|
-+  //   +--------------+------------------+----+-----+-----------+
-+  //                   ^                  ^          ^
-+  //                   pthread_self()  thread ptr   *addr (from dl_iterate_phdr)
++  // A sanitizer runtime built against musl can also be loaded with glibc. Its
++  // worker thread descriptor and pthread-specific values have the same mapping
++  // relationship. For glibc workers, only use a VMA whose upper bound exactly
++  // matches the reported stack end. This rejects an application-supplied stack
++  // that leaves an unowned suffix in a larger mapping.
++  // For musl workers, use the exact owned allocation recorded in the pthread
++  // descriptor. This LSan runtime's static TLS plus TSD exceeds musl's 2 KiB
++  // custom-stack embedding limit, so musl records a separate allocation.
 +  //
-+  // GetStaticTlsBoundary() sets *addr = TP+16. The layout being ABI, what
-+  // differs on musl is only the descriptor size: ThreadDescriptorSize() has
-+  // no musl symbol to query and falls back to the glibc hardcoded value of
-+  // 1776 B for aarch64, but musl's struct pthread is only ~200 B, so
-+  // "*addr -= ThreadDescriptorSize()" moves *addr ~1560 B past the
-+  // descriptor into the worker stack. ASAN then sees TLS overlapping the
-+  // stack and crashes during thread startup. pthread_self() is by definition
-+  // the base of the pthread descriptor, so (*addr - pthread_self()) gives
-+  // the exact gap. The guard prevents unsigned wraparound if
-+  // GetStaticTlsBoundary() returns 0.
++  // For a glibc main thread, the weak glibc-only symbol enables the mapping
++  // extension as well. A musl main thread's TSD array is a libc global and is
++  // already covered by the global scan, so avoid broadening its TLS range into
++  // the libc data mapping.
 +  const uptr pthread_addr = reinterpret_cast<uptr>(pthread_self());
-+  const uptr tcb_size = *addr > pthread_addr ? *addr - pthread_addr : 0;
-+#else
-   const uptr tcb_size = ThreadDescriptorSize();
-+#endif
-   *addr -= tcb_size;
-   *size += tcb_size;
- #endif
++  uptr tls_begin = *addr;
++  uptr tls_end = *addr + *size;
++  if (!tls_begin || pthread_addr < tls_begin)
++    tls_begin = pthread_addr;
++
++  const bool main_thread = GetTid() == internal_getpid();
++  const bool glibc_runtime = &gnu_get_libc_version;
++  const bool use_main_mapping = main_thread && glibc_runtime;
++  if (!main_thread && !glibc_runtime) {
++    const auto *thread =
++        reinterpret_cast<const MuslPthreadPrefix *>(pthread_addr);
++    const uptr mapping_begin = reinterpret_cast<uptr>(thread->map_base);
++    const uptr mapping_end = mapping_begin + thread->map_size;
++    if (mapping_begin && mapping_end > mapping_begin &&
++        pthread_addr >= mapping_begin && pthread_addr < mapping_end)
++      tls_end = Max(tls_end, mapping_end);
++  }
++
++  uptr stack_begin = 0;
++  uptr stack_end = 0;
++  bool have_stack_bounds = false;
++  if (!main_thread && glibc_runtime) {
++    pthread_attr_t attr;
++    void *stack_address = nullptr;
++    size_t stack_size = 0;
++    if (pthread_attr_init(&attr) == 0) {
++      if (pthread_getattr_np(pthread_self(), &attr) == 0 &&
++          pthread_attr_getstack(&attr, &stack_address, &stack_size) == 0) {
++        stack_begin = reinterpret_cast<uptr>(stack_address);
++        stack_end = stack_begin + stack_size;
++        have_stack_bounds = stack_end > stack_begin;
++      }
++      pthread_attr_destroy(&attr);
++    }
++  }
++
++  if (glibc_runtime && (use_main_mapping || have_stack_bounds)) {
++    MemoryMappingLayout proc_maps(/*cache_enabled=*/false);
++    if (!proc_maps.Error()) {
++      MemoryMappedSegment segment;
++      while (proc_maps.Next(&segment)) {
++        if (pthread_addr < segment.end) {
++          if (pthread_addr >= segment.start &&
++              (use_main_mapping || stack_end == segment.end))
++            tls_end = Max(tls_end, segment.end);
++          break;
++        }
++      }
++    }
++  }
++
++  if (tls_end > tls_begin) {
++    *addr = tls_begin;
++    *size = tls_end - tls_begin;
++  }
++#      elif defined(__x86_64__) || defined(__i386__) || defined(__s390__) || \
+           defined(__sparc__)
+   if (SANITIZER_GLIBC) {
+ #        if defined(__x86_64__) || defined(__i386__)

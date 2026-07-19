@@ -1,0 +1,59 @@
+plugins {
+    id 'groovy'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation 'org.apache.groovy:groovy:4.0.30'
+    testImplementation 'org.spockframework:spock-core:2.4-groovy-4.0'
+    testImplementation platform('org.testcontainers:testcontainers-bom:2.0.5')
+    testImplementation 'org.testcontainers:testcontainers'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testRuntimeOnly 'org.slf4j:slf4j-simple:1.7.36'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+def containerImageProperties = [
+    buildEnvImage: 'musl-build-env:latest',
+    glibcImage: 'ubuntu:26.04',
+    muslImage: 'alpine:3.24',
+]
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+    maxParallelForks = 1
+
+    containerImageProperties.each { propertyName, defaultValue ->
+        systemProperty propertyName,
+            providers.gradleProperty(propertyName).getOrElse(defaultValue)
+    }
+
+    testLogging {
+        events 'failed', 'skipped'
+        exceptionFormat 'full'
+        showStandardStreams = true
+    }
+}
+
+tasks.register('patchTests', Test) {
+    description = 'Runs tests for musl-build-env source patches.'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    include '**/*PatchSpec.class'
+}
+
+tasks.register('compatTests', Test) {
+    description = 'Runs tests for the glibc compatibility shims.'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    include '**/*CompatSpec.class'
+}

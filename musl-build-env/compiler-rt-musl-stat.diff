@@ -5,12 +5,12 @@
  #define SANITIZER_INTERCEPT_EVENTFD_READ_WRITE (SI_LINUX || SI_FREEBSD)
 
 -#define SI_STAT_LINUX (SI_LINUX && __GLIBC_PREREQ(2, 33))
-+// On glibc >= 2.33 the stat family (stat/fstat/lstat/...) are real exported
-+// symbols rather than __xstat/__fxstat wrappers, and SI_STAT_LINUX gates the
-+// interceptors for them. musl also exports plain stat/fstat/lstat directly and
-+// never uses the __xstat wrappers, so enable the stat interceptors there too;
-+// otherwise the struct stat filled by fstat() is never unpoisoned (MSan) and
-+// triggers a false use-of-uninitialized-value.
++// On glibc >= 2.33 the stat family are real exported symbols rather than
++// __xstat wrappers, and SI_STAT_LINUX gates their interceptors. musl exports
++// the plain APIs too, while this toolchain's glibc_compat bridge calls
++// __xstat/__lxstat. Include musl so compiler-rt intercepts both public and
++// compatibility paths; otherwise libc writes valid struct stat bytes without
++// unpoisoning their sanitizer shadow.
 +#define SI_STAT_LINUX (SI_LINUX && (__GLIBC_PREREQ(2, 33) || SANITIZER_MUSL))
  #define SANITIZER_INTERCEPT_STAT                                    \
    (SI_FREEBSD || SI_MAC || SI_ANDROID || SI_NETBSD || SI_SOLARIS || \
@@ -21,14 +21,14 @@
  }
 
 -#define SANITIZER_STAT_LINUX (SANITIZER_LINUX && __GLIBC_PREREQ(2, 33))
-+// MSan's own fstat/fstat64/fstatat interceptors are gated on this macro. As with
-+// SI_STAT_LINUX in sanitizer_platform_interceptors.h, it is 0 on musl because
-+// __GLIBC_PREREQ is 0, so fstat() (used by nginx's ngx_fd_info) is not
-+// intercepted and the struct stat it fills stays poisoned under MSan. musl uses
-+// plain fstat/fstatat directly (not glibc's __fxstat), so enable them on musl.
-+// The fstat64/fstatat64 blocks below are additionally guarded by
-+// SANITIZER_HAS_STAT64 (0 on musl, which has no struct stat64) so they only
-+// reference struct_stat64_sz where it is actually defined.
++// MSan's fstat/fstat64/fstatat interceptors are gated on this macro. It is 0
++// on musl because __GLIBC_PREREQ is 0, so the public APIs are not intercepted.
++// This toolchain's glibc_compat wrappers instead call __fxstat/__fxstatat;
++// enable both the public and compatibility entry points below so successful
++// calls unpoison the returned struct stat. The fstat64/fstatat64 blocks are
++// additionally guarded by SANITIZER_HAS_STAT64 (0 on musl, which has no
++// distinct struct stat64) so they only reference struct_stat64_sz where it is
++// actually defined.
 +#define SANITIZER_STAT_LINUX \
 +    (SANITIZER_LINUX && (__GLIBC_PREREQ(2, 33) || SANITIZER_MUSL))
  #if SANITIZER_FREEBSD || SANITIZER_NETBSD || SANITIZER_STAT_LINUX
@@ -43,6 +43,15 @@
  INTERCEPTOR(int, fstat64, int fd, void *buf) {
    ENSURE_MSAN_INITED();
    int res = REAL(fstat64)(fd, buf);
+@@ -805,7 +812,7 @@
+ #  define MSAN_MAYBE_INTERCEPT_FSTAT64
+ #endif
+
+-#if SANITIZER_GLIBC
++#if SANITIZER_GLIBC || SANITIZER_MUSL
+ INTERCEPTOR(int, __fxstat, int magic, int fd, void *buf) {
+   ENSURE_MSAN_INITED();
+   int res = REAL(__fxstat)(magic, fd, buf);
 @@ -843,7 +850,7 @@
  #  define MSAN_MAYBE_INTERCEPT_FSTATAT
  #endif
@@ -52,3 +61,12 @@
  INTERCEPTOR(int, fstatat64, int fd, char *pathname, void *buf, int flags) {
    ENSURE_MSAN_INITED();
    int res = REAL(fstatat64)(fd, pathname, buf, flags);
+@@ -856,7 +863,7 @@
+ #  define MSAN_MAYBE_INTERCEPT_FSTATAT64
+ #endif
+
+-#if SANITIZER_GLIBC
++#if SANITIZER_GLIBC || SANITIZER_MUSL
+ INTERCEPTOR(int, __fxstatat, int magic, int fd, char *pathname, void *buf,
+             int flags) {
+   ENSURE_MSAN_INITED();

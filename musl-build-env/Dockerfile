@@ -44,9 +44,8 @@ RUN wget -q "https://github.com/llvm/llvm-project/releases/download/llvmorg-${LL
 
 # Patch compiler-rt for musl. These fix the sanitizer runtimes when built
 # against musl rather than glibc:
-#   - tls:      aarch64 TLS/TCB-size detection (otherwise ASAN computes a bogus
-#               TLS range overlapping the worker stack and crashes at thread
-#               startup).
+#   - tls:      include musl/glibc pthread metadata in the sanitizer TLS range
+#               so LSan sees pointers stored by pthread_setspecific.
 #   - msghdr:   musl's 4-byte msg_iovlen/msg_controllen vs glibc's 8-byte
 #               (otherwise ASAN's recvmsg/sendmsg interceptor reads padding as a
 #               high word and aborts with a ~81 GB length).
@@ -234,3 +233,9 @@ COPY Toolchain.cmake.${ARCH} /sysroot/${ARCH}-none-linux-musl/Toolchain.cmake
 COPY musl-clang.sh   /usr/local/bin/musl-clang
 COPY musl-clang++.sh /usr/local/bin/musl-clang++
 RUN chmod +x /usr/local/bin/musl-clang /usr/local/bin/musl-clang++
+
+# compiler-rt's musl TLS patch reads map_base/map_size from musl's private
+# pthread layout. Fail the build if the package revision with that layout moves.
+ARG MUSL_VERSION=1.2.5-r23
+RUN apk info -e "musl=${MUSL_VERSION}" && \
+    apk info -e "musl-dev=${MUSL_VERSION}"
