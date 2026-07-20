@@ -13,8 +13,8 @@ ARG LLVM_VERSION=21.1.2
 
 FROM alpine:${ALPINE_VERSION} AS toolchain-base
 
-# compiler-rt's musl TLS patch reads map_base/map_size from musl's private
-# pthread layout, so both build and final stages must use this exact revision.
+# Pin the build and final stages to the same musl revision so their libc,
+# development headers, and generated runtime artifacts stay reproducible.
 ARG MUSL_VERSION=1.2.5-r23
 RUN apk --no-cache add \
         "musl=${MUSL_VERSION}" "musl-dev=${MUSL_VERSION}" \

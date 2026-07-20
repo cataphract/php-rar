@@ -45,13 +45,13 @@ jobs:
           cache-from: type=gha,scope=musl-build-env-${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=musl-build-env-${{ matrix.arch }}
 
-      - name: Test with Ubuntu 20.04 and Alpine 3.24
+      - name: Test with Ubuntu 20.04 and Alpine 3.12
         working-directory: musl-build-env-tests
         run: >-
           ./gradlew test --no-daemon
           -PbuildEnvImage=musl-build-env:ci
           -PglibcImage=ubuntu:20.04
-          -PmuslImage=alpine:3.24
+          -PmuslImage=alpine:3.12
 
       - name: Test with Ubuntu 26.04 and Alpine 3.24
         working-directory: musl-build-env-tests

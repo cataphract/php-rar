@@ -2,7 +2,7 @@ diff --git a/compiler-rt/lib/sanitizer_common/sanitizer_linux_libcdep.cpp b/comp
 index 7e7372a655d3..9594524ee703 100644
 --- a/compiler-rt/lib/sanitizer_common/sanitizer_linux_libcdep.cpp
 +++ b/compiler-rt/lib/sanitizer_common/sanitizer_linux_libcdep.cpp
-@@ -96,4 +96,39 @@ extern "C" int __sys_sigaction(int signum, const struct sigaction *act,
+@@ -96,4 +96,133 @@ extern "C" int __sys_sigaction(int signum, const struct sigaction *act,
  #    include <unistd.h>
  #  endif
 -
@@ -13,10 +13,37 @@ index 7e7372a655d3..9594524ee703 100644
  namespace __sanitizer {
 +
 +#  if SANITIZER_MUSL && (defined(__aarch64__) || defined(__x86_64__))
-+// musl does not expose whether a thread owns its stack/TLS mapping. Mirror the
-+// version-coupled prefix used by the checked Alpine/musl package so LSan can
-+// use pthread_create's recorded bounds instead of guessing from a VMA.
-+struct MuslPthreadPrefix {
++// musl does not expose a worker's stack/TLS allocation. These are the two
++// private descriptor layouts used by musl 1.1.24 and 1.2.x. Never select one
++// by version or by an unchecked field: ValidateMuslPthreadLayout first bounds
++// the read to the pthread's VMA, then verifies the allocation and TSD through
++// independent invariants and pthread_getspecific's public result.
++struct MuslPthreadLayoutV1_1 {
++  void *self;
++  void *dtv;
++  void *prev;
++  void *next;
++  uptr sysinfo;
++  uptr canary;
++  uptr canary2;
++  int tid;
++  int errno_value;
++  volatile int detach_state;
++  volatile int cancel;
++  volatile unsigned char cancel_disable;
++  volatile unsigned char cancel_async;
++  unsigned char flags;
++  void *map_base;
++  uptr map_size;
++  void *stack;
++  uptr stack_size;
++  uptr guard_size;
++  void *result;
++  void *cancel_buffer;
++  void **tsd;
++};
++
++struct MuslPthreadLayoutV1_2 {
 +  void *self;
 +#    if defined(__x86_64__)
 +  void *dtv;
@@ -34,16 +61,83 @@ index 7e7372a655d3..9594524ee703 100644
 +  volatile unsigned char cancel_disable;
 +  volatile unsigned char cancel_async;
 +  unsigned char flags;
-+  unsigned char *map_base;
++  void *map_base;
 +  uptr map_size;
++  void *stack;
++  uptr stack_size;
++  uptr guard_size;
++  void *result;
++  void *cancel_buffer;
++  void **tsd;
 +};
++
++static constexpr uptr kMuslTsdSlots = 128;
++static_assert(__builtin_offsetof(MuslPthreadLayoutV1_1, map_base) == 80);
++static_assert(__builtin_offsetof(MuslPthreadLayoutV1_1, map_size) == 88);
++static_assert(__builtin_offsetof(MuslPthreadLayoutV1_1, tsd) == 136);
 +#    if defined(__x86_64__)
-+static_assert(__builtin_offsetof(MuslPthreadPrefix, map_base) == 72);
++static_assert(__builtin_offsetof(MuslPthreadLayoutV1_2, map_base) == 72);
++static_assert(__builtin_offsetof(MuslPthreadLayoutV1_2, map_size) == 80);
++static_assert(__builtin_offsetof(MuslPthreadLayoutV1_2, tsd) == 128);
 +#    else
-+static_assert(__builtin_offsetof(MuslPthreadPrefix, map_base) == 56);
++static_assert(__builtin_offsetof(MuslPthreadLayoutV1_2, map_base) == 56);
++static_assert(__builtin_offsetof(MuslPthreadLayoutV1_2, map_size) == 64);
++static_assert(__builtin_offsetof(MuslPthreadLayoutV1_2, tsd) == 112);
 +#    endif
++
++static bool IsMappedRange(uptr begin, uptr end) {
++  MemoryMappingLayout proc_maps(/*cache_enabled=*/false);
++  if (proc_maps.Error())
++    return false;
++
++  uptr covered = begin;
++  MemoryMappedSegment segment;
++  while (covered < end && proc_maps.Next(&segment)) {
++    if (segment.end <= covered)
++      continue;
++    if (segment.start > covered)
++      return false;
++    covered = Min(end, segment.end);
++  }
++  return covered == end;
++}
++
++template <class Layout>
++static bool ValidateMuslPthreadLayout(uptr pthread_addr, uptr segment_start,
++                                      uptr segment_end, uptr *mapping_end) {
++  if (pthread_addr < segment_start || pthread_addr >= segment_end ||
++      sizeof(Layout) > segment_end - pthread_addr)
++    return false;
++
++  const auto *thread = reinterpret_cast<const Layout *>(pthread_addr);
++  const uptr mapping_begin = reinterpret_cast<uptr>(thread->map_base);
++  const uptr mapping_size = thread->map_size;
++  const uptr tsd_begin = reinterpret_cast<uptr>(thread->tsd);
++  const uptr tsd_size = kMuslTsdSlots * sizeof(void *);
++  const uptr page_size = GetPageSizeCached();
++  if (reinterpret_cast<uptr>(thread->self) != pthread_addr || !mapping_begin ||
++      !mapping_size || !IsAligned(mapping_begin, page_size) ||
++      !IsAligned(mapping_size, page_size) ||
++      mapping_size > ~(uptr)0 - mapping_begin)
++    return false;
++
++  const uptr end = mapping_begin + mapping_size;
++  if (pthread_addr < mapping_begin || pthread_addr >= end ||
++      end > segment_end || end < tsd_size ||
++      tsd_begin != end - tsd_size || tsd_begin < segment_start ||
++      !IsAligned(tsd_begin, sizeof(void *)) ||
++      !IsMappedRange(mapping_begin, end))
++    return false;
++
++  for (uptr key = 0; key < kMuslTsdSlots; ++key)
++    if (thread->tsd[key] != pthread_getspecific((pthread_key_t)key))
++      return false;
++
++  *mapping_end = end;
++  return true;
++}
 +#  endif
-@@ -595,7 +630,83 @@ static void GetTls(uptr *addr, uptr *size) {
+@@ -595,7 +724,102 @@ static void GetTls(uptr *addr, uptr *size) {
  #    elif SANITIZER_FREEBSD || SANITIZER_LINUX || SANITIZER_SOLARIS
    uptr align;
    GetStaticTlsBoundary(addr, size, &align);
@@ -60,9 +154,10 @@ index 7e7372a655d3..9594524ee703 100644
 +  // relationship. For glibc workers, only use a VMA whose upper bound exactly
 +  // matches the reported stack end. This rejects an application-supplied stack
 +  // that leaves an unowned suffix in a larger mapping.
-+  // For musl workers, use the exact owned allocation recorded in the pthread
-+  // descriptor. This LSan runtime's static TLS plus TSD exceeds musl's 2 KiB
-+  // custom-stack embedding limit, so musl records a separate allocation.
++  // For musl workers, validate both private descriptor layouts used by Alpine
++  // 3.12 through 3.24, then use the exact owned allocation. This LSan
++  // runtime's static TLS plus TSD exceeds musl's 2 KiB custom-stack embedding
++  // limit, so musl records a separate allocation.
 +  //
 +  // For a glibc main thread, the weak glibc-only symbol enables the mapping
 +  // extension as well. A musl main thread's TSD array is a libc global and is
@@ -78,13 +173,31 @@ index 7e7372a655d3..9594524ee703 100644
 +  const bool glibc_runtime = &gnu_get_libc_version;
 +  const bool use_main_mapping = main_thread && glibc_runtime;
 +  if (!main_thread && !glibc_runtime) {
-+    const auto *thread =
-+        reinterpret_cast<const MuslPthreadPrefix *>(pthread_addr);
-+    const uptr mapping_begin = reinterpret_cast<uptr>(thread->map_base);
-+    const uptr mapping_end = mapping_begin + thread->map_size;
-+    if (mapping_begin && mapping_end > mapping_begin &&
-+        pthread_addr >= mapping_begin && pthread_addr < mapping_end)
-+      tls_end = Max(tls_end, mapping_end);
++    MemoryMappingLayout proc_maps(/*cache_enabled=*/false);
++    if (!proc_maps.Error()) {
++      MemoryMappedSegment segment;
++      while (proc_maps.Next(&segment)) {
++        if (pthread_addr < segment.end) {
++          uptr v1_1_mapping_end = 0;
++          uptr v1_2_mapping_end = 0;
++          if (pthread_addr >= segment.start && segment.IsReadable() &&
++              segment.IsWritable()) {
++            const bool valid_v1_1 =
++                ValidateMuslPthreadLayout<MuslPthreadLayoutV1_1>(
++                    pthread_addr, segment.start, segment.end,
++                    &v1_1_mapping_end);
++            const bool valid_v1_2 =
++                ValidateMuslPthreadLayout<MuslPthreadLayoutV1_2>(
++                    pthread_addr, segment.start, segment.end,
++                    &v1_2_mapping_end);
++            if (valid_v1_1 != valid_v1_2)
++              tls_end = Max(tls_end, valid_v1_1 ? v1_1_mapping_end
++                                                : v1_2_mapping_end);
++          }
++          break;
++        }
++      }
++    }
 +  }
 +
 +  uptr stack_begin = 0;
