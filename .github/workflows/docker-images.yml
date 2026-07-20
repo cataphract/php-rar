@@ -42,7 +42,6 @@ jobs:
           platforms: ${{ matrix.platform }}
           load: true
           tags: musl-build-env:ci
-          build-args: ARCH=${{ matrix.arch }}
           cache-from: type=gha,scope=musl-build-env-${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=musl-build-env-${{ matrix.arch }}
 
@@ -150,7 +149,6 @@ jobs:
           build-args: |
             BUILD_ENV_IMAGE=${{ env.MUSL_ENV_IMAGE }}:latest-${{ matrix.arch }}
             PHP_VERSION=${{ steps.cfg.outputs.patch }}
-            ARCH=${{ matrix.arch }}
             PHP_ENABLE_DEBUG=${{ steps.cfg.outputs.debug }}
             PHP_ENABLE_ZTS=${{ steps.cfg.outputs.zts }}
           cache-from: type=gha,scope=php-${{ matrix.php }}-${{ matrix.variant }}-${{ matrix.arch }}

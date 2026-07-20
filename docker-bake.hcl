@@ -21,14 +21,12 @@ target "_musl-build-env" {
 target "musl-build-env-amd64" {
   inherits  = ["_musl-build-env"]
   platforms = ["linux/amd64"]
-  args      = { ARCH = "x86_64" }
   tags      = ["ghcr.io/cataphract/musl-build-env:latest-x86_64"]
 }
 
 target "musl-build-env-arm64" {
   inherits  = ["_musl-build-env"]
   platforms = ["linux/arm64"]
-  args      = { ARCH = "aarch64" }
   tags      = ["ghcr.io/cataphract/musl-build-env:latest-aarch64"]
 }
 
@@ -47,7 +45,6 @@ target "php-minimal-amd64" {
   platforms = ["linux/amd64"]
   args = {
     BUILD_ENV_IMAGE = "ghcr.io/cataphract/musl-build-env:latest-x86_64"
-    ARCH            = "x86_64"
   }
   tags = ["ghcr.io/cataphract/php-minimal:${PHP_MINOR}-${PHP_VARIANT}-x86_64"]
 }
@@ -57,7 +54,6 @@ target "php-minimal-arm64" {
   platforms = ["linux/arm64"]
   args = {
     BUILD_ENV_IMAGE = "ghcr.io/cataphract/musl-build-env:latest-aarch64"
-    ARCH            = "aarch64"
   }
   tags = ["ghcr.io/cataphract/php-minimal:${PHP_MINOR}-${PHP_VARIANT}-aarch64"]
 }

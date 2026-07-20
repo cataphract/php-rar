@@ -3,67 +3,57 @@
 # with minimal dependencies (only musl libc + glibc_compat shim).
 #
 # The resulting image is used to build and test PHP extensions like php-rar.
-# glibc_compat is always linked (via the musl-clang wrapper) so the binary
-# and any extensions built here work on both musl and glibc systems.
+# glibc_compat is injected by the build environment's libc linker script so the
+# binary and any extensions built here work on both musl and glibc systems.
 #
 # Build:
 #   # First build musl-build-env:
-#   docker build --build-arg ARCH=aarch64 -t musl-build-env:latest ../musl-build-env
+#   docker build --platform=linux/arm64 -t musl-build-env:latest ../musl-build-env
 #
 #   # Then build this image:
 #   docker build \
 #     --build-arg BUILD_ENV_IMAGE=musl-build-env:latest \
 #     --build-arg PHP_VERSION=8.4.6 \
-#     --build-arg ARCH=aarch64 \
 #     -t php-minimal:8.4-aarch64 .
 
 ARG BUILD_ENV_IMAGE=musl-build-env:latest
 FROM ${BUILD_ENV_IMAGE}
 
 ARG PHP_VERSION=8.4.6
-ARG ARCH
 # PHP build variants: set these for debug/ZTS builds
 ARG PHP_ENABLE_DEBUG=no
 ARG PHP_ENABLE_ZTS=no
-
-RUN test -n "${ARCH}" || (echo "ARCH build arg is required (aarch64 or x86_64)" && false)
 
 # PHP build-time dependencies (re2c for lexer, autoconf for configure regeneration)
 RUN apk --no-cache add \
     autoconf bison re2c \
     libxml2-dev openssl-dev
 
-# Build libpcre2_compat.a and inject it into the musl-clang wrappers and
-# CMake toolchain so that every extension built in this image automatically
-# gets the php_pcre2_* stub layer and its dlsym constructor.
+# Add the php_pcre2_* stub layer to the compatibility extension archive already
+# referenced by the build environment's libc.so linker script. This applies to
+# wrappers, raw Clang, CMake, and other compiler frontends without editing them.
 COPY pcre2_compat.c pcre2_compat.S /tmp/
-RUN ARCH=$(uname -m) && \
-    SYSROOT="/sysroot/${ARCH}-none-linux-musl" && \
-    clang \
-        --target="${ARCH}-none-linux-musl" \
-        --sysroot="${SYSROOT}" \
-        -rtlib=compiler-rt \
+RUN clang \
         -fpie -O2 -fno-omit-frame-pointer -ggdb3 \
         -c /tmp/pcre2_compat.c -o /tmp/pcre2_compat_resolve.o && \
     clang \
-        --target="${ARCH}-none-linux-musl" \
-        --sysroot="${SYSROOT}" \
         -c /tmp/pcre2_compat.S -o /tmp/pcre2_compat_stubs.o && \
-    ar rcs "${SYSROOT}/usr/lib/libpcre2_compat.a" \
+    llvm-ar rcs /usr/lib/libadditional_compat.a \
         /tmp/pcre2_compat_resolve.o /tmp/pcre2_compat_stubs.o && \
     rm /tmp/pcre2_compat.c /tmp/pcre2_compat.S \
-       /tmp/pcre2_compat_resolve.o /tmp/pcre2_compat_stubs.o && \
-    sed -i 's/-lglibc_compat/-lglibc_compat -lpcre2_compat/' \
-        /usr/local/bin/musl-clang /usr/local/bin/musl-clang++ && \
-    sed -i 's/-lglibc_compat -Wl,-Bdynamic/-lglibc_compat -lpcre2_compat -Wl,-Bdynamic/' \
-        "${SYSROOT}/Toolchain.cmake"
+       /tmp/pcre2_compat_resolve.o /tmp/pcre2_compat_stubs.o
 
 # Download PHP source
 RUN wget -q "https://www.php.net/distributions/php-${PHP_VERSION}.tar.gz" && \
     tar -xf "php-${PHP_VERSION}.tar.gz" && \
     rm "php-${PHP_VERSION}.tar.gz"
 
-# Apply version-specific source patches for compatibility with modern clang.
+# Teach PHP's bundled libtool to retain Clang's absolute compiler-rt archives
+# when it reconstructs C++ links with -nostdlib. This backports the upstream fix:
+# https://git.savannah.gnu.org/cgit/libtool.git/commit/?id=52f78952b9ceb46a8c95a98cd0258fe4b23ce3c1
+COPY libtool-clang-rt-static-archives.patch /tmp/
+
+# Apply the libtool backport and version-specific source compatibility patches.
 #
 # PHP 7.x patches:
 #   - reentrancy.c: configure wrongly detects HAVE_OLD_READDIR_R on musl,
@@ -75,6 +65,9 @@ RUN wget -q "https://www.php.net/distributions/php-${PHP_VERSION}.tar.gz" && \
 # PHP 8.0 and 8.1 patches:
 #   - streams/cast.c: same COOKIE_SEEKER_USES_OFF64_T issue as PHP 7.x.
 RUN \
+    patch -d "php-${PHP_VERSION}" -p1 \
+        < /tmp/libtool-clang-rt-static-archives.patch && \
+    rm /tmp/libtool-clang-rt-static-archives.patch && \
     VER_MAJOR=$(echo "${PHP_VERSION}" | cut -d. -f1) && \
     if [ "${VER_MAJOR}" = "7" ]; then \
         sed -i \
@@ -84,8 +77,8 @@ RUN \
 
 # Build PHP with clang targeting musl.
 # --disable-all: disable all optional extensions (minimal build).
-# musl-clang wrapper encodes the target triple, sysroot, clang flags, and
-# always links -lglibc_compat so the binary works on both musl and glibc.
+# musl-clang applies compiler-rt/libunwind and static-library policy; the image
+# layout supplies the native target, LLD, and cross-libc compatibility layer.
 #
 # Debug builds host the sanitizer runtime for all the instrumented code in the
 # process: PHP links and exports the ASan + UBSan runtimes, and the dlopen'd
@@ -110,6 +103,8 @@ RUN \
 # exports exactly the __ubsan_* interface (the same list clang would use for a
 # C++ program), and the shared libc++abi supplies the handler's typeinfo /
 # __dynamic_cast.
+# Autoconf probes deliberately leak small allocations; suppress LSan only while
+# configure runs so those probes cannot stall or turn successful checks red.
 RUN \
     DEBUG_FLAG=$([ "${PHP_ENABLE_DEBUG}" = "yes" ] && echo "--enable-debug" || echo "") && \
     ZTS_FLAG=$([ "${PHP_ENABLE_ZTS}" = "yes" ] && echo "--enable-zts --disable-zend-signals" || echo "") && \
@@ -119,14 +114,16 @@ RUN \
     SAN_FLAGS="-fsanitize=address,undefined -fno-sanitize=function" && \
     ASAN_CFLAGS=$([ "${PHP_ENABLE_DEBUG}" = "yes" ] && echo "${SAN_FLAGS}" || echo "") && \
     UBSAN_CXX=$(ls /usr/lib/llvm*/lib/clang/*/lib/linux/libclang_rt.ubsan_standalone_cxx-*.a | head -1) && \
-    SAN_LDEXTRA="-Wl,--whole-archive,${UBSAN_CXX},--no-whole-archive -Wl,--dynamic-list=${UBSAN_CXX}.syms -L/usr/asan/lib -Wl,-rpath,/usr/asan/lib /usr/asan/lib/libc++abi.so" && \
+    SAN_LDEXTRA="-Wl,--whole-archive,${UBSAN_CXX},--no-whole-archive -Wl,--dynamic-list=${UBSAN_CXX}.syms -L/usr/asan/lib -Wl,-rpath,/usr/asan/lib -Wl,-Bdynamic -lc++abi -Wl,-Bstatic" && \
     ASAN_LDFLAGS=$([ "${PHP_ENABLE_DEBUG}" = "yes" ] && echo "${SAN_FLAGS} ${SAN_LDEXTRA}" || echo "") && \
+    CONFIGURE_ASAN_OPTIONS=$([ "${PHP_ENABLE_DEBUG}" = "yes" ] && echo "detect_leaks=0" || echo "") && \
     OPT_FLAG=$([ "${PHP_ENABLE_DEBUG}" = "yes" ] && echo "-O0" || echo "-O2") && \
     cd "php-${PHP_VERSION}" && \
+    ASAN_OPTIONS="${CONFIGURE_ASAN_OPTIONS}" \
     CC=musl-clang \
     CXX=musl-clang++ \
     CFLAGS="-g ${OPT_FLAG} ${COMPAT_FLAGS} ${ASAN_CFLAGS}" \
-    LDFLAGS="-fuse-ld=lld ${ASAN_LDFLAGS}" \
+    LDFLAGS="${ASAN_LDFLAGS}" \
     ./configure \
         --disable-all \
         --disable-cgi \
@@ -145,8 +142,8 @@ RUN rm -rf "/php-${PHP_VERSION}"
 # Ensure extension builds (phpize + configure) use our musl toolchain.
 ENV CC=musl-clang CXX=musl-clang++
 
-# For debug builds: patch the musl-clang wrappers so that extensions compiled
-# inside this image (e.g. by build-and-test.sh) are ASAN/UBSan-instrumented.
+# For debug builds, install declarative musl-clang policy so extensions compiled
+# inside this image (e.g. by build-and-test.sh) are ASan/UBSan-instrumented.
 #
 # 1. Inject -fsanitize=address,undefined into every compile/link (matching the
 #    PHP build above). -fno-sanitize=function: the function-pointer-type check
@@ -158,16 +155,7 @@ ENV CC=musl-clang CXX=musl-clang++
 #    (__asan_* / __ubsan_handle_*) resolve at dlopen against the export-dynamic
 #    PHP binary, which is itself built with the same flags.
 #
-# 2. Append the compiler-rt builtins archive to the link. libtool links the
-#    extension with -nostdlib, which drops the builtins clang would normally add
-#    via -rtlib=compiler-rt. Sanitizer-instrumented code emits helpers that live
-#    there: the aarch64 outline-atomics (__aarch64_*, used by the asan shadow
-#    updates) and UBSan's overflow helpers (e.g. __muloti4). Without it the .so
-#    fails to load with "symbol not found". (libc stays dynamic -- see the
-#    has_static note in the musl-clang wrappers -- so the outline-atomics
-#    getauxval ifunc resolver runs against the host's initialized libc.)
-#
-# 3. Set MUSL_CLANG_SANITIZE_CXX=address so musl-clang++ links the
+# 2. Set MUSL_CLANG_SANITIZE_CXX=address so musl-clang++ selects the
 #    ASAN-instrumented shared libc++/libc++abi/libunwind from /usr/asan (built in
 #    musl-build-env) instead of the plain static libc++, keeping libc++'s
 #    container-overflow annotations consistent with the instrumented extension.
@@ -182,14 +170,13 @@ ENV CC=musl-clang CXX=musl-clang++
 # "CHECK failed: real___cxa_throw != 0". The dynamic loader loads DT_NEEDED libs
 # before ASAN's preinit, so adding the dependency makes the real symbol
 # available in time.
+COPY musl-clang-debug.conf /tmp/musl-clang-debug.conf
 RUN if [ "${PHP_ENABLE_DEBUG}" = "yes" ]; then \
-        for f in /usr/local/bin/musl-clang /usr/local/bin/musl-clang++; do \
-            sed -i 's|"$@"|"-fsanitize=address,undefined" "-fno-sanitize=function" "$@"|' "$f"; \
-            sed -i 's#-l:libglibc_compat.a#-l:libglibc_compat.a /usr/lib/libclang_rt.builtins.a#' "$f"; \
-            sed -i '1a export MUSL_CLANG_SANITIZE_CXX=address' "$f"; \
-        done; \
+        mv /tmp/musl-clang-debug.conf /etc/musl-clang.conf; \
         patchelf --add-rpath /usr/asan/lib /usr/local/bin/php; \
         patchelf --add-needed libc++.so.1 /usr/local/bin/php; \
+    else \
+        rm /tmp/musl-clang-debug.conf; \
     fi
 
 # Verify: PHP binary should depend only on musl libc

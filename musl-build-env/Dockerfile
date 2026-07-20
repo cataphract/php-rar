@@ -1,91 +1,90 @@
-# Build environment using Alpine 3.23 with LLVM runtimes built from source.
-# Provides a musl-based toolchain for building portable Linux binaries
-# that work on both musl and glibc systems (via glibc_compat.a).
+# syntax=docker/dockerfile:1
+
+# Native musl build environment with LLVM runtimes built from source. Each image
+# targets its own architecture and produces binaries that can run with either
+# musl or glibc after their libc dependency/interpreter is patched.
 #
 # Build:
-#   docker build --build-arg ARCH=aarch64 -t musl-build-env:latest .
-#   docker build --build-arg ARCH=x86_64  -t musl-build-env:latest .
+#   docker build --platform=linux/arm64 -t musl-build-env:latest .
+#   docker build --platform=linux/amd64 -t musl-build-env:latest .
 
-FROM alpine:3.23.4
-
-# LLVM is pinned (and the tarball checksum verified) so the runtimes we build
-# from source match the system clang Alpine 3.23.4 ships. Bump both together.
+ARG ALPINE_VERSION=3.23.4
 ARG LLVM_VERSION=21.1.2
-ARG ARCH
 
-RUN test -n "${ARCH}" || (echo "ARCH build arg is required (aarch64 or x86_64)" && false)
+FROM alpine:${ALPINE_VERSION} AS toolchain-base
 
-# Install build tools and dependencies. The system clang and llvm/lld are the
-# actual compiler and linker used throughout -- they are NOT rebuilt. Only the
-# runtime libraries are rebuilt from source below: compiler-rt (builtins +
-# sanitizer runtimes) and libc++/libc++abi/libunwind, so they are musl-ABI
-# correct and (for the ASan variant) instrumented. The apk compiler-rt package
-# is the one bootstrap-only piece: it provides builtins so clang can link during
-# the from-source compiler-rt build, then our build overwrites it in the clang
-# resource dir.
+# compiler-rt's musl TLS patch reads map_base/map_size from musl's private
+# pthread layout, so both build and final stages must use this exact revision.
+ARG MUSL_VERSION=1.2.5-r23
 RUN apk --no-cache add \
-    alpine-sdk bash binutils clang cmake compiler-rt \
-    coreutils git linux-headers lld llvm make \
-    musl-dev patchelf python3 wget xz
+        "musl=${MUSL_VERSION}" "musl-dev=${MUSL_VERSION}" \
+        alpine-sdk bash binutils clang cmake compiler-rt \
+        coreutils git linux-headers lld llvm make \
+        patchelf python3 wget xz && \
+    apk info -e "musl=${MUSL_VERSION}" && \
+    apk info -e "musl-dev=${MUSL_VERSION}"
 
-# Apply musl patches for glibc ABI compatibility
-COPY locale.h.diff /locale.h.diff
-RUN cd /usr/include && patch -p0 < /locale.h.diff
+# Clang searches its own program directory before /usr/bin. Supplying ld there
+# makes LLD the Clang default without changing GCC's /usr/bin/ld.
+RUN set -eux; \
+    CLANG_BIN_DIR=$(dirname "$(readlink -f "$(command -v clang)")"); \
+    ln -s /usr/bin/ld.lld "${CLANG_BIN_DIR}/ld"
 
-COPY alltypes.h.diff /alltypes.h.diff
-RUN cd /usr/include && patch -p0 < /alltypes.h.diff
+FROM toolchain-base AS builder
 
-# Download, verify and unpack the LLVM source.
-COPY CHECKSUMS /CHECKSUMS
-RUN wget -q "https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/llvm-project-${LLVM_VERSION}.src.tar.xz" && \
-    grep -F "llvm-project-${LLVM_VERSION}.src.tar.xz" /CHECKSUMS | sha512sum -c - && \
+ARG LLVM_VERSION
+
+# Patch the headers used to build both LLVM runtimes and compatibility objects.
+COPY locale.h.diff alltypes.h.diff /build-input/
+RUN cd /usr/include && \
+    patch -p0 < /build-input/locale.h.diff && \
+    patch -p0 < /build-input/alltypes.h.diff
+
+# Download, verify, unpack, and patch the LLVM source. The patched source tree is
+# retained in the final image, but its build directories are removed first.
+COPY CHECKSUMS /build-input/CHECKSUMS
+RUN cd / && \
+    wget -q "https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/llvm-project-${LLVM_VERSION}.src.tar.xz" && \
+    grep -F "llvm-project-${LLVM_VERSION}.src.tar.xz" /build-input/CHECKSUMS | sha512sum -c - && \
     tar -xf "llvm-project-${LLVM_VERSION}.src.tar.xz" && \
     rm "llvm-project-${LLVM_VERSION}.src.tar.xz"
 
-# Patch compiler-rt for musl. These fix the sanitizer runtimes when built
-# against musl rather than glibc:
+# These compiler-rt patches make sanitizer runtimes built against musl work on
+# both libc implementations:
 #   - tls:      include musl/glibc pthread metadata in the sanitizer TLS range
 #               so LSan sees pointers stored by pthread_setspecific.
-#   - msghdr:   musl's 4-byte msg_iovlen/msg_controllen vs glibc's 8-byte
-#               (otherwise ASAN's recvmsg/sendmsg interceptor reads padding as a
-#               high word and aborts with a ~81 GB length).
-#   - rlimit64: musl has no separate *64 resource/statvfs structs; define the
-#               sizes so the runtime links against musl.
-#   - stat:     musl exports plain stat/fstat (not glibc's __xstat wrappers), so
-#               enable the stat interceptors there too.
+#   - msghdr:   account for musl's narrower msg_iovlen/msg_controllen fields.
+#   - rlimit64: define sizes for musl's non-distinct *64 resource structures.
+#   - stat:     intercept both musl's public APIs and glibc compatibility paths.
 COPY compiler-rt-musl-tls.diff compiler-rt-musl-msghdr.diff \
-     compiler-rt-musl-rlimit64.diff compiler-rt-musl-stat.diff /
-RUN cd "llvm-project-${LLVM_VERSION}.src" && \
-    patch -p1 < /compiler-rt-musl-tls.diff && \
-    patch -p1 < /compiler-rt-musl-msghdr.diff && \
-    patch -p1 < /compiler-rt-musl-rlimit64.diff && \
-    patch -p1 < /compiler-rt-musl-stat.diff
+     compiler-rt-musl-rlimit64.diff compiler-rt-musl-stat.diff /build-input/
+RUN cd "/llvm-project-${LLVM_VERSION}.src" && \
+    patch -p1 < /build-input/compiler-rt-musl-tls.diff && \
+    patch -p1 < /build-input/compiler-rt-musl-msghdr.diff && \
+    patch -p1 < /build-input/compiler-rt-musl-rlimit64.diff && \
+    patch -p1 < /build-input/compiler-rt-musl-stat.diff
 
-# Patch libunwind for musl. glibc 2.35 added _dl_find_object and LLVM libunwind
-# probes for it with dlsym at runtime, but musl's <link.h> doesn't declare the
-# glibc-only ABI, so the source fails to compile. The patch provides the
-# compatible public struct/prototype and keeps the runtime fallback to
-# dl_iterate_phdr when _dl_find_object is absent.
-COPY llvm-libunwind-dl-find-object-runtime.patch /
-RUN cd "llvm-project-${LLVM_VERSION}.src" && \
-    patch -p1 < /llvm-libunwind-dl-find-object-runtime.patch
+# libunwind needs the glibc _dl_find_object ABI declaration when built on musl,
+# while retaining its runtime fallback to dl_iterate_phdr.
+COPY llvm-libunwind-dl-find-object-runtime.patch /build-input/
+RUN cd "/llvm-project-${LLVM_VERSION}.src" && \
+    patch -p1 < /build-input/llvm-libunwind-dl-find-object-runtime.patch
 
-# First build: compiler-rt (builtins + sanitizer runtimes) and the static C++
-# runtime (libunwind, libc++abi, libc++) from source against musl, matching the
-# system clang. libc++ merges libc++abi (ENABLE_STATIC_ABI_LIBRARY=ON) so a bare
-# -lc++ is self-contained; the sanitizer runtimes use the static C++ ABI and
-# unwinder to match.
-RUN set -e && \
-    LLVM_MAJOR=${LLVM_VERSION%%.*} && \
-    cd "llvm-project-${LLVM_VERSION}.src" && mkdir build && cd build && \
-    cmake \
+# First build: compiler-rt plus static libc++/libc++abi/libunwind. Install into
+# an explicit staging root, then expose those files inside the builder so the
+# ASan-instrumented runtime build below can link against them.
+RUN set -eux; \
+    SOURCE_DIR="/llvm-project-${LLVM_VERSION}.src"; \
+    CLANG_RESOURCE_DIR=$(clang -print-resource-dir); \
+    COMPILER_TARGET=$(clang -dumpmachine); \
+    cmake -S "${SOURCE_DIR}/runtimes" -B "${SOURCE_DIR}/build" \
         -DCMAKE_BUILD_TYPE=RelWithDebInfo \
         -DCMAKE_INSTALL_PREFIX=/usr \
         -DCMAKE_C_COMPILER=clang \
-        -DCMAKE_C_COMPILER_TARGET=${ARCH}-alpine-linux-musl \
+        -DCMAKE_C_COMPILER_TARGET="${COMPILER_TARGET}" \
         -DCMAKE_C_FLAGS="-fno-omit-frame-pointer -D_LIBCPP_HAS_NO_C11_ALIGNED_ALLOC=1" \
         -DCMAKE_CXX_COMPILER=clang++ \
-        -DCMAKE_CXX_COMPILER_TARGET=${ARCH}-alpine-linux-musl \
+        -DCMAKE_CXX_COMPILER_TARGET="${COMPILER_TARGET}" \
         -DCMAKE_CXX_FLAGS="-fno-omit-frame-pointer -D_LIBCPP_HAS_NO_C11_ALIGNED_ALLOC=1" \
         -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
         -DLIBUNWIND_ENABLE_SHARED=OFF \
@@ -108,43 +107,37 @@ RUN set -e && \
         -DSANITIZER_USE_STATIC_LLVM_UNWINDER=ON \
         -DCOMPILER_RT_USE_BUILTINS_LIBRARY=ON \
         -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON \
-        -DCOMPILER_RT_INSTALL_PATH=/usr/lib/llvm${LLVM_MAJOR}/lib/clang/${LLVM_MAJOR} \
+        -DCOMPILER_RT_INSTALL_PATH="${CLANG_RESOURCE_DIR}" \
         -DCOMPILER_RT_BUILD_GWP_ASAN=OFF \
         -DCOMPILER_RT_BUILD_LIBFUZZER=OFF \
         -DCOMPILER_RT_BUILD_MEMPROF=OFF \
         -DCOMPILER_RT_BUILD_ORC=OFF \
         -DCOMPILER_RT_BUILD_XRAY=OFF \
         -DCOMPILER_RT_INCLUDE_TESTS=OFF \
-        -DLLVM_ENABLE_RUNTIMES="compiler-rt;libcxx;libcxxabi;libunwind" \
-        ../runtimes && \
-    make -j$(nproc) install-unwind install-cxxabi install-cxx && \
-    make -j$(nproc) install-compiler-rt
+        -DLLVM_ENABLE_RUNTIMES="compiler-rt;libcxx;libcxxabi;libunwind"; \
+    DESTDIR=/opt/runtime-root cmake --build "${SOURCE_DIR}/build" \
+        --parallel "$(nproc)" \
+        --target install-unwind install-cxxabi install-cxx install-compiler-rt; \
+    rm -f /opt/runtime-root/usr/lib/libc++experimental.a; \
+    STAGED_RESOURCE_LIB="/opt/runtime-root${CLANG_RESOURCE_DIR}/lib"; \
+    mv "${STAGED_RESOURCE_LIB}/linux" \
+       "${STAGED_RESOURCE_LIB}/${COMPILER_TARGET}"; \
+    ln -s "${COMPILER_TARGET}" "${STAGED_RESOURCE_LIB}/linux"; \
+    cp -a /opt/runtime-root/. /
 
-# Second build: build ONLY the shared libc++/libc++abi/libunwind (.so) libraries
-# with AddressSanitizer (+ vptr) instrumentation and libc++ assertions enabled,
-# installed under /usr/asan. Having the C++ runtime ASAN-instrumented keeps the
-# container-overflow annotations it emits consistent with ASAN-instrumented
-# consumers (e.g. the rar extension), eliminating false-positive
-# container-overflow reports. We use LLVM_USE_SANITIZER=Address (rather than
-# -shared-libasan) so the .so's are instrumented but link against no ASAN
-# runtime: their __asan_* references stay undefined and resolve at load from the
-# static ASAN runtime already present in the host process (PHP) -- there is no
-# second runtime. LLVM_USE_SANITIZER also drops the -Wl,-z,defs that
-# HandleLLVMOptions otherwise forces on every shared-lib link (which would
-# reject those undefined __asan_* symbols). The musl-clang++ wrapper links these
-# instead of the static libc++ when MUSL_CLANG_SANITIZE_CXX requests it.
-RUN set -e && \
-    LLVM_MAJOR=${LLVM_VERSION%%.*} && \
-    cd "llvm-project-${LLVM_VERSION}.src" && mkdir build-asan && cd build-asan && \
-    cmake \
+# Second build: shared libc++/libc++abi/libunwind with AddressSanitizer (+vptr)
+# instrumentation and extensive libc++ hardening. The libraries intentionally
+# retain undefined __asan_* references for the host executable's static ASan
+# runtime to satisfy.
+RUN set -eux; \
+    SOURCE_DIR="/llvm-project-${LLVM_VERSION}.src"; \
+    cmake -S "${SOURCE_DIR}/runtimes" -B "${SOURCE_DIR}/build-asan" \
         -DCMAKE_BUILD_TYPE=RelWithDebInfo \
         -DCMAKE_INSTALL_PREFIX=/usr/asan \
         -DLLVM_USE_SANITIZER=Address \
         -DCMAKE_C_COMPILER=clang \
-        -DCMAKE_C_COMPILER_TARGET=${ARCH}-alpine-linux-musl \
         -DCMAKE_C_FLAGS="-fno-omit-frame-pointer -D_LIBCPP_HAS_NO_C11_ALIGNED_ALLOC=1" \
         -DCMAKE_CXX_COMPILER=clang++ \
-        -DCMAKE_CXX_COMPILER_TARGET=${ARCH}-alpine-linux-musl \
         -DCMAKE_CXX_FLAGS="-fno-omit-frame-pointer -D_LIBCPP_HAS_NO_C11_ALIGNED_ALLOC=1 -D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE" \
         -DLIBCXX_ADDITIONAL_COMPILE_FLAGS="-fsanitize=vptr" \
         -DCMAKE_SHARED_LINKER_FLAGS="-rtlib=compiler-rt -unwindlib=libunwind" \
@@ -162,80 +155,71 @@ RUN set -e && \
         -DLIBCXX_HAS_MUSL_LIBC=ON \
         -DLIBCXX_USE_COMPILER_RT=ON \
         -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=OFF \
-        -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind" \
-        ../runtimes && \
-    make -j$(nproc) install-unwind install-cxxabi install-cxx
+        -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind"; \
+    DESTDIR=/opt/asan-root cmake --build "${SOURCE_DIR}/build-asan" \
+        --parallel "$(nproc)" \
+        --target install-unwind install-cxxabi install-cxx; \
+    rm -f /opt/asan-root/usr/asan/lib/libc++experimental.a
 
-# libc++experimental.a is never linked and pulls in symbols we don't ship.
-RUN rm -f /usr/lib/libc++experimental.a /usr/asan/lib/libc++experimental.a
-
-RUN rm -rf "/llvm-project-${LLVM_VERSION}.src"
-
-# Set up symlinks for the resource dir and builtins. compiler-rt installs into
-# clang/<major>/lib/linux (COMPILER_RT_DEFAULT_TARGET_ONLY=ON).
-# Use grep -oE (not -oP) since busybox grep lacks Perl regex support.
-RUN set -e && \
-    LLVM_MAJOR=${LLVM_VERSION%%.*} && \
-    GCC_VER=$(ls /usr/lib/gcc/${ARCH}-alpine-linux-musl/) && \
-    echo "LLVM: ${LLVM_MAJOR}, GCC: ${GCC_VER}" && \
-    GCC_DIR=/usr/lib/gcc/${ARCH}-alpine-linux-musl/${GCC_VER} && \
-    CLANG_DIR=/usr/lib/llvm${LLVM_MAJOR}/lib/clang/${LLVM_MAJOR} && \
-    ln -s ${GCC_DIR} /usr/lib/resource_dir && \
-    ln -s ${CLANG_DIR}/lib /usr/lib/resource_dir/lib && \
-    ln -s ${CLANG_DIR}/lib/linux/libclang_rt.builtins-${ARCH}.a \
-        /usr/lib/libclang_rt.builtins.a && \
-    GCC_STDATOMIC=${GCC_DIR}/include/stdatomic.h && \
-    if [ -f "${GCC_STDATOMIC}" ]; then \
-        mv "${GCC_STDATOMIC}" "${GCC_STDATOMIC}_" && \
-        cp ${CLANG_DIR}/include/stdatomic.h "${GCC_STDATOMIC}"; \
-    fi
-
-# Set up sysroot directory structure.
-# Programs compiled with --sysroot=/sysroot/ARCH-none-linux-musl will find
-# headers and libraries via these symlinks.
-RUN mkdir -p /sysroot/${ARCH}-none-linux-musl/usr && \
-    ln -s /usr/lib     /sysroot/${ARCH}-none-linux-musl/usr/lib && \
-    ln -s /usr/include /sysroot/${ARCH}-none-linux-musl/usr/include && \
-    ln -s /lib         /sysroot/${ARCH}-none-linux-musl/lib
-
-# Build glibc_compat.c into a static archive.
-# This library ensures binaries work on both musl and glibc:
-#   - On musl: musl exports __xstat and other glibc compat symbols, so the
-#     wrappers in glibc_compat resolve correctly.
-#   - On glibc: glibc_compat bridges the musl-compiled ABI to glibc internals.
-# Always link against -lglibc_compat; the musl-clang wrapper does this by default.
-COPY glibc_compat.c glibc_compat_exe.c /sysroot/
-RUN CFLAGS="--target=${ARCH}-none-linux-musl \
-      --sysroot=/sysroot/${ARCH}-none-linux-musl \
-      -rtlib=compiler-rt \
-      -fpie -O2 -fno-omit-frame-pointer -ggdb3" && \
-    LIBDIR=/sysroot/${ARCH}-none-linux-musl/usr/lib && \
-    # Base archive: safe for both shared libraries and executables.
-    # -ffunction-sections -fdata-sections puts each function/global in its own
-    # ELF section so the linker (with --gc-sections) can drop unreferenced ones.
-    clang ${CFLAGS} -ffunction-sections -fdata-sections \
-      -c /sysroot/glibc_compat.c -o /tmp/glibc_compat.o && \
-    ar rcs ${LIBDIR}/libglibc_compat.a /tmp/glibc_compat.o && \
-    # Executable-only object: adds a .preinit_array entry that calls
-    # .init_array constructors.
-    # Shipped as a .o (not .a) so the linker always includes it — the
-    # .preinit_array section has no referenced symbols.
-    clang ${CFLAGS} \
-      -c /sysroot/glibc_compat_exe.c -o ${LIBDIR}/glibc_compat_exe.o && \
+# Build the compatibility archive with hidden symbols (equivalent to the old
+# --exclude-libs policy) and the executable-only preinit/fini object.
+COPY glibc_compat.c glibc_compat_exe.c /build-input/
+RUN mkdir -p /opt/compat && \
+    clang -fpie -O2 -fno-omit-frame-pointer -ggdb3 \
+      -fvisibility=hidden -ffunction-sections -fdata-sections \
+      -c /build-input/glibc_compat.c -o /tmp/glibc_compat.o && \
+    llvm-ar rcs /opt/compat/libglibc_compat.a /tmp/glibc_compat.o && \
+    clang -fpie -O2 -fno-omit-frame-pointer -ggdb3 \
+      -c /build-input/glibc_compat_exe.c \
+      -o /opt/compat/glibc_compat_exe.o && \
     rm /tmp/glibc_compat.o
 
-# Install CMake toolchain file for this architecture
-COPY Toolchain.cmake.${ARCH} /sysroot/${ARCH}-none-linux-musl/Toolchain.cmake
+# Keep patched LLVM sources, but never copy build trees or their intermediates
+# into the final image.
+RUN rm -rf "/llvm-project-${LLVM_VERSION}.src/build" \
+           "/llvm-project-${LLVM_VERSION}.src/build-asan"
 
-# Install musl-clang / musl-clang++ wrapper scripts.
-# These encode the target triple, sysroot, required compiler flags, and always
-# link -lglibc_compat so every binary works on both musl and glibc systems.
-COPY musl-clang.sh   /usr/local/bin/musl-clang
-COPY musl-clang++.sh /usr/local/bin/musl-clang++
-RUN chmod +x /usr/local/bin/musl-clang /usr/local/bin/musl-clang++
+FROM toolchain-base AS final
 
-# compiler-rt's musl TLS patch reads map_base/map_size from musl's private
-# pthread layout. Fail the build if the package revision with that layout moves.
+ARG LLVM_VERSION
 ARG MUSL_VERSION=1.2.5-r23
-RUN apk info -e "musl=${MUSL_VERSION}" && \
-    apk info -e "musl-dev=${MUSL_VERSION}"
+
+COPY --from=builder /opt/runtime-root/ /
+COPY --from=builder /opt/asan-root/ /
+COPY --from=builder /usr/include/bits/alltypes.h /usr/include/bits/alltypes.h
+COPY --from=builder /usr/include/locale.h /usr/include/locale.h
+COPY --from=builder /opt/compat/libglibc_compat.a /usr/lib/libglibc_compat.a
+COPY --from=builder /opt/compat/glibc_compat_exe.o /usr/lib/glibc_compat_exe.o
+COPY --from=builder /llvm-project-${LLVM_VERSION}.src /llvm-project-${LLVM_VERSION}.src
+
+COPY Toolchain.cmake /usr/local/share/musl/Toolchain.cmake
+COPY musl-clang.sh /usr/local/bin/musl-clang
+COPY libc.so.ld /usr/lib/libc.so.ld
+
+# Integrate compatibility behavior into normal linker inputs:
+#   - libc.so pulls hidden glibc_compat plus an extensible downstream archive;
+#   - executable CRT objects contain the preinit/fini shim;
+#   - Clang finds compiler-rt in its real resource directory.
+RUN set -eux; \
+    MUSL_LIBC=$(readlink -f /usr/lib/libc.so); \
+    sed -i "s|@MUSL_LIBC@|${MUSL_LIBC}|" /usr/lib/libc.so.ld; \
+    rm /usr/lib/libc.so; \
+    mv /usr/lib/libc.so.ld /usr/lib/libc.so; \
+    llvm-ar rcs /usr/lib/libadditional_compat.a; \
+    ld.lld -r /usr/lib/Scrt1.o /usr/lib/glibc_compat_exe.o -o /tmp/Scrt1.o; \
+    mv /tmp/Scrt1.o /usr/lib/Scrt1.o; \
+    ld.lld -r /usr/lib/crt1.o /usr/lib/glibc_compat_exe.o -o /tmp/crt1.o; \
+    mv /tmp/crt1.o /usr/lib/crt1.o; \
+    rm /usr/lib/glibc_compat_exe.o; \
+    BUILTINS=$(clang -rtlib=compiler-rt --print-libgcc-file-name); \
+    ln -s "${BUILTINS}" /usr/lib/libclang_rt.builtins.a; \
+    chmod +x /usr/local/bin/musl-clang; \
+    ln -s musl-clang /usr/local/bin/musl-clang++; \
+    LEGACY_TOOLCHAIN_DIR="/sysroot/$(uname -m)-none-linux-musl"; \
+    mkdir -p "${LEGACY_TOOLCHAIN_DIR}"; \
+    ln -s /usr/local/share/musl/Toolchain.cmake \
+        "${LEGACY_TOOLCHAIN_DIR}/Toolchain.cmake"; \
+    apk info -e "musl=${MUSL_VERSION}"; \
+    apk info -e "musl-dev=${MUSL_VERSION}"; \
+    test ! -e "/llvm-project-${LLVM_VERSION}.src/build"; \
+    test ! -e "/llvm-project-${LLVM_VERSION}.src/build-asan"

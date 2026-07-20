@@ -1,122 +1,108 @@
 #!/bin/bash
 
-set -eo pipefail
-ARCH=$(uname -m)
-SYSROOT="/sysroot/${ARCH}-none-linux-musl"
+set -euo pipefail
 
-# Compile-only: no linker logic needed.
-for arg in "$@"; do
-    case "$arg" in
-        -c|-S|-E)
-            exec clang \
-                --target="${ARCH}-none-linux-musl" \
-                --sysroot="${SYSROOT}" \
-                -rtlib=compiler-rt \
-                -unwindlib=libunwind \
-                -fno-omit-frame-pointer \
-                -Qunused-arguments \
-                "$@"
-            ;;
-    esac
-done
+driver=clang
+cxx=false
+case "${0##*/}" in
+    *++)
+        driver=clang++
+        cxx=true
+        ;;
+esac
 
-# --- Link mode ---
-
-# Detect executable vs shared library.
-linking_exe=true
-for arg in "$@"; do
-    case "$arg" in
-        -shared) linking_exe=false; break;;
-    esac
-done
-
-exe_flags=()
-if $linking_exe; then
-    exe_flags=("${SYSROOT}/usr/lib/glibc_compat_exe.o")
+# Derived images can install a declarative policy without editing this script.
+# The file may assign MUSL_CLANG_SANITIZE_CXX and the two Bash arrays below.
+MUSL_CLANG_COMPILE_FLAGS=()
+MUSL_CLANG_LINK_FLAGS=()
+if [[ -r /etc/musl-clang.conf ]]; then
+    # shellcheck source=/dev/null
+    source /etc/musl-clang.conf
 fi
 
-# Collect library search paths: user -L flags then internal clang paths.
-lib_paths=()
-prev=""
-for arg in "$@"; do
-    if [[ "$prev" == "-L" ]]; then
-        lib_paths+=("$arg")
-    else
-        case "$arg" in -L?*) lib_paths+=("${arg#-L}");; esac
-    fi
-    prev="$arg"
-done
-IFS=: read -r -a _clang_dirs <<< "$(clang --target="${ARCH}-none-linux-musl" \
-    --sysroot="${SYSROOT}" -rtlib=compiler-rt \
-    -print-search-dirs 2>/dev/null | sed -n 's/^libraries: =//p')"
-for _d in "${_clang_dirs[@]}"; do
-    [[ -n "$_d" ]] && lib_paths+=("$_d")
-done
+common_flags=(-fno-omit-frame-pointer)
+if $cxx; then
+    common_flags+=(-stdlib=libc++)
+fi
 
-# Check if libNAME.a exists in any search path.
-has_static() {
-    # Never statically link libc. The output (shared object or executable) must
-    # resolve libc dynamically against the host's libc at runtime, exactly like
-    # the PHP binary does. Statically linking libc would (a) duplicate symbols
-    # that glibc_compat deliberately overrides (strerror_r, sigsetjmp, atexit,
-    # ...) and (b) embed a second, uninitialized libc state -- e.g. getauxval()
-    # dereferencing a NULL auxv pointer and crashing when the object is dlopen'd
-    # into an already-running process. It also lets the host's sanitizer
-    # interceptors see the object's libc calls instead of bypassing them.
-    [[ "$1" == "c" ]] && return 1
-    for _dir in "${lib_paths[@]}"; do
-        [[ -f "$_dir/lib${1}.a" ]] && return 0
-    done
-    return 1
-}
-
-# Rewrite arguments: for each -l flag, if a .a exists prefer it via
-# --push-state -Bstatic ... --pop-state.  Everything else passes through.
-new_args=()
-prev_was_l=false
+# Do not pass link-only policy to dependency generation, preprocessing,
+# assembly, syntax checks, or object compilation.
+compile_only=false
 for arg in "$@"; do
-    if $prev_was_l; then
-        # "-l name" (space-separated form)
-        if has_static "$arg"; then
-            new_args+=(-Wl,--push-state -Wl,-Bstatic "-l$arg" -Wl,--pop-state)
-        else
-            new_args+=("-l$arg")
-        fi
-        prev_was_l=false
-        continue
-    fi
     case "$arg" in
-        -l)
-            prev_was_l=true
-            ;;
-        -l:*)
-            # Explicit filename (-l:libfoo.a) — pass through unchanged.
-            new_args+=("$arg")
-            ;;
-        -l*)
-            name="${arg#-l}"
-            if has_static "$name"; then
-                new_args+=(-Wl,--push-state -Wl,-Bstatic "$arg" -Wl,--pop-state)
-            else
-                new_args+=("$arg")
-            fi
-            ;;
-        *)
-            new_args+=("$arg")
+        -c|-S|-E|-M|-MM|-fsyntax-only)
+            compile_only=true
+            break
             ;;
     esac
 done
 
-exec clang \
-    --target="${ARCH}-none-linux-musl" \
-    --sysroot="${SYSROOT}" \
+if $compile_only; then
+    exec "$driver" \
+        "${common_flags[@]}" \
+        "${MUSL_CLANG_COMPILE_FLAGS[@]}" \
+        "$@"
+fi
+
+asan_cxx=false
+if $cxx; then
+    case "${MUSL_CLANG_SANITIZE_CXX:-}" in
+        *address*) asan_cxx=true ;;
+    esac
+fi
+
+# In ASan C++ mode, omit explicit runtime libraries supplied by build systems.
+# Clang's implicit -lc++ will resolve to /usr/asan/lib below and that DSO already
+# depends on its matching libc++abi and libunwind DSOs.
+link_args=("$@")
+if $asan_cxx; then
+    filtered_args=()
+    previous_was_l=false
+    for arg in "$@"; do
+        if $previous_was_l; then
+            case "$arg" in
+                c++|c++abi|unwind) ;;
+                *) filtered_args+=(-l "$arg") ;;
+            esac
+            previous_was_l=false
+            continue
+        fi
+        case "$arg" in
+            -l)
+                previous_was_l=true
+                ;;
+            -lc++|-lc++abi|-lunwind)
+                ;;
+            *)
+                filtered_args+=("$arg")
+                ;;
+        esac
+    done
+    $previous_was_l && filtered_args+=(-l)
+    link_args=("${filtered_args[@]}")
+fi
+
+cxx_runtime_flags=()
+if $cxx; then
+    if $asan_cxx; then
+        cxx_runtime_flags=(-L/usr/asan/lib -Wl,-rpath,/usr/asan/lib)
+    else
+        cxx_runtime_flags=(-static-libstdc++)
+    fi
+fi
+
+# Start user-specified libraries in static mode, while allowing an explicit
+# -Bdynamic from the caller to override that preference. Pop the state before
+# Clang emits its implicit compiler runtimes and dynamic libc.
+exec "$driver" \
+    "${common_flags[@]}" \
+    "${MUSL_CLANG_COMPILE_FLAGS[@]}" \
     -rtlib=compiler-rt \
     -unwindlib=libunwind \
-    -fno-omit-frame-pointer \
-    -Qunused-arguments \
-    -fuse-ld=lld \
     -Wl,--gc-sections \
-    "${new_args[@]}" \
-    -l:libglibc_compat.a \
-    -Wl,--exclude-libs,libglibc_compat.a \
-    "${exe_flags[@]}"
+    "${cxx_runtime_flags[@]}" \
+    -Wl,--push-state \
+    -Wl,-Bstatic \
+    "${link_args[@]}" \
+    -Wl,--pop-state \
+    "${MUSL_CLANG_LINK_FLAGS[@]}"
