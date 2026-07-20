@@ -1,0 +1,30 @@
+--- a/Zend/zend_portability.h
++++ b/Zend/zend_portability.h
+@@ -339,11 +339,7 @@
+
+ # endif /* !CRAY */
+
+-# ifdef offsetof
+-# define XtOffsetOf(s_type, field) offsetof(s_type, field)
+-# else
+-# define XtOffsetOf(s_type, field) XtOffset(s_type*, field)
+-# endif
++# define XtOffsetOf(s_type, field) __builtin_offsetof(s_type, field)
+
+ #endif
+
+--- a/main/php.h
++++ b/main/php.h
+@@ -430,11 +430,7 @@
+ #endif /* ! XtOffset */
+
+ #ifndef XtOffsetOf
+-#ifdef offsetof
+-#define XtOffsetOf(s_type, field) offsetof(s_type, field)
+-#else
+-#define XtOffsetOf(s_type, field) XtOffset(s_type*, field)
+-#endif
++#define XtOffsetOf(s_type, field) __builtin_offsetof(s_type, field)
+ #endif /* !XtOffsetOf */
+
+ #endif

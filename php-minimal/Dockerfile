@@ -53,6 +53,17 @@ RUN wget -q "https://www.php.net/distributions/php-${PHP_VERSION}.tar.gz" && \
 # https://git.savannah.gnu.org/cgit/libtool.git/commit/?id=52f78952b9ceb46a8c95a98cd0258fe4b23ce3c1
 COPY libtool-clang-rt-static-archives.patch /tmp/
 
+# PHP through 8.2 discards caller-provided LDFLAGS before constructing the
+# program link command. Backport the PHP 8.3 fix so sanitizer runtimes and their
+# dynamic export list reach the final PHP executable:
+# https://github.com/php/php-src/commit/cf587c1a1b6af7b693ef28f6db873d82f4055b0a
+COPY php-preserve-ldflags.patch /tmp/
+
+# PHP 7.0 defines XtOffsetOf using a null-pointer member expression before
+# offsetof is available. Use Clang's builtin so UBSan does not diagnose those
+# offset calculations as null member accesses during startup.
+COPY php-7.0-builtin-offsetof.patch /tmp/
+
 # Apply the libtool backport and version-specific source compatibility patches.
 #
 # PHP 7.x patches:
@@ -67,8 +78,20 @@ COPY libtool-clang-rt-static-archives.patch /tmp/
 RUN \
     patch -d "php-${PHP_VERSION}" -p1 \
         < /tmp/libtool-clang-rt-static-archives.patch && \
-    rm /tmp/libtool-clang-rt-static-archives.patch && \
     VER_MAJOR=$(echo "${PHP_VERSION}" | cut -d. -f1) && \
+    VER_MINOR=$(echo "${PHP_VERSION}" | cut -d. -f2) && \
+    if [ "${VER_MAJOR}" -lt 8 ] || \
+       { [ "${VER_MAJOR}" -eq 8 ] && [ "${VER_MINOR}" -le 2 ]; }; then \
+        patch -d "php-${PHP_VERSION}" -p1 \
+            < /tmp/php-preserve-ldflags.patch; \
+    fi && \
+    if [ "${VER_MAJOR}" = "7" ] && [ "${VER_MINOR}" = "0" ]; then \
+        patch -d "php-${PHP_VERSION}" -p1 \
+            < /tmp/php-7.0-builtin-offsetof.patch; \
+    fi && \
+    rm /tmp/libtool-clang-rt-static-archives.patch \
+       /tmp/php-preserve-ldflags.patch \
+       /tmp/php-7.0-builtin-offsetof.patch && \
     if [ "${VER_MAJOR}" = "7" ]; then \
         sed -i \
             's/readdir_r(dirp, entry);/struct dirent *_rdr; (void)readdir_r(dirp, entry, \&_rdr);/' \

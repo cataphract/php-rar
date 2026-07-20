@@ -1,0 +1,20 @@
+--- a/configure
++++ b/configure
+@@ -86142,9 +86142,9 @@
+ if test "$ac_cv_lib_crypt_crypt" = "yes"; then
+   EXTRA_LIBS="-lcrypt $EXTRA_LIBS -lcrypt"
+ fi
+
+-unset LIBS LDFLAGS
++unset LIBS
+
+
+
+ # Check whether --enable- was given.
+@@ -87487,5 +87487,5 @@
+ ZEND_EXTRA_LIBS="$LIBS"
+-unset LIBS LDFLAGS
++unset LIBS
+
+
+ # Check whether --enable- was given.
