@@ -82,6 +82,36 @@ if $asan_cxx; then
     link_args=("${filtered_args[@]}")
 fi
 
+# An explicit -lc from the caller (e.g. libtool's C++ tag links with -nostdlib
+# and spells out the runtime libraries itself) must not be resolved inside the
+# -Bstatic region
+rewritten_args=()
+previous_was_l=false
+for arg in "${link_args[@]}"; do
+    if $previous_was_l; then
+        previous_was_l=false
+        if [[ $arg == c ]]; then
+            rewritten_args+=(-Wl,--push-state -Wl,-Bdynamic -lc -Wl,--pop-state)
+        else
+            rewritten_args+=(-l "$arg")
+        fi
+        continue
+    fi
+    case "$arg" in
+        -l)
+            previous_was_l=true
+            ;;
+        -lc)
+            rewritten_args+=(-Wl,--push-state -Wl,-Bdynamic -lc -Wl,--pop-state)
+            ;;
+        *)
+            rewritten_args+=("$arg")
+            ;;
+    esac
+done
+$previous_was_l && rewritten_args+=(-l)
+link_args=("${rewritten_args[@]}")
+
 cxx_runtime_flags=()
 if $cxx; then
     if $asan_cxx; then
