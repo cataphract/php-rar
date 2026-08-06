@@ -196,7 +196,6 @@ ENV CC=musl-clang CXX=musl-clang++
 COPY musl-clang-debug.conf /tmp/musl-clang-debug.conf
 RUN if [ "${PHP_ENABLE_DEBUG}" = "yes" ]; then \
         mv /tmp/musl-clang-debug.conf /etc/musl-clang.conf; \
-        patchelf --add-rpath /usr/asan/lib /usr/local/bin/php; \
         patchelf --add-needed libc++.so.1 /usr/local/bin/php; \
     else \
         rm /tmp/musl-clang-debug.conf; \

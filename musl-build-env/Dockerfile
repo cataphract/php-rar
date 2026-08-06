@@ -193,13 +193,17 @@ COPY --from=builder /opt/compat/glibc_compat_exe.o /usr/lib/glibc_compat_exe.o
 COPY --from=builder /llvm-project-${LLVM_VERSION}.src /llvm-project-${LLVM_VERSION}.src
 
 COPY Toolchain.cmake /usr/local/share/musl/Toolchain.cmake
+COPY glibc-*-symbols*.txt /usr/local/share/musl/
 COPY musl-clang.sh /usr/local/bin/musl-clang
+COPY musl-ld.sh /usr/local/bin/musl-ld
 COPY libc.so.ld /usr/lib/libc.so.ld
 
 # Integrate compatibility behavior into normal linker inputs:
 #   - libc.so pulls hidden glibc_compat plus an extensible downstream archive;
 #   - executable CRT objects contain the preinit/fini shim;
-#   - Clang finds compiler-rt in its real resource directory.
+#   - Clang finds compiler-rt in its real resource directory;
+#   - the linker wrapper adds glibc compatibility dependencies when required.
+#     See SYMBOL_LISTS.md for the source versions and architecture differences.
 RUN set -eux; \
     MUSL_LIBC=$(readlink -f /usr/lib/libc.so); \
     sed -i "s|@MUSL_LIBC@|${MUSL_LIBC}|" /usr/lib/libc.so.ld; \
@@ -213,8 +217,11 @@ RUN set -eux; \
     rm /usr/lib/glibc_compat_exe.o; \
     BUILTINS=$(clang -rtlib=compiler-rt --print-libgcc-file-name); \
     ln -s "${BUILTINS}" /usr/lib/libclang_rt.builtins.a; \
-    chmod +x /usr/local/bin/musl-clang; \
+    chmod +x /usr/local/bin/musl-clang /usr/local/bin/musl-ld; \
     ln -s musl-clang /usr/local/bin/musl-clang++; \
+    CLANG_BIN_DIR=$(dirname "$(readlink -f "$(command -v clang)")"); \
+    ln -sf /usr/local/bin/musl-ld "${CLANG_BIN_DIR}/ld"; \
+    ln -sf /usr/local/bin/musl-ld "${CLANG_BIN_DIR}/ld.lld"; \
     LEGACY_TOOLCHAIN_DIR="/sysroot/$(uname -m)-none-linux-musl"; \
     mkdir -p "${LEGACY_TOOLCHAIN_DIR}"; \
     ln -s /usr/local/share/musl/Toolchain.cmake \

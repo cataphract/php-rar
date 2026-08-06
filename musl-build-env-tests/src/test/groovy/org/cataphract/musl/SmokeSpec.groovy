@@ -8,6 +8,13 @@ class SmokeSpec extends CrossLibcSpecification {
 
         then:
         results.assertSuccess()
+        program.muslExecutableDependencies.intersect([
+            'libpthread.so.0',
+            'librt.so.1',
+            'libm.so.6',
+            'libdl.so.2',
+            'libutil.so.1',
+        ]).isEmpty()
         results.glibc.stdout.trim() == 'hello from musl-build-env'
         results.musl.stdout.trim() == 'hello from musl-build-env'
     }

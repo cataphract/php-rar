@@ -60,25 +60,6 @@ static int is_glibc(void)
     return v;
 }
 
-// Returns a handle for the library containing floating-point env functions
-// (fegetround, fesetround, …): libm.so.6 on glibc, musl libc on musl.
-static void *libm_handle(void)
-{
-    static _Atomic(void *) h;
-    return LAZY_RESOLVE(h,
-        ({
-            const char *dso = is_glibc() ? "libm.so.6" : MUSL_LIBC_DSO;
-            void *_h = dlopen(dso, RTLD_LAZY);
-            if (!_h) {
-                (void)fprintf(stderr, "glibc_compat: dlopen(%s) failed: %s\n",
-                              dso, dlerror());
-                abort();
-            }
-            _h;
-        }),
-        dlclose(p));
-}
-
 // Resolve a symbol from a handle, aborting if not found.
 static void *xdlsym(void *handle, const char *name)
 {
@@ -90,42 +71,6 @@ static void *xdlsym(void *handle, const char *name)
     }
     return sym;
 }
-
-#    ifdef __x86_64__
-float ceilf(float x)
-{
-    float result;
-    // NOLINTNEXTLINE(hicpp-no-assembler)
-    __asm__("roundss $0x0A, %[x], %[result]"
-            : [result] "=x"(result)
-            : [x] "x"(x));
-    return result;
-}
-double ceil(double x)
-{
-    double result;
-    // NOLINTNEXTLINE(hicpp-no-assembler)
-    __asm__("roundsd $0x0A, %[x], %[result]"
-            : [result] "=x"(result)
-            : [x] "x"(x));
-    return result;
-}
-#    endif
-
-#    ifdef __aarch64__
-float ceilf(float x)
-{
-    float result;
-    __asm__("frintp %s0, %s1\n" : "=w"(result) : "w"(x));
-    return result;
-}
-double ceil(double x)
-{
-    double result;
-    __asm__("frintp %d0, %d1\n" : "=w"(result) : "w"(x));
-    return result;
-}
-#    endif
 
 #    ifdef __aarch64__
 #        define _STAT_VER 0
@@ -338,15 +283,11 @@ int memfd_create(const char *name, unsigned flags) {
 }
 
 // __flt_rounds is a musl internal that returns the FLT_ROUNDS value.
-// glibc doesn't export it; fegetround() provides the same information.
-// fegetround lives in libm.so.6 on glibc and in libc on musl, so we resolve
-// it at runtime via libm_handle() rather than calling it as a direct PLT ref.
+// glibc doesn't export it; fegetround() provides the same information. The
+// post-link step adds glibc's libm dependency for this direct reference.
 int __flt_rounds(void)
 {
-    static _Atomic(void *) p_fegetround;
-    void *fn = LAZY_RESOLVE(p_fegetround,
-                   xdlsym(libm_handle(), "fegetround"), (void)p);
-    switch (((int (*)(void))fn)()) {
+    switch (fegetround()) {
         case FE_TONEAREST:  return 1;
         case FE_UPWARD:     return 2;
         case FE_DOWNWARD:   return 3;

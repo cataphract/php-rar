@@ -142,6 +142,7 @@ final class CrossLibcTestHarness implements Closeable {
 
         Path hostMuslSharedLibrary = null
         Path hostGlibcSharedLibrary = null
+        List<String> muslSharedLibraryDependencies = null
         if (hostSharedLibrarySource != null) {
             buildContainer.copyFileToContainer(
                 MountableFile.forHostPath(hostSharedLibrarySource),
@@ -153,6 +154,8 @@ final class CrossLibcTestHarness implements Closeable {
                     '-shared', '-fPIC', '-Wl,-soname,musl-test-module.so',
                     '-o', containerMuslSharedLibrary)
             )
+            muslSharedLibraryDependencies = neededLibraries(
+                containerMuslSharedLibrary, sharedLibraryResource)
             assertSuccess(
                 "prepare the glibc shared library for ${sharedLibraryResource}",
                 buildContainer.execInContainer(
@@ -176,6 +179,8 @@ final class CrossLibcTestHarness implements Closeable {
             "compile ${classpathResource}",
             buildContainer.execInContainer(command as String[])
         )
+        List<String> muslExecutableDependencies = neededLibraries(
+            containerMuslExecutable, classpathResource)
 
         assertSuccess(
             "prepare the glibc executable for ${classpathResource}",
@@ -193,7 +198,16 @@ final class CrossLibcTestHarness implements Closeable {
 
         return new CompiledProgram(
             id, hostMuslExecutable, hostGlibcExecutable,
-            hostMuslSharedLibrary, hostGlibcSharedLibrary, classpathResource)
+            hostMuslSharedLibrary, hostGlibcSharedLibrary,
+            muslExecutableDependencies, muslSharedLibraryDependencies,
+            classpathResource)
+    }
+
+    private List<String> neededLibraries(String path, String resource) {
+        return successfulOutput(
+            "read dependencies for ${resource}",
+            buildContainer.execInContainer('patchelf', '--print-needed', path)
+        ).readLines()
     }
 
     private Container.ExecResult run(GenericContainer<?> runtimeContainer,
@@ -227,7 +241,6 @@ final class CrossLibcTestHarness implements Closeable {
             if test -n "\${musl_libc}"; then
                 patchelf --replace-needed "\${musl_libc}" libc.so.6 '${destination}'
             fi
-            patchelf --add-needed libpthread.so.0 --add-needed libdl.so.2 '${destination}'
         """.stripIndent()
     }
 
@@ -250,7 +263,6 @@ final class CrossLibcTestHarness implements Closeable {
             test -n "\${musl_libc}"
             patchelf --set-interpreter '${interpreter}' \\
                 --replace-needed "\${musl_libc}" libc.so.6 '${destination}'
-            patchelf --add-needed libpthread.so.0 --add-needed libdl.so.2 '${destination}'
         """.stripIndent()
     }
 
@@ -347,16 +359,22 @@ final class CompiledProgram {
     final Path glibcExecutable
     final Path muslSharedLibrary
     final Path glibcSharedLibrary
+    final List<String> muslExecutableDependencies
+    final List<String> muslSharedLibraryDependencies
     final String sourceResource
 
     CompiledProgram(String id, Path muslExecutable, Path glibcExecutable,
                     Path muslSharedLibrary, Path glibcSharedLibrary,
+                    List<String> muslExecutableDependencies,
+                    List<String> muslSharedLibraryDependencies,
                     String sourceResource) {
         this.id = id
         this.muslExecutable = muslExecutable
         this.glibcExecutable = glibcExecutable
         this.muslSharedLibrary = muslSharedLibrary
         this.glibcSharedLibrary = glibcSharedLibrary
+        this.muslExecutableDependencies = muslExecutableDependencies
+        this.muslSharedLibraryDependencies = muslSharedLibraryDependencies
         this.sourceResource = sourceResource
     }
 }

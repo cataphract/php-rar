@@ -53,6 +53,14 @@ jobs:
           -PglibcImage=ubuntu:20.04
           -PmuslImage=alpine:3.12
 
+      - name: Test with glibc 2.33 and Alpine 3.24
+        working-directory: musl-build-env-tests
+        run: >-
+          ./gradlew test --no-daemon
+          -PbuildEnvImage=musl-build-env:ci
+          -PglibcImage=fedora:34
+          -PmuslImage=alpine:3.24
+
       - name: Test with Ubuntu 26.04 and Alpine 3.24
         working-directory: musl-build-env-tests
         run: >-

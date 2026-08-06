@@ -9,6 +9,7 @@ class FltRoundsCompatSpec extends CrossLibcSpecification {
 
         then:
         results.assertSuccess()
+        program.muslExecutableDependencies.contains('libm.so.6')
         results.glibc.stdout.trim() == 'flt-rounds-ok'
         results.musl.stdout.trim() == 'flt-rounds-ok'
     }
