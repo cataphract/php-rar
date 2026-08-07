@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+
+version="${PHP_SDK_VERSION:-8.5}"
+tool="${PHP_SDK_ROOT:-/opt/php}/${version}/bin/php-config"
+
+if [ ! -x "${tool}" ]; then
+    echo "php-config: PHP SDK ${version} is not installed" >&2
+    exit 1
+fi
+
+exec "${tool}" "$@"

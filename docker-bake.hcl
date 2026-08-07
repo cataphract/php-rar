@@ -57,3 +57,26 @@ target "php-minimal-arm64" {
   }
   tags = ["ghcr.io/cataphract/php-minimal:${PHP_MINOR}-${PHP_VARIANT}-aarch64"]
 }
+
+target "_php-buildonly" {
+  context    = "./php-buildonly"
+  dockerfile = "Dockerfile"
+}
+
+target "php-buildonly-amd64" {
+  inherits  = ["_php-buildonly"]
+  platforms = ["linux/amd64"]
+  args = {
+    BUILD_ENV_IMAGE = "ghcr.io/cataphract/musl-build-env:latest-x86_64"
+  }
+  tags = ["ghcr.io/cataphract/php-buildonly:latest-x86_64"]
+}
+
+target "php-buildonly-arm64" {
+  inherits  = ["_php-buildonly"]
+  platforms = ["linux/arm64"]
+  args = {
+    BUILD_ENV_IMAGE = "ghcr.io/cataphract/musl-build-env:latest-aarch64"
+  }
+  tags = ["ghcr.io/cataphract/php-buildonly:latest-aarch64"]
+}

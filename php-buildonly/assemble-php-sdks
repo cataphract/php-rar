@@ -1,0 +1,163 @@
+#!/bin/sh
+set -eu
+
+sdk_root="${PHP_SDK_ROOT:-/opt/php}"
+debug_stack_edit='s@^#define ZEND_CHECK_STACK_LIMIT 1$@/* #undef ZEND_CHECK_STACK_LIMIT */@'
+max_timer_edit='s@^/\* #undef ZEND_MAX_EXECUTION_TIMERS \*/$@#define ZEND_MAX_EXECUTION_TIMERS 1@'
+
+break_link()
+{
+    file="$1"
+    cp -p "${file}" "${file}.new"
+    mv "${file}.new" "${file}"
+}
+
+rewrite_debug_metadata()
+{
+    file="$1"
+
+    sed -i \
+        -e "/^#define CONFIGURE_COMMAND / s@\"\$@ '--enable-debug'\"@" \
+        -e "/^configure_options=/ s@\"\$@ '--enable-debug'\"@" \
+        -e 's@/no-debug-non-zts-@/debug-non-zts-@g' \
+        "${file}"
+}
+
+rewrite_zts_metadata()
+{
+    file="$1"
+    zts_option="$2"
+
+    sed -i \
+        -e "/^#define CONFIGURE_COMMAND / s@\"\$@ '${zts_option}' '--disable-zend-signals'\"@" \
+        -e "/^configure_options=/ s@\"\$@ '${zts_option}' '--disable-zend-signals'\"@" \
+        -e 's@/no-debug-non-zts-@/no-debug-zts-@g' \
+        "${file}"
+}
+
+make_variant()
+{
+    version="$1"
+    variant="$2"
+    release_prefix="${sdk_root}/${version}"
+    prefix="${sdk_root}/${version}-${variant}"
+    php_config_h="${prefix}/include/php/main/php_config.h"
+    build_defs_h="${prefix}/include/php/main/build-defs.h"
+
+    mkdir -p "${prefix}/include" "${prefix}/bin" "${prefix}/lib/php"
+    cp -al "${release_prefix}/include/php" "${prefix}/include/php"
+    cp -p "${release_prefix}/bin/php-config" "${prefix}/bin/php-config"
+    ln -s "${release_prefix}/bin/phpize" "${prefix}/bin/phpize"
+    ln -s "${release_prefix}/lib/php/build" "${prefix}/lib/php/build"
+
+    # These are the only two headers generated differently by PHP's
+    # release, debug, and ZTS configurations. Break their hard links before
+    # changing them so the common header payload remains shared.
+    break_link "${php_config_h}"
+    break_link "${build_defs_h}"
+    sed -i "s|^prefix=.*|prefix='${prefix}'|" \
+        "${prefix}/bin/php-config"
+
+    case "${variant}" in
+        debug)
+            sed -i \
+                -e 's/^#define ZEND_DEBUG 0$/#define ZEND_DEBUG 1/' \
+                "${php_config_h}"
+
+            case "${version}" in
+                7.0|7.1|7.2|7.3)
+                    sed -i \
+                        's/^#define PHP_BUILD_DEBUG ""$/#define PHP_BUILD_DEBUG " -Wall"/' \
+                        "${build_defs_h}"
+                    ;;
+                8.3)
+                    sed -i "${debug_stack_edit}" "${php_config_h}"
+                    ;;
+            esac
+
+            rewrite_debug_metadata "${build_defs_h}"
+            rewrite_debug_metadata "${prefix}/bin/php-config"
+            ;;
+        release-zts)
+            sed -i \
+                -e 's@^/\* #undef ZTS \*/$@#define ZTS 1@' \
+                -e 's@^/\* #undef PTHREADS \*/$@#define PTHREADS 1@' \
+                -e 's@^#define ZEND_SIGNALS 1$@/* #undef ZEND_SIGNALS */@' \
+                "${php_config_h}"
+
+            case "${version}" in
+                8.3|8.4|8.5)
+                    sed -i "${max_timer_edit}" "${php_config_h}"
+                    ;;
+            esac
+
+            case "${version}" in
+                7.*) zts_option="--enable-maintainer-zts" ;;
+                8.*) zts_option="--enable-zts" ;;
+            esac
+            rewrite_zts_metadata "${build_defs_h}" "${zts_option}"
+            rewrite_zts_metadata \
+                "${prefix}/bin/php-config" "${zts_option}"
+            if ! grep -q '^libs=.*-lpthread' \
+                "${prefix}/bin/php-config"; then
+                case "${version}" in
+                    8.4|8.5)
+                        sed -i \
+                            's/^libs="\([^"]*\)"$/libs="\1 -lpthread"/' \
+                            "${prefix}/bin/php-config"
+                        ;;
+                    *)
+                        sed -i '/^libs=/ s/"$/-lpthread "/' \
+                            "${prefix}/bin/php-config"
+                        ;;
+                esac
+            fi
+            ;;
+        *)
+            echo "unknown PHP SDK variant: ${variant}" >&2
+            exit 1
+            ;;
+    esac
+}
+
+for spec in \
+    7.0:70 7.1:71 7.2:72 7.3:73 7.4:74 \
+    8.0:80 8.1:81 8.2:82 8.3:83 8.4:84 8.5:85
+do
+    version="${spec%%:*}"
+    key="${spec#*:}"
+    official="/mnt/php${key}"
+    release_prefix="${sdk_root}/${version}"
+
+    mkdir -p \
+        "${release_prefix}/include" \
+        "${release_prefix}/bin" \
+        "${release_prefix}/lib/php"
+
+    # Each SDK is sourced entirely from its matching official PHP image.
+    cp -a "${official}/include/php" "${release_prefix}/include/php"
+    cp -p \
+        "${official}/bin/phpize" \
+        "${official}/bin/php-config" \
+        "${release_prefix}/bin/"
+    cp -a \
+        "${official}/lib/php/build" \
+        "${release_prefix}/lib/php/build"
+
+    # Keep Clang's static runtime archives when phpize derives linker flags.
+    patch -d "${release_prefix}/lib/php" -p1 \
+        < /tmp/libtool-clang-rt-static-archives.patch
+
+    # Avoid a false UBSan null-member diagnostic in PHP 7.0 headers.
+    if [ "${version}" = "7.0" ]; then
+        patch -d "${release_prefix}/include/php" -p1 \
+            < /tmp/php-7.0-builtin-offsetof.patch
+    fi
+
+    sed -i "s|^prefix=.*|prefix='${release_prefix}'|" \
+        "${release_prefix}/bin/phpize" \
+        "${release_prefix}/bin/php-config"
+
+    make_variant "${version}" debug
+    make_variant "${version}" release-zts
+done

@@ -129,10 +129,13 @@ RUN \
 # Autoconf probes deliberately leak small allocations; suppress LSan only while
 # configure runs so those probes cannot stall or turn successful checks red.
 RUN \
-    DEBUG_FLAG=$([ "${PHP_ENABLE_DEBUG}" = "yes" ] && echo "--enable-debug" || echo "") && \
-    ZTS_FLAG=$([ "${PHP_ENABLE_ZTS}" = "yes" ] && echo "--enable-zts --disable-zend-signals" || echo "") && \
     VER_MAJOR=$(echo "${PHP_VERSION}" | cut -d. -f1) && \
     VER_MINOR=$(echo "${PHP_VERSION}" | cut -d. -f2) && \
+    DEBUG_FLAG=$([ "${PHP_ENABLE_DEBUG}" = "yes" ] && echo "--enable-debug" || echo "") && \
+    ZTS_FLAG=$([ "${PHP_ENABLE_ZTS}" != "yes" ] && echo "" || \
+        { [ "${VER_MAJOR}" = "7" ] && \
+            echo "--enable-maintainer-zts --disable-zend-signals" || \
+            echo "--enable-zts --disable-zend-signals"; }) && \
     COMPAT_FLAGS=$([ "${VER_MAJOR}" = "7" ] || { [ "${VER_MAJOR}" = "8" ] && [ "${VER_MINOR}" -le 1 ]; } && echo "-DCOOKIE_SEEKER_USES_OFF64_T -D__off64_t=long -Doff64_t=long" || echo "") && \
     SAN_FLAGS="-fsanitize=address,undefined -fno-sanitize=function" && \
     ASAN_CFLAGS=$([ "${PHP_ENABLE_DEBUG}" = "yes" ] && echo "${SAN_FLAGS}" || echo "") && \
@@ -203,6 +206,12 @@ RUN if [ "${PHP_ENABLE_DEBUG}" = "yes" ]; then \
 
 # Verify: PHP binary should depend only on musl libc
 RUN php --version
+# PHP 8.4+ exposes these constants as booleans. Cast them so false compares as
+# 0, consistently with the integer constants used by older PHP versions.
+RUN test "$(php -r 'echo (int) PHP_DEBUG;')" = \
+        "$([ "${PHP_ENABLE_DEBUG}" = "yes" ] && echo 1 || echo 0)" && \
+    test "$(php -r 'echo (int) PHP_ZTS;')" = \
+        "$([ "${PHP_ENABLE_ZTS}" = "yes" ] && echo 1 || echo 0)"
 RUN echo "Dynamic dependencies of PHP binary:" && \
     ldd /usr/local/bin/php && \
     echo "" && \
