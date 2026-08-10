@@ -92,6 +92,7 @@ jobs:
       packages: write
     strategy:
       fail-fast: false
+      max-parallel: 6
       matrix:
         php:
           - "7.0"

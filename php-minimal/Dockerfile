@@ -103,29 +103,35 @@ RUN \
 # musl-clang applies compiler-rt/libunwind and static-library policy; the image
 # layout supplies the native target, LLD, and cross-libc compatibility layer.
 #
-# Debug builds host the sanitizer runtime for all the instrumented code in the
-# process: PHP links and exports the ASan + UBSan runtimes, and the dlopen'd
-# extension and the instrumented libc++ resolve __asan_*/__ubsan_* from it.
+# Debug sanitizer layout
 #
-# This "main executable statically holds the runtime and exports it; instrumented
-# .so's resolve against it at load" arrangement is the DEFAULT LLVM/Clang model,
-# not a workaround: sanitizer runtimes ship as static archives, get linked into
-# the -fsanitize executable, which is marked --export-dynamic. (ASan in
-# particular MUST live in the main executable -- it installs interceptors and
-# shadow memory before main(), so it cannot be brought in lazily via dlopen.)
+# Goal: PHP must host the sanitizer runtimes for the whole process. The
+# extension and the instrumented libc++.so are loaded later with dlopen(), so
+# they resolve their __asan_* and __ubsan_* references from the PHP executable.
+# ASan must also initialize its interceptors and shadow memory before main().
 #
-# The one non-default wrinkle is WHICH runtime PHP has to carry. Normally the C++
-# driver (clang++) is what pulls in libclang_rt.ubsan_standalone_cxx, so a
-# C++-linked host (like nginx) gets it for free. PHP is a C program linked with
-# the C driver, which pulls libclang_rt.ubsan_standalone (C) but NOT the _cxx
-# half -- and that half holds the vptr handler
-# __ubsan_handle_dynamic_type_cache_miss that the vptr-instrumented libc++.so
-# (from /usr/asan) needs. So SAN_LDEXTRA links the cxx runtime explicitly:
-# --whole-archive forces it in
-# (comma-joined so libtool keeps the bracket), its own .syms dynamic-list
-# exports exactly the __ubsan_* interface (the same list clang would use for a
-# C++ program), and the shared libc++abi supplies the handler's typeinfo /
-# __dynamic_cast.
+# Problem: PHP is linked with the C driver. SAN_FLAGS supplies the main ASan and
+# UBSan runtime, but Clang does not select either C++ companion by default:
+#
+# - libclang_rt.asan_cxx overrides operator new/delete. Without it, allocations
+#   still reach ASan through libc++'s malloc/free calls, but ASan loses
+#   allocation-kind tracking and new/delete-specific diagnostics.
+# - libclang_rt.ubsan_standalone_cxx provides the vptr handlers. Clang selects it
+#   only when C++ runtime linking is enabled and vptr or CFI appears in the link
+#   command's sanitizer set (NeedsUbsanCxxRt = Vptr|CFI). The "undefined" group
+#   does not include vptr, while the instrumented libc++.so imports
+#   __ubsan_vptr_type_cache and __ubsan_handle_dynamic_type_cache_miss.
+#
+# Solution: SAN_LDEXTRA supplies the missing driver inputs:
+#
+# - -fsanitize=vptr selects the UBSan C++ companion.
+# - -fsanitize-link-c++-runtime enables both C++ companions despite the C driver.
+# - -lc++abi satisfies the UBSan companion's typeinfo and __dynamic_cast
+#   references; -fsanitize-link-c++-runtime does not link a C++ standard library.
+#
+# Clang whole-archives the selected sanitizer runtimes and applies their .syms
+# dynamic lists, exporting the interface needed by the later-loaded DSOs.
+#
 # Autoconf probes deliberately leak small allocations; suppress LSan only while
 # configure runs so those probes cannot stall or turn successful checks red.
 RUN \
@@ -139,8 +145,7 @@ RUN \
     COMPAT_FLAGS=$([ "${VER_MAJOR}" = "7" ] || { [ "${VER_MAJOR}" = "8" ] && [ "${VER_MINOR}" -le 1 ]; } && echo "-DCOOKIE_SEEKER_USES_OFF64_T -D__off64_t=long -Doff64_t=long" || echo "") && \
     SAN_FLAGS="-fsanitize=address,undefined -fno-sanitize=function" && \
     ASAN_CFLAGS=$([ "${PHP_ENABLE_DEBUG}" = "yes" ] && echo "${SAN_FLAGS}" || echo "") && \
-    UBSAN_CXX=$(ls /usr/lib/llvm*/lib/clang/*/lib/linux/libclang_rt.ubsan_standalone_cxx-*.a | head -1) && \
-    SAN_LDEXTRA="-Wl,--whole-archive,${UBSAN_CXX},--no-whole-archive -Wl,--dynamic-list=${UBSAN_CXX}.syms -L/usr/asan/lib -Wl,-rpath,/usr/asan/lib -Wl,-Bdynamic -lc++abi -Wl,-Bstatic" && \
+    SAN_LDEXTRA="-fsanitize=vptr -fsanitize-link-c++-runtime -L/usr/asan/lib -Wl,-rpath,/usr/asan/lib -Wl,-Bdynamic -lc++abi -Wl,-Bstatic" && \
     ASAN_LDFLAGS=$([ "${PHP_ENABLE_DEBUG}" = "yes" ] && echo "${SAN_FLAGS} ${SAN_LDEXTRA}" || echo "") && \
     CONFIGURE_ASAN_OPTIONS=$([ "${PHP_ENABLE_DEBUG}" = "yes" ] && echo "detect_leaks=0" || echo "") && \
     OPT_FLAG=$([ "${PHP_ENABLE_DEBUG}" = "yes" ] && echo "-O0" || echo "-O2") && \
