@@ -63,6 +63,19 @@ fi
 needed=$(patchelf --print-needed "$output" 2>/dev/null) || exit 0
 undefined=$(llvm-nm -Duj "$output" 2>/dev/null | sed 's/@.*//') || exit 0
 
+# musl records its architecture-specific libc SONAME in every dynamically
+# linked output. libc.so.6 is a reserved self-alias in musl's loader and the
+# native name on glibc, so use it in the output without changing the link-time
+# libc selected by /usr/lib/libc.so.
+while IFS= read -r dependency; do
+    case "$dependency" in
+        libc.musl-*)
+            patchelf --replace-needed "$dependency" libc.so.6 "$output"
+            ;;
+    esac
+done <<< "$needed"
+needed=$(patchelf --print-needed "$output")
+
 # These glibc compatibility names are self-aliases in musl's dynamic loader.
 # Adding them makes old glibc releases load the DSO that owns an imported
 # symbol, while musl resolves the dependency back to its loader/libc DSO.

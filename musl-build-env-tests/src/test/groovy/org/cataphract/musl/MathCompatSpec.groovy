@@ -24,6 +24,10 @@ class MathCompatSpec extends CrossLibcSpecification {
 
         then:
         results.assertSuccess()
+        program.muslSharedLibraryDependencies.contains('libc.so.6')
+        !program.muslSharedLibraryDependencies.any {
+            it.startsWith('libc.musl-')
+        }
         program.muslSharedLibraryDependencies.contains('libm.so.6')
         results.glibc.stdout.trim() == 'shared ceil ceilf ok'
         results.musl.stdout.trim() == 'shared ceil ceilf ok'

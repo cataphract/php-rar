@@ -8,6 +8,10 @@ class SmokeSpec extends CrossLibcSpecification {
 
         then:
         results.assertSuccess()
+        program.muslExecutableDependencies.contains('libc.so.6')
+        !program.muslExecutableDependencies.any {
+            it.startsWith('libc.musl-')
+        }
         program.muslExecutableDependencies.intersect([
             'libpthread.so.0',
             'librt.so.1',

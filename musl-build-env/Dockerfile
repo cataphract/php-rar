@@ -2,7 +2,7 @@
 
 # Native musl build environment with LLVM runtimes built from source. Each image
 # targets its own architecture and produces binaries that can run with either
-# musl or glibc after their libc dependency/interpreter is patched.
+# musl or glibc after an executable's interpreter is patched.
 #
 # Build:
 #   docker build --platform=linux/arm64 -t musl-build-env:latest .

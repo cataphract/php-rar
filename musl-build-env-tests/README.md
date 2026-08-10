@@ -18,10 +18,11 @@ The runtime images and the build image are configurable:
 ```
 
 The Docker host and all three images must use the same CPU architecture. The
-suite patches a copy of each executable's interpreter and libc dependency for
-the glibc run, adding the separate `libpthread` and `libdl` dependencies needed
-by glibc before 2.34. The original executable is used unchanged for the musl
-run.
+suite patches a copy of each executable's interpreter for the glibc run. The
+linker wrapper already records the portable `libc.so.6` dependency and any
+separate compatibility DSOs needed by glibc before 2.34. The original
+executable is used unchanged for the musl run, and shared libraries are used
+unchanged on both.
 
 Runtime containers use an unconfined seccomp profile because x86_64 MSan must
 call `personality(ADDR_NO_RANDOMIZE)` during startup. The default Docker seccomp

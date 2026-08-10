@@ -159,9 +159,8 @@ final class CrossLibcTestHarness implements Closeable {
             assertSuccess(
                 "prepare the glibc shared library for ${sharedLibraryResource}",
                 buildContainer.execInContainer(
-                    'sh', '-ceu', glibcLibraryPatchScript(
-                        containerMuslSharedLibrary,
-                        containerGlibcSharedLibrary))
+                    'cp', containerMuslSharedLibrary,
+                    containerGlibcSharedLibrary)
             )
 
             hostMuslSharedLibrary = transferDirectory.resolve("${id}-musl.so")
@@ -233,17 +232,6 @@ final class CrossLibcTestHarness implements Closeable {
         return runtimeContainer.execInContainer(command as String[])
     }
 
-    private static String glibcLibraryPatchScript(String source,
-                                                  String destination) {
-        return """
-            cp '${source}' '${destination}'
-            musl_libc=\$(patchelf --print-needed '${destination}' | sed -n '/^libc\\.musl/{p;q;}')
-            if test -n "\${musl_libc}"; then
-                patchelf --replace-needed "\${musl_libc}" libc.so.6 '${destination}'
-            fi
-        """.stripIndent()
-    }
-
     private String glibcPatchScript(String source, String destination) {
         String interpreter
         switch (architecture) {
@@ -259,10 +247,7 @@ final class CrossLibcTestHarness implements Closeable {
 
         return """
             cp '${source}' '${destination}'
-            musl_libc=\$(patchelf --print-needed '${destination}' | sed -n '/^libc\\.musl/{p;q;}')
-            test -n "\${musl_libc}"
-            patchelf --set-interpreter '${interpreter}' \\
-                --replace-needed "\${musl_libc}" libc.so.6 '${destination}'
+            patchelf --set-interpreter '${interpreter}' '${destination}'
         """.stripIndent()
     }
 

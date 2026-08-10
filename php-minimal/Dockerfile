@@ -126,11 +126,40 @@ RUN \
 #
 # - -fsanitize=vptr selects the UBSan C++ companion.
 # - -fsanitize-link-c++-runtime enables both C++ companions despite the C driver.
+# - The shared libc++.so.1 under --no-as-needed records the C++ runtime in
+#   DT_NEEDED, even though PHP itself is pure C and references none of its
+#   symbols. Naming the DSO directly bypasses its development linker script.
 # - -lc++abi satisfies the UBSan companion's typeinfo and __dynamic_cast
 #   references; -fsanitize-link-c++-runtime does not link a C++ standard library.
 #
 # Clang whole-archives the selected sanitizer runtimes and applies their .syms
 # dynamic lists, exporting the interface needed by the later-loaded DSOs.
+#
+# ELF requires every PT_LOAD segment's p_offset and p_vaddr to be congruent
+# modulo the system page size, and says they should also be congruent modulo
+# p_align. glibc before 2.35 enforces the latter as a hard requirement:
+# https://github.com/NixOS/patchelf/issues/492
+#
+# patchelf 0.18 places rewritten sections on its architecture-specific page
+# boundary (4 KiB on x86_64 and 64 KiB on aarch64), but copies the largest
+# existing PT_LOAD alignment to each new segment. If LLD used its 2 MiB x86_64
+# maximum page size, selected `readelf -Wl` output after patchelf looked like
+# this:
+#
+#   Type Offset    VirtAddr          ... Align
+#   LOAD 0x48ee000 0x0000000004a00000 ... 0x200000
+#   LOAD 0x492e000 0x0000000004e00000 ... 0x200000
+#
+# Both values satisfy the required 4 KiB page-size congruence. In the first
+# line, however, p_offset modulo p_align is 0xee000 while p_vaddr modulo p_align
+# is zero. It therefore violates the recommended p_align congruence, and older
+# glibc reports "ELF load command address/offset not properly aligned". Make LLD
+# use patchelf's placement boundary as its maximum alignment. The rewritten
+# segments then satisfy both conditions:
+#
+#   Type Offset    VirtAddr          ... Align
+#   LOAD 0x48ee000 0x00000000048ee000 ... 0x1000
+#   LOAD 0x492e000 0x000000000492e000 ... 0x1000
 #
 # Autoconf probes deliberately leak small allocations; suppress LSan only while
 # configure runs so those probes cannot stall or turn successful checks red.
@@ -145,7 +174,9 @@ RUN \
     COMPAT_FLAGS=$([ "${VER_MAJOR}" = "7" ] || { [ "${VER_MAJOR}" = "8" ] && [ "${VER_MINOR}" -le 1 ]; } && echo "-DCOOKIE_SEEKER_USES_OFF64_T -D__off64_t=long -Doff64_t=long" || echo "") && \
     SAN_FLAGS="-fsanitize=address,undefined -fno-sanitize=function" && \
     ASAN_CFLAGS=$([ "${PHP_ENABLE_DEBUG}" = "yes" ] && echo "${SAN_FLAGS}" || echo "") && \
-    SAN_LDEXTRA="-fsanitize=vptr -fsanitize-link-c++-runtime -L/usr/asan/lib -Wl,-rpath,/usr/asan/lib -Wl,-Bdynamic -lc++abi -Wl,-Bstatic" && \
+    LINK_PAGE_SIZE=$([ "$(uname -m)" = "aarch64" ] && echo 65536 || echo 4096) && \
+    LINK_PAGE_FLAGS="-Wl,-zcommon-page-size=${LINK_PAGE_SIZE} -Wl,-zmax-page-size=${LINK_PAGE_SIZE}" && \
+    SAN_LDEXTRA="-fsanitize=vptr -fsanitize-link-c++-runtime -L/usr/asan/lib -Wl,-rpath,/usr/asan/lib -Wl,-Bdynamic -Wl,--push-state,--no-as-needed,/usr/asan/lib/libc++.so.1,--pop-state -lc++abi -Wl,-Bstatic" && \
     ASAN_LDFLAGS=$([ "${PHP_ENABLE_DEBUG}" = "yes" ] && echo "${SAN_FLAGS} ${SAN_LDEXTRA}" || echo "") && \
     CONFIGURE_ASAN_OPTIONS=$([ "${PHP_ENABLE_DEBUG}" = "yes" ] && echo "detect_leaks=0" || echo "") && \
     OPT_FLAG=$([ "${PHP_ENABLE_DEBUG}" = "yes" ] && echo "-O0" || echo "-O2") && \
@@ -154,7 +185,7 @@ RUN \
     CC=musl-clang \
     CXX=musl-clang++ \
     CFLAGS="-g ${OPT_FLAG} ${COMPAT_FLAGS} ${ASAN_CFLAGS}" \
-    LDFLAGS="${ASAN_LDFLAGS}" \
+    LDFLAGS="${LINK_PAGE_FLAGS} ${ASAN_LDFLAGS}" \
     ./configure \
         --disable-all \
         --disable-cgi \
@@ -191,20 +222,16 @@ ENV CC=musl-clang CXX=musl-clang++
 #    musl-build-env) instead of the plain static libc++, keeping libc++'s
 #    container-overflow annotations consistent with the instrumented extension.
 #
-# Then force the PHP binary to load that shared C++ runtime at startup
-# (DT_NEEDED libc++.so.1, which pulls libc++abi.so.1 / libunwind.so.1). PHP is
-# pure C and would otherwise only load libc++ late, when the extension is
-# dlopen'd -- after ASAN has initialized. ASAN's __cxa_throw interceptor
-# resolves the real __cxa_throw via dlsym at init; if libc++abi isn't loaded yet
-# it caches NULL, and the first C++ exception thrown from the extension (e.g.
-# unrar's error handler on a missing password) aborts with
-# "CHECK failed: real___cxa_throw != 0". The dynamic loader loads DT_NEEDED libs
-# before ASAN's preinit, so adding the dependency makes the real symbol
-# available in time.
+# The PHP link above forces the binary to load the shared C++ runtime at startup
+# (DT_NEEDED libc++.so.1, which pulls libc++abi.so.1 / libunwind.so.1). Otherwise
+# PHP would only load libc++ when the extension is dlopen'd, after ASAN has
+# initialized. ASAN's __cxa_throw interceptor would then cache a NULL real
+# function and abort on the first C++ exception. Recording the dependency in the
+# original link also lets musl-ld perform its dependency rewrites afterward,
+# avoiding another patchelf invocation on the already-rewritten PHP binary.
 COPY musl-clang-debug.conf /tmp/musl-clang-debug.conf
 RUN if [ "${PHP_ENABLE_DEBUG}" = "yes" ]; then \
         mv /tmp/musl-clang-debug.conf /etc/musl-clang.conf; \
-        patchelf --add-needed libc++.so.1 /usr/local/bin/php; \
     else \
         rm /tmp/musl-clang-debug.conf; \
     fi
