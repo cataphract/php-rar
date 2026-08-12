@@ -58,6 +58,7 @@ jobs:
         working-directory: musl-build-env-tests
         run: >-
           ./gradlew test --no-daemon
+          -PexcludeTests='**/sanitizer/**'
           -PbuildEnvImage=musl-build-env:ci
           -PglibcImage=fedora:34
           -PmuslImage=alpine:3.24

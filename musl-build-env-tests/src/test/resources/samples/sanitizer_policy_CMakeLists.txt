@@ -1,0 +1,13 @@
+cmake_minimum_required(VERSION 3.20)
+
+if(NOT PROBE_LANGUAGE)
+    set(PROBE_LANGUAGE C)
+endif()
+
+project(sanitizer-link-policy LANGUAGES ${PROBE_LANGUAGE})
+
+add_executable(sanitizer-link-policy probe.c)
+if(PROBE_LANGUAGE STREQUAL "CXX")
+    set_source_files_properties(probe.c PROPERTIES LANGUAGE CXX)
+endif()
+target_link_options(sanitizer-link-policy PRIVATE -Wl,-t)

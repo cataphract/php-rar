@@ -4,21 +4,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-extern const char *gnu_get_libc_version(void) __attribute__((weak));
-/* musl exports signgam from libc; provide it when this binary runs on glibc. */
-int signgam;
-
-static int running_on_glibc(void)
-{
-    return gnu_get_libc_version != NULL;
-}
-
 static void dirty_musl_padding(struct msghdr *message)
 {
-    if (running_on_glibc()) {
-        return;
-    }
-
     volatile unsigned char *bytes = (volatile unsigned char *)message;
     size_t begin = offsetof(struct msghdr, msg_iovlen) +
         sizeof(message->msg_iovlen);

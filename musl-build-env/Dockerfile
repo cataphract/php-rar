@@ -10,6 +10,7 @@
 
 ARG ALPINE_VERSION=3.23.4
 ARG LLVM_VERSION=21.1.2
+ARG OMIT_COMPILER_RT_PATCH=
 
 FROM alpine:${ALPINE_VERSION} AS toolchain-base
 
@@ -33,6 +34,7 @@ RUN set -eux; \
 FROM toolchain-base AS builder
 
 ARG LLVM_VERSION
+ARG OMIT_COMPILER_RT_PATCH
 
 # Patch the headers used to build both LLVM runtimes and compatibility objects.
 COPY locale.h.diff alltypes.h.diff /build-input/
@@ -50,19 +52,26 @@ RUN cd / && \
     rm "llvm-project-${LLVM_VERSION}.src.tar.xz"
 
 # These compiler-rt patches make sanitizer runtimes built against musl work on
-# both libc implementations:
-#   - tls:      include musl/glibc pthread metadata in the sanitizer TLS range
-#               so LSan sees pointers stored by pthread_setspecific.
+# native musl. Running these sanitizer binaries on glibc is not supported.
+#   - tls:      include musl pthread metadata in the sanitizer TLS range so
+#               LSan sees pointers stored by pthread_setspecific.
 #   - msghdr:   account for musl's narrower msg_iovlen/msg_controllen fields.
 #   - rlimit64: define sizes for musl's non-distinct *64 resource structures.
-#   - stat:     intercept both musl's public APIs and glibc compatibility paths.
+#   - stat:     intercept musl's public stat-family APIs.
 COPY compiler-rt-musl-tls.diff compiler-rt-musl-msghdr.diff \
      compiler-rt-musl-rlimit64.diff compiler-rt-musl-stat.diff /build-input/
-RUN cd "/llvm-project-${LLVM_VERSION}.src" && \
-    patch -p1 < /build-input/compiler-rt-musl-tls.diff && \
-    patch -p1 < /build-input/compiler-rt-musl-msghdr.diff && \
-    patch -p1 < /build-input/compiler-rt-musl-rlimit64.diff && \
-    patch -p1 < /build-input/compiler-rt-musl-stat.diff
+RUN set -eux; \
+    case "${OMIT_COMPILER_RT_PATCH}" in \
+        ""|tls|msghdr|rlimit64|stat) ;; \
+        *) echo "Unknown compiler-rt patch: ${OMIT_COMPILER_RT_PATCH}" >&2; \
+           exit 1 ;; \
+    esac; \
+    cd "/llvm-project-${LLVM_VERSION}.src"; \
+    for patch_name in tls msghdr rlimit64 stat; do \
+        if [ "${OMIT_COMPILER_RT_PATCH}" != "${patch_name}" ]; then \
+            patch -p1 < "/build-input/compiler-rt-musl-${patch_name}.diff"; \
+        fi; \
+    done
 
 # libunwind needs the glibc _dl_find_object ABI declaration when built on musl,
 # while retaining its runtime fallback to dl_iterate_phdr.
@@ -161,6 +170,65 @@ RUN set -eux; \
         --target install-unwind install-cxxabi install-cxx; \
     rm -f /opt/asan-root/usr/asan/lib/libc++experimental.a
 
+# Third build: the same shared runtimes with MemorySanitizer instrumentation,
+# which C++ links need because MSan reports uninstrumented standard library code
+# as uninitialized. No -fsanitize=vptr here: it would make the DSOs import
+# __ubsan_* symbols that a plain -fsanitize=memory executable link does not
+# provide. Plain Memory, not MemoryWithOrigins, to match those executables.
+RUN set -eux; \
+    SOURCE_DIR="/llvm-project-${LLVM_VERSION}.src"; \
+    cmake -S "${SOURCE_DIR}/runtimes" -B "${SOURCE_DIR}/build-msan" \
+        -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+        -DCMAKE_INSTALL_PREFIX=/usr/msan \
+        -DLLVM_USE_SANITIZER=Memory \
+        -DCMAKE_C_COMPILER=clang \
+        -DCMAKE_C_FLAGS="-fno-omit-frame-pointer -D_LIBCPP_HAS_NO_C11_ALIGNED_ALLOC=1" \
+        -DCMAKE_CXX_COMPILER=clang++ \
+        -DCMAKE_CXX_FLAGS="-fno-omit-frame-pointer -D_LIBCPP_HAS_NO_C11_ALIGNED_ALLOC=1 -D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE" \
+        -DCMAKE_SHARED_LINKER_FLAGS="-rtlib=compiler-rt -unwindlib=libunwind" \
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+        -DLIBUNWIND_ENABLE_SHARED=ON \
+        -DLIBUNWIND_ENABLE_STATIC=OFF \
+        -DLIBUNWIND_USE_COMPILER_RT=ON \
+        -DLIBCXXABI_ENABLE_SHARED=ON \
+        -DLIBCXXABI_ENABLE_STATIC=OFF \
+        -DLIBCXXABI_USE_LLVM_UNWINDER=ON \
+        -DLIBCXXABI_ENABLE_STATIC_UNWINDER=OFF \
+        -DLIBCXXABI_USE_COMPILER_RT=ON \
+        -DLIBCXX_ENABLE_SHARED=ON \
+        -DLIBCXX_ENABLE_STATIC=OFF \
+        -DLIBCXX_HAS_MUSL_LIBC=ON \
+        -DLIBCXX_USE_COMPILER_RT=ON \
+        -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=OFF \
+        -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind"; \
+    DESTDIR=/opt/msan-root cmake --build "${SOURCE_DIR}/build-msan" \
+        --parallel "$(nproc)" \
+        --target install-cxxabi install-cxx; \
+    rm -f /opt/msan-root/usr/msan/lib/libc++experimental.a
+
+# The unwinder above is built only because LIBCXXABI_USE_LLVM_UNWINDER requires
+# it. The installed one must not be instrumented: the MSan runtime unwinds
+# through it to report, and instrumented unwinding recurses back into the
+# runtime until the stack is exhausted.
+RUN set -eux; \
+    SOURCE_DIR="/llvm-project-${LLVM_VERSION}.src"; \
+    cmake -S "${SOURCE_DIR}/runtimes" -B "${SOURCE_DIR}/build-msan-unwind" \
+        -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+        -DCMAKE_INSTALL_PREFIX=/usr/msan \
+        -DCMAKE_C_COMPILER=clang \
+        -DCMAKE_C_FLAGS="-fno-omit-frame-pointer" \
+        -DCMAKE_CXX_COMPILER=clang++ \
+        -DCMAKE_CXX_FLAGS="-fno-omit-frame-pointer" \
+        -DCMAKE_SHARED_LINKER_FLAGS="-rtlib=compiler-rt" \
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+        -DLIBUNWIND_ENABLE_SHARED=ON \
+        -DLIBUNWIND_ENABLE_STATIC=OFF \
+        -DLIBUNWIND_USE_COMPILER_RT=ON \
+        -DLLVM_ENABLE_RUNTIMES="libunwind"; \
+    DESTDIR=/opt/msan-root cmake --build "${SOURCE_DIR}/build-msan-unwind" \
+        --parallel "$(nproc)" \
+        --target install-unwind
+
 # Build the compatibility archive with hidden symbols (equivalent to the old
 # --exclude-libs policy) and the executable-only preinit/fini object.
 COPY glibc_compat.c glibc_compat_exe.c /build-input/
@@ -174,10 +242,17 @@ RUN mkdir -p /opt/compat && \
       -o /opt/compat/glibc_compat_exe.o && \
     rm /tmp/glibc_compat.o
 
-# Keep patched LLVM sources, but never copy build trees or their intermediates
-# into the final image.
-RUN rm -rf "/llvm-project-${LLVM_VERSION}.src/build" \
-           "/llvm-project-${LLVM_VERSION}.src/build-asan"
+# Keep patched LLVM production sources for debugging, but never copy build
+# trees or the 1.6 GiB of test inputs and unit-test sources into the final image.
+RUN set -eux; \
+    SOURCE_DIR="/llvm-project-${LLVM_VERSION}.src"; \
+    rm -rf "${SOURCE_DIR}/build" \
+           "${SOURCE_DIR}/build-asan" \
+           "${SOURCE_DIR}/build-msan" \
+           "${SOURCE_DIR}/build-msan-unwind"; \
+    find "${SOURCE_DIR}" -type d \
+        \( -name test -o -name tests -o -name unittests \) \
+        -prune -exec rm -rf {} +
 
 FROM toolchain-base AS final
 
@@ -186,6 +261,7 @@ ARG MUSL_VERSION=1.2.5-r23
 
 COPY --from=builder /opt/runtime-root/ /
 COPY --from=builder /opt/asan-root/ /
+COPY --from=builder /opt/msan-root/ /
 COPY --from=builder /usr/include/bits/alltypes.h /usr/include/bits/alltypes.h
 COPY --from=builder /usr/include/locale.h /usr/include/locale.h
 COPY --from=builder /opt/compat/libglibc_compat.a /usr/lib/libglibc_compat.a
@@ -197,6 +273,7 @@ COPY glibc-*-symbols*.txt /usr/local/share/musl/
 COPY musl-clang.sh /usr/local/bin/musl-clang
 COPY musl-ld.sh /usr/local/bin/musl-ld
 COPY libc.so.ld /usr/lib/libc.so.ld
+COPY sanitizer-libc.so.ld /usr/lib/sanitizer-libc.so.ld
 
 # Integrate compatibility behavior into normal linker inputs:
 #   - libc.so pulls hidden glibc_compat plus an extensible downstream archive;
@@ -204,8 +281,18 @@ COPY libc.so.ld /usr/lib/libc.so.ld
 #   - Clang finds compiler-rt in its real resource directory;
 #   - the linker wrapper adds glibc compatibility dependencies when required.
 #     See SYMBOL_LISTS.md for the source versions and architecture differences.
+# ASan and MSan builds put /usr/{asan,msan}/lib first on the link line. The libc
+# entry there omits libglibc_compat.a while retaining the downstream archive;
+# libc-native.so is the musl DSO it selects.
 RUN set -eux; \
     MUSL_LIBC=$(readlink -f /usr/lib/libc.so); \
+    for SANITIZER_LIB_DIR in /usr/asan/lib /usr/msan/lib; do \
+        mkdir -p "${SANITIZER_LIB_DIR}"; \
+        ln -s "${MUSL_LIBC}" "${SANITIZER_LIB_DIR}/libc-native.so"; \
+        sed "s|@SANITIZER_LIB_DIR@|${SANITIZER_LIB_DIR}|" \
+            /usr/lib/sanitizer-libc.so.ld > "${SANITIZER_LIB_DIR}/libc.so"; \
+    done; \
+    rm /usr/lib/sanitizer-libc.so.ld; \
     sed -i "s|@MUSL_LIBC@|${MUSL_LIBC}|" /usr/lib/libc.so.ld; \
     rm /usr/lib/libc.so; \
     mv /usr/lib/libc.so.ld /usr/lib/libc.so; \
@@ -229,4 +316,6 @@ RUN set -eux; \
     apk info -e "musl=${MUSL_VERSION}"; \
     apk info -e "musl-dev=${MUSL_VERSION}"; \
     test ! -e "/llvm-project-${LLVM_VERSION}.src/build"; \
-    test ! -e "/llvm-project-${LLVM_VERSION}.src/build-asan"
+    test ! -e "/llvm-project-${LLVM_VERSION}.src/build-asan"; \
+    test ! -e "/llvm-project-${LLVM_VERSION}.src/build-msan"; \
+    test ! -e "/llvm-project-${LLVM_VERSION}.src/build-msan-unwind"

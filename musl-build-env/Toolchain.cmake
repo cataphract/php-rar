@@ -13,7 +13,7 @@ set(CMAKE_STRIP /usr/bin/strip)
 # for CMake to unpack.
 set(MUSL_COMPILE_FLAGS "")
 set(MUSL_LINK_FLAGS "")
-set(MUSL_SANITIZE_CXX "")
+set(MUSL_SANITIZE "")
 if(EXISTS "/etc/musl-clang.conf")
     set(_musl_prelude
         "MUSL_CLANG_COMPILE_FLAGS=(); MUSL_CLANG_LINK_FLAGS=(); . /etc/musl-clang.conf;")
@@ -22,7 +22,7 @@ if(EXISTS "/etc/musl-clang.conf")
         "printf '%s\\n%s\\n%s' "
         "\"\${MUSL_CLANG_COMPILE_FLAGS[*]-}\" "
         "\"\${MUSL_CLANG_LINK_FLAGS[*]-}\" "
-        "\"\${MUSL_CLANG_SANITIZE_CXX-}\"")
+        "\"\${MUSL_CLANG_SANITIZE-}\"")
     execute_process(
         COMMAND bash -c "${_musl_read}"
         OUTPUT_VARIABLE _musl_values
@@ -33,24 +33,39 @@ if(EXISTS "/etc/musl-clang.conf")
     string(REPLACE "\n" ";" _musl_values "${_musl_values}")
     list(GET _musl_values 0 MUSL_COMPILE_FLAGS)
     list(GET _musl_values 1 MUSL_LINK_FLAGS)
-    list(GET _musl_values 2 MUSL_SANITIZE_CXX)
+    list(GET _musl_values 2 MUSL_SANITIZE)
 endif()
 
-# The wrappers pass the compile policy on the link command too, which is how the
-# sanitizer runtimes reach the executable. CMake already includes CMAKE_<LANG>_FLAGS
-# in its link rule, so seeding it here covers both.
-set(CMAKE_C_FLAGS_INIT "-fno-omit-frame-pointer ${MUSL_COMPILE_FLAGS}")
-
-# In ASan C++ mode the wrapper resolves libc++ to the instrumented DSO in
-# /usr/asan/lib instead of linking the static one. Both forms are link-only
-# options, hence -Qunused-arguments for compile-only commands.
-if(MUSL_SANITIZE_CXX MATCHES "address")
-    set(_musl_cxx_runtime "-L/usr/asan/lib -Wl,-rpath,/usr/asan/lib")
+# Sanitizer compile flags must also reach the link command so the runtimes reach
+# the executable. CMake includes CMAKE_<LANG>_FLAGS in its link rule, so seeding
+# it here covers both.
+#
+# For ASan and MSan, the selected library directory goes first on every link,
+# C and C++ alike. In sanitized C++ mode it also resolves libc++ to the
+# instrumented DSO instead of the static one. These are link-only options, hence
+# -Qunused-arguments for compile-only commands.
+#
+# As in the wrappers, only MUSL_SANITIZE drives this selection; explicit
+# -fsanitize=address or -fsanitize=memory flags do not.
+set(_musl_sanitizer_lib_dir "")
+set(_musl_cxx_runtime "-static-libstdc++")
+if(MUSL_SANITIZE MATCHES "address")
+    set(_musl_sanitizer_lib_dir "/usr/asan/lib")
+    set(_musl_cxx_runtime "")
+elseif(MUSL_SANITIZE MATCHES "memory")
+    set(_musl_sanitizer_lib_dir "/usr/msan/lib")
+    set(_musl_cxx_runtime "")
+endif()
+if(_musl_sanitizer_lib_dir)
+    set(_musl_sanitizer_runtime
+        "-L${_musl_sanitizer_lib_dir} -Wl,-rpath,${_musl_sanitizer_lib_dir}")
 else()
-    set(_musl_cxx_runtime "-static-libstdc++")
+    set(_musl_sanitizer_runtime "")
 endif()
+set(CMAKE_C_FLAGS_INIT
+    "${_musl_sanitizer_runtime} -fno-omit-frame-pointer -Qunused-arguments ${MUSL_COMPILE_FLAGS}")
 set(CMAKE_CXX_FLAGS_INIT
-    "-stdlib=libc++ ${_musl_cxx_runtime} -fno-omit-frame-pointer -Qunused-arguments ${MUSL_COMPILE_FLAGS}")
+    "-stdlib=libc++ ${_musl_sanitizer_runtime} ${_musl_cxx_runtime} -fno-omit-frame-pointer -Qunused-arguments ${MUSL_COMPILE_FLAGS}")
 
 # Prefer static user libraries, then restore dynamic mode before Clang adds its
 # implicit compiler runtimes and libc. libc.so itself injects compatibility
@@ -60,8 +75,8 @@ set(toolchain_link_flags
 set(CMAKE_EXE_LINKER_FLAGS_INIT "${toolchain_link_flags}")
 set(CMAKE_SHARED_LINKER_FLAGS_INIT "${toolchain_link_flags}")
 
-# CMAKE_<LANG>_STANDARD_LIBRARIES is appended last, which is where the wrapper
-# puts its link-only policy, after restoring dynamic lookup.
+# CMAKE_<LANG>_STANDARD_LIBRARIES is appended last, so this toolchain puts its
+# link-only policy there after restoring dynamic lookup.
 set(CMAKE_C_STANDARD_LIBRARIES "-Wl,-Bdynamic ${MUSL_LINK_FLAGS}")
 set(CMAKE_CXX_STANDARD_LIBRARIES "-Wl,-Bdynamic ${MUSL_LINK_FLAGS}")
 

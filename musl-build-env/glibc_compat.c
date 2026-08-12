@@ -1,47 +1,79 @@
+/*
+ * Cross-libc compatibility wrappers, archived into libglibc_compat.a and
+ * reached through the GROUP entry in /usr/lib/libc.so.
+ *
+ * ASan and MSan links must omit this archive. Its strong hidden wrappers
+ * override compiler-rt's weak interceptors where names overlap, silently
+ * disabling the affected checks.
+ *
+ * Those builds use the reduced libc entry in /usr/asan/lib or /usr/msan/lib.
+ * MUSL_CLANG_SANITIZE makes the musl-clang wrappers and the CMake toolchain do
+ * that; a link that bypasses both has to put the directory first itself.
+ * See the MUSL_CLANG_SANITIZE section in musl-build-env-tests/README.md for
+ * the affected symbols and rationale.
+ */
+
+#define _GNU_SOURCE
+
+#ifndef __has_feature
+#  define __has_feature(feature) 0
+#endif
+
+#if defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_LEAK__) || \
+    defined(__SANITIZE_MEMORY__) || defined(__SANITIZE_THREAD__) || \
+    defined(__SANITIZE_UNDEFINED__) || \
+    __has_feature(address_sanitizer) || __has_feature(leak_sanitizer) || \
+    __has_feature(memory_sanitizer) || __has_feature(thread_sanitizer) || \
+    __has_feature(undefined_behavior_sanitizer)
+#  error "glibc_compat.c must not be built with a sanitizer enabled"
+#endif
+
 #include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <fenv.h>
+#include <limits.h>
 #include <setjmp.h>
 #include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
 #include <sys/syscall.h>
+#include <time.h>
 #include <unistd.h>
 
 #if defined(__linux__) && !defined(__GLIBC__)
 
-#ifdef __aarch64__
-#  define MUSL_LIBC_DSO "ld-musl-aarch64.so.1"
-#else
-#  define MUSL_LIBC_DSO "libc.musl-x86_64.so.1"
-#endif
-
 #define LAZY_RESOLVE(var, init_expr, cleanup_expr)                        \
     __extension__({                                                       \
-        void *_lv = atomic_load_explicit(&(var), memory_order_acquire);   \
+        typeof(atomic_load(&(var))) _lv =                                 \
+            atomic_load_explicit(&(var), memory_order_acquire);           \
         if (!_lv) {                                                       \
             _lv = (init_expr);                                            \
-            void *_le = NULL;                                             \
+            typeof(_lv) _le = NULL;                                       \
             if (!atomic_compare_exchange_strong_explicit(                 \
                     &(var), &_le, _lv,                                    \
                     memory_order_release, memory_order_relaxed)) {        \
-                void *p = _lv; (void)(cleanup_expr); _lv = _le;          \
+                typeof(_lv) p = _lv;                                     \
+                (void)(cleanup_expr);                                     \
+                _lv = _le;                                                \
             }                                                             \
         }                                                                 \
         _lv;                                                              \
     })
 
 
-static void *musl_libc_handle(void)
+static void *libc_handle(void)
 {
     static _Atomic(void *) h;
     return LAZY_RESOLVE(h,
         ({
-            void *_h = dlopen(MUSL_LIBC_DSO, RTLD_LAZY);
+            void *_h = dlopen("libc.so.6", RTLD_LAZY);
             if (!_h) {
-                (void)fprintf(stderr, "glibc_compat: dlopen(%s) failed: %s\n",
-                              MUSL_LIBC_DSO, dlerror());
+                (void)fprintf(stderr,
+                              "glibc_compat: dlopen(libc.so.6) failed: %s\n",
+                              dlerror());
                 abort();
             }
             _h;
@@ -124,7 +156,7 @@ int statx(int dirfd, const char *restrict pathname, int flags,
 // On amd64, even though pthread_atfork is exported by glibc, it should not be
 // used. Code that uses pthread_atfork will compile to an import to
 // __register_atfork(), but here we're compiling against musl, resulting in an
-// an import to pthread_atfork. This will cause a runtime error after the test
+// import to pthread_atfork. This will cause a runtime error after the test
 // that unloads our module. The reason is that when we call pthread_atfork in
 // glibc, __register_atfork() is called with the __dso_handle of libc6.so, not
 // the __dso_handle of our module. So the fork handler is not unregistered when
@@ -137,16 +169,172 @@ int __register_atfork(void (*prepare)(void), void (*parent)(void),
 int pthread_atfork(
     void (*prepare)(void), void (*parent)(void), void (*child)(void))
 {
-    // glibc
     if (__dso_handle && __register_atfork) {
         return __register_atfork(prepare, parent, child, __dso_handle);
     }
 
-    static _Atomic(void *) real_atfork;
-    void *fn = LAZY_RESOLVE(real_atfork,
-                   xdlsym(musl_libc_handle(), "pthread_atfork"), (void)p);
-    return ((int (*)(void (*)(void), void (*)(void), void (*)(void)))fn)(
-        prepare, parent, child);
+    static _Atomic(typeof(pthread_atfork) *) real_atfork;
+    typeof(pthread_atfork) *fn = LAZY_RESOLVE(
+        real_atfork,
+        (typeof(pthread_atfork) *)xdlsym(libc_handle(), "pthread_atfork"),
+        (void)p);
+    return fn(prepare, parent, child);
+}
+
+// On 64-bit platforms, musl represents msg_iovlen and msg_controllen as
+// 32-bit values followed by explicit padding. glibc and the kernel represent
+// each pair as a size_t. The same difference exists between musl's
+// cmsghdr.cmsg_len and glibc's size_t field.
+//
+// Musl's sendmsg and recvmsg wrappers translate these layouts before entering
+// the kernel, and its sendmmsg implementation calls sendmsg once per message.
+// Delegate directly to those wrappers when running on musl. A musl-compiled
+// binary running on glibc instead resolves these functions to glibc, which
+// expects its own field widths, so translate only on that path.
+ssize_t sendmsg(int fd, const struct msghdr *message, int flags)
+{
+    static _Atomic(typeof(sendmsg) *) real_sendmsg;
+    typeof(sendmsg) *fn = LAZY_RESOLVE(
+        real_sendmsg,
+        (typeof(sendmsg) *)xdlsym(libc_handle(), "sendmsg"), (void)p);
+
+#if __SIZEOF_LONG__ > 4
+    if (is_glibc()) {
+        struct msghdr host_message;
+        struct cmsghdr control_buffer[
+            CMSG_SPACE(255 * sizeof(int)) / sizeof(struct cmsghdr) + 1];
+        void *allocated_control = NULL;
+
+        if (message) {
+            host_message = *message;
+            host_message.__pad1 = 0;
+            host_message.__pad2 = 0;
+            message = &host_message;
+
+            if (host_message.msg_controllen && host_message.msg_control) {
+                if (host_message.msg_controllen > sizeof(control_buffer)) {
+                    allocated_control = malloc(host_message.msg_controllen);
+                    if (!allocated_control) {
+                        errno = ENOMEM;
+                        return -1;
+                    }
+                }
+                void *translated_control = allocated_control ?
+                    allocated_control : control_buffer;
+                memcpy(translated_control, host_message.msg_control,
+                       host_message.msg_controllen);
+                host_message.msg_control = translated_control;
+                for (struct cmsghdr *control = CMSG_FIRSTHDR(&host_message);
+                     control;
+                     control = CMSG_NXTHDR(&host_message, control)) {
+                    control->__pad1 = 0;
+                }
+            }
+        }
+
+        ssize_t result = fn(fd, message, flags);
+        if (allocated_control) {
+            int saved_errno = errno;
+            free(allocated_control);
+            errno = saved_errno;
+        }
+        return result;
+    }
+#endif
+    return fn(fd, message, flags);
+}
+
+ssize_t recvmsg(int fd, struct msghdr *message, int flags)
+{
+    static _Atomic(typeof(recvmsg) *) real_recvmsg;
+    typeof(recvmsg) *fn = LAZY_RESOLVE(
+        real_recvmsg,
+        (typeof(recvmsg) *)xdlsym(libc_handle(), "recvmsg"), (void)p);
+
+#if __SIZEOF_LONG__ > 4
+    if (is_glibc() && message) {
+        struct msghdr host_message = *message;
+        host_message.__pad1 = 0;
+        host_message.__pad2 = 0;
+        ssize_t result = fn(fd, &host_message, flags);
+        if (result >= 0) {
+            for (struct cmsghdr *control = CMSG_FIRSTHDR(&host_message);
+                 control;
+                 control = CMSG_NXTHDR(&host_message, control)) {
+                control->__pad1 = 0;
+            }
+        }
+        host_message.__pad1 = 0;
+        host_message.__pad2 = 0;
+        *message = host_message;
+        return result;
+    }
+#endif
+    return fn(fd, message, flags);
+}
+
+int sendmmsg(int fd, struct mmsghdr *messages, unsigned int count,
+             unsigned int flags)
+{
+#if __SIZEOF_LONG__ > 4
+    if (is_glibc()) {
+        if (count > IOV_MAX)
+            count = IOV_MAX;
+        if (!count)
+            return 0;
+
+        unsigned int i;
+        for (i = 0; i < count; i++) {
+            ssize_t result = sendmsg(fd, &messages[i].msg_hdr, flags);
+            if (result < 0)
+                break;
+            messages[i].msg_len = (unsigned int)result;
+        }
+        return i ? (int)i : -1;
+    }
+#endif
+    static _Atomic(typeof(sendmmsg) *) real_sendmmsg;
+    typeof(sendmmsg) *fn = LAZY_RESOLVE(
+        real_sendmmsg,
+        (typeof(sendmmsg) *)xdlsym(libc_handle(), "sendmmsg"), (void)p);
+    return fn(fd, messages, count, flags);
+}
+
+int recvmmsg(int fd, struct mmsghdr *messages, unsigned int count,
+             unsigned int flags, struct timespec *timeout)
+{
+    static _Atomic(typeof(recvmmsg) *) real_recvmmsg;
+    typeof(recvmmsg) *fn = LAZY_RESOLVE(
+        real_recvmmsg,
+        (typeof(recvmmsg) *)xdlsym(libc_handle(), "recvmmsg"), (void)p);
+
+#if __SIZEOF_LONG__ > 4
+    if (is_glibc()) {
+        if (!messages)
+            return fn(fd, messages, count, flags, timeout);
+        if (count > IOV_MAX)
+            count = IOV_MAX;
+
+        for (unsigned int i = 0; i < count; i++) {
+            messages[i].msg_hdr.__pad1 = 0;
+            messages[i].msg_hdr.__pad2 = 0;
+        }
+
+        int result = fn(fd, messages, count, flags, timeout);
+        for (int i = 0; i < result; i++) {
+            struct msghdr *message = &messages[i].msg_hdr;
+            message->__pad1 = 0;
+            message->__pad2 = 0;
+            for (struct cmsghdr *control = CMSG_FIRSTHDR(message);
+                 control;
+                 control = CMSG_NXTHDR(message, control)) {
+                control->__pad1 = 0;
+            }
+        }
+        return result;
+    }
+#endif
+    return fn(fd, messages, count, flags, timeout);
 }
 
 // realpath on x86_64 glibc has two symbol versions:
@@ -164,21 +352,11 @@ int pthread_atfork(
 #    ifdef __x86_64__
 char *realpath(const char *restrict path, char *restrict resolved)
 {
-    static _Atomic(void *) real_realpath;
-    void *fn = LAZY_RESOLVE(real_realpath,
-                   ({
-                       const char *dso = is_glibc() ? "libc.so.6" : MUSL_LIBC_DSO;
-                       void *_h = dlopen(dso, RTLD_LAZY);
-                       if (!_h) {
-                           (void)fprintf(stderr,
-                               "glibc_compat: dlopen(%s) failed: %s\n",
-                               dso, dlerror());
-                           abort();
-                       }
-                       xdlsym(_h, "realpath");
-                   }),
-                   (void)p);
-    return ((char *(*)(const char *restrict, char *restrict))fn)(path, resolved);
+    static _Atomic(typeof(realpath) *) real_realpath;
+    typeof(realpath) *fn = LAZY_RESOLVE(
+        real_realpath,
+        (typeof(realpath) *)xdlsym(libc_handle(), "realpath"), (void)p);
+    return fn(path, resolved);
 }
 #    endif
 
@@ -204,21 +382,13 @@ typedef struct pthread_condattr pthread_condattr_t;
 
 int pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *cond_attr)
 {
-    static _Atomic(void *) real_pthread_cond_init;
-    void *fn = LAZY_RESOLVE(real_pthread_cond_init,
-                   ({
-                       const char *dso = is_glibc() ? "libc.so.6" : MUSL_LIBC_DSO;
-                       void *_h = dlopen(dso, RTLD_LAZY);
-                       if (!_h) {
-                           (void)fprintf(stderr,
-                               "glibc_compat: dlopen(%s) failed: %s\n",
-                               dso, dlerror());
-                           abort();
-                       }
-                       xdlsym(_h, "pthread_cond_init");
-                   }),
-                   (void)p);
-    return ((int (*)(pthread_cond_t *, const pthread_condattr_t *))fn)(cond, cond_attr);
+    static _Atomic(typeof(pthread_cond_init) *) real_pthread_cond_init;
+    typeof(pthread_cond_init) *fn = LAZY_RESOLVE(
+        real_pthread_cond_init,
+        (typeof(pthread_cond_init) *)xdlsym(
+            libc_handle(), "pthread_cond_init"),
+        (void)p);
+    return fn(cond, cond_attr);
 }
 #    endif
 
@@ -330,7 +500,7 @@ __asm__(
 // is exported. Musl-compiled code references res_init directly.
 // __res_init is declared weak so linking succeeds on musl (where it doesn't
 // exist). At runtime: on glibc it's non-NULL and called directly; on musl
-// it's NULL and we fall through to dlopen musl's own res_init.
+// it's NULL and we fall through to dlopen the runtime libc's res_init.
 extern int __res_init(void) __attribute__((weak));
 
 int res_init(void)
@@ -338,11 +508,12 @@ int res_init(void)
     if (__res_init)
         return __res_init();
 
-    // musl path: find res_init in musl's libc via dlopen
-    static _Atomic(void *) musl_res_init;
-    void *fn = LAZY_RESOLVE(musl_res_init,
-                   xdlsym(musl_libc_handle(), "res_init"), (void)p);
-    return ((int (*)(void))fn)();
+    // musl path: find res_init in the runtime libc via dlopen
+    static _Atomic(typeof(res_init) *) musl_res_init;
+    typeof(res_init) *fn = LAZY_RESOLVE(
+        musl_res_init,
+        (typeof(res_init) *)xdlsym(libc_handle(), "res_init"), (void)p);
+    return fn();
 }
 
 // __freadahead is a stdio_ext function exported by musl but not glibc.

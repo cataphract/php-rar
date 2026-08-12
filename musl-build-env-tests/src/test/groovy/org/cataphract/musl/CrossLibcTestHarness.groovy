@@ -1,7 +1,7 @@
 package org.cataphract.musl
 
-import com.github.dockerjava.api.command.CreateContainerCmd
 import groovy.transform.CompileStatic
+import groovy.transform.TupleConstructor
 import org.testcontainers.containers.Container
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName
@@ -10,63 +10,36 @@ import org.testcontainers.utility.MountableFile
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.function.Consumer
 
 @CompileStatic
 final class CrossLibcTestHarness implements Closeable {
-    private static final CrossLibcTestHarness INSTANCE = fromSystemProperties()
-
-    private final String buildEnvImage
-    private final String glibcImage
-    private final String muslImage
+    private final GenericContainer<?> buildContainer
+    private final GenericContainer<?> glibcContainer
+    private final GenericContainer<?> muslContainer
     private final Path transferDirectory
-    private final AtomicBoolean started = new AtomicBoolean()
-    private final AtomicBoolean closed = new AtomicBoolean()
 
-    private GenericContainer<?> buildContainer
-    private GenericContainer<?> glibcContainer
-    private GenericContainer<?> muslContainer
+    private boolean closed
     private String architecture
 
-    private CrossLibcTestHarness(String buildEnvImage, String glibcImage,
-                                String muslImage) {
-        this.buildEnvImage = buildEnvImage
-        this.glibcImage = glibcImage
-        this.muslImage = muslImage
+    CrossLibcTestHarness(GenericContainer<?> buildContainer,
+                        GenericContainer<?> glibcContainer,
+                        GenericContainer<?> muslContainer) {
+        this.buildContainer = buildContainer
+        this.glibcContainer = glibcContainer
+        this.muslContainer = muslContainer
         this.transferDirectory = Files.createTempDirectory('musl-build-env-tests-')
     }
 
-    static CrossLibcTestHarness shared() {
-        return INSTANCE
+    static GenericContainer<?> buildEnvironmentContainer() {
+        return longRunningContainer(requiredProperty('buildEnvImage'))
     }
 
-    synchronized void start() {
-        if (started.get()) {
-            return
-        }
-        if (closed.get()) {
-            throw new IllegalStateException('The cross-libc harness is already closed')
-        }
+    static GenericContainer<?> glibcRuntimeContainer() {
+        return longRunningContainer(requiredProperty('glibcImage'))
+    }
 
-        buildContainer = longRunningContainer(buildEnvImage)
-        glibcContainer = runtimeContainer(glibcImage)
-        muslContainer = runtimeContainer(muslImage)
-
-        try {
-            buildContainer.start()
-            architecture = successfulOutput(
-                'detect the build image architecture',
-                buildContainer.execInContainer('uname', '-m')
-            ).trim()
-            validateArchitecture(architecture)
-            glibcContainer.start()
-            muslContainer.start()
-            started.set(true)
-        } catch (Throwable failure) {
-            close()
-            throw failure
-        }
+    static GenericContainer<?> muslRuntimeContainer() {
+        return longRunningContainer(requiredProperty('muslImage'))
     }
 
     CompiledProgram compileC(String classpathResource,
@@ -89,7 +62,6 @@ final class CrossLibcTestHarness implements Closeable {
 
     CrossLibcResults runOnBoth(CompiledProgram program,
                                List<String> arguments = []) {
-        requireStarted()
         Container.ExecResult glibcResult = run(
             glibcContainer, program.glibcExecutable,
             program.glibcSharedLibrary, program.id, arguments)
@@ -101,19 +73,16 @@ final class CrossLibcTestHarness implements Closeable {
 
     @Override
     synchronized void close() {
-        if (!closed.compareAndSet(false, true)) {
+        if (closed) {
             return
         }
-        stopQuietly(muslContainer)
-        stopQuietly(glibcContainer)
-        stopQuietly(buildContainer)
+        closed = true
         transferDirectory.toFile().deleteDir()
     }
 
     private CompiledProgram compile(String classpathResource, String compiler,
                                     List<String> compilerArguments,
                                     String sharedLibraryResource) {
-        requireStarted()
         String id = UUID.randomUUID().toString()
         String extension = classpathResource.endsWith('.cpp') ? '.cpp' : '.c'
         Path hostSource = transferDirectory.resolve("${id}${extension}")
@@ -233,6 +202,14 @@ final class CrossLibcTestHarness implements Closeable {
     }
 
     private String glibcPatchScript(String source, String destination) {
+        if (architecture == null) {
+            architecture = successfulOutput(
+                'detect the build image architecture',
+                buildContainer.execInContainer('uname', '-m')
+            ).trim()
+            validateArchitecture(architecture)
+        }
+
         String interpreter
         switch (architecture) {
             case 'x86_64':
@@ -251,15 +228,6 @@ final class CrossLibcTestHarness implements Closeable {
         """.stripIndent()
     }
 
-    private static CrossLibcTestHarness fromSystemProperties() {
-        CrossLibcTestHarness harness = new CrossLibcTestHarness(
-            requiredProperty('buildEnvImage'),
-            requiredProperty('glibcImage'),
-            requiredProperty('muslImage'))
-        Runtime.runtime.addShutdownHook(new Thread({ harness.close() }))
-        return harness
-    }
-
     private static String requiredProperty(String name) {
         String value = System.getProperty(name)
         if (!value) {
@@ -271,19 +239,6 @@ final class CrossLibcTestHarness implements Closeable {
     private static GenericContainer<?> longRunningContainer(String image) {
         return new GenericContainer<>(DockerImageName.parse(image))
             .withCommand('sh', '-c', 'while :; do sleep 3600; done')
-    }
-
-    private static GenericContainer<?> runtimeContainer(String image) {
-        GenericContainer<?> container = longRunningContainer(image)
-        return container.withCreateContainerCmdModifier(
-            new Consumer<CreateContainerCmd>() {
-                @Override
-                void accept(CreateContainerCmd command) {
-                    // x86_64 MSan disables ASLR with personality(). Docker's
-                    // default seccomp profile blocks that startup call.
-                    command.hostConfig.withSecurityOpts(['seccomp=unconfined'])
-                }
-            })
     }
 
     private static void copyResource(String classpathResource, Path destination) {
@@ -304,12 +259,6 @@ final class CrossLibcTestHarness implements Closeable {
         }
     }
 
-    private void requireStarted() {
-        if (!started.get()) {
-            throw new IllegalStateException('The cross-libc harness has not been started')
-        }
-    }
-
     private static String successfulOutput(String action,
                                            Container.ExecResult result) {
         assertSuccess(action, result)
@@ -324,20 +273,10 @@ final class CrossLibcTestHarness implements Closeable {
                     "stderr:\n${result.stderr}")
         }
     }
-
-    private static void stopQuietly(GenericContainer<?> container) {
-        if (container == null) {
-            return
-        }
-        try {
-            container.stop()
-        } catch (Throwable ignored) {
-            // Preserve the original startup/test failure.
-        }
-    }
 }
 
 @CompileStatic
+@TupleConstructor
 final class CompiledProgram {
     final String id
     final Path muslExecutable
@@ -347,32 +286,13 @@ final class CompiledProgram {
     final List<String> muslExecutableDependencies
     final List<String> muslSharedLibraryDependencies
     final String sourceResource
-
-    CompiledProgram(String id, Path muslExecutable, Path glibcExecutable,
-                    Path muslSharedLibrary, Path glibcSharedLibrary,
-                    List<String> muslExecutableDependencies,
-                    List<String> muslSharedLibraryDependencies,
-                    String sourceResource) {
-        this.id = id
-        this.muslExecutable = muslExecutable
-        this.glibcExecutable = glibcExecutable
-        this.muslSharedLibrary = muslSharedLibrary
-        this.glibcSharedLibrary = glibcSharedLibrary
-        this.muslExecutableDependencies = muslExecutableDependencies
-        this.muslSharedLibraryDependencies = muslSharedLibraryDependencies
-        this.sourceResource = sourceResource
-    }
 }
 
 @CompileStatic
+@TupleConstructor
 final class CrossLibcResults {
     final Container.ExecResult glibc
     final Container.ExecResult musl
-
-    CrossLibcResults(Container.ExecResult glibc, Container.ExecResult musl) {
-        this.glibc = glibc
-        this.musl = musl
-    }
 
     void assertSuccess() {
         assertRuntimeSuccess('glibc', glibc)

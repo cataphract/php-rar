@@ -217,10 +217,14 @@ ENV CC=musl-clang CXX=musl-clang++
 #    (__asan_* / __ubsan_handle_*) resolve at dlopen against the export-dynamic
 #    PHP binary, which is itself built with the same flags.
 #
-# 2. Set MUSL_CLANG_SANITIZE_CXX=address so musl-clang++ selects the
-#    ASAN-instrumented shared libc++/libc++abi/libunwind from /usr/asan (built in
-#    musl-build-env) instead of the plain static libc++, keeping libc++'s
-#    container-overflow annotations consistent with the instrumented extension.
+# 2. Set MUSL_CLANG_SANITIZE=address so /usr/asan/lib (built in musl-build-env)
+#    goes first on every link. musl-clang++ then selects the ASAN-instrumented
+#    shared libc++/libc++abi/libunwind from it instead of the plain static
+#    libc++, keeping libc++'s container-overflow annotations consistent with the
+#    instrumented extension, and both C and C++ links pick up that directory's
+#    reduced libc.so, which omits libglibc_compat.a so its wrappers cannot
+#    override the weak sanitizer interceptors. That libc.so still supplies
+#    libadditional_compat.a, so the php_pcre2_* stubs added above survive.
 #
 # The PHP link above forces the binary to load the shared C++ runtime at startup
 # (DT_NEEDED libc++.so.1, which pulls libc++abi.so.1 / libunwind.so.1). Otherwise

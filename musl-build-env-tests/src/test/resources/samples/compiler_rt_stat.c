@@ -5,21 +5,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-/* musl exports signgam from libc; provide it when this binary runs on glibc. */
-int signgam;
-
-#if defined(__x86_64__)
-#define STAT_VERSION 1
-#else
-#define STAT_VERSION 0
-#endif
-
-int __xstat(int version, const char *path, struct stat *metadata);
-int __fxstat(int version, int descriptor, struct stat *metadata);
-int __lxstat(int version, const char *path, struct stat *metadata);
-int __fxstatat(int version, int descriptor, const char *path,
-               struct stat *metadata, int flags);
-
 static int metadata_is_valid(const struct stat *metadata)
 {
     volatile uint64_t initialized_values =
@@ -44,29 +29,16 @@ int main(int argc, char **argv)
 
     if (strcmp(argv[1], "stat") == 0) {
         result = stat("/dev/null", &metadata);
-    } else if (strcmp(argv[1], "__xstat") == 0) {
-        result = __xstat(STAT_VERSION, "/dev/null", &metadata);
     } else if (strcmp(argv[1], "fstat") == 0) {
         descriptor = open("/dev/null", O_RDONLY);
         if (descriptor < 0) {
             return 11;
         }
         result = fstat(descriptor, &metadata);
-    } else if (strcmp(argv[1], "__fxstat") == 0) {
-        descriptor = open("/dev/null", O_RDONLY);
-        if (descriptor < 0) {
-            return 11;
-        }
-        result = __fxstat(STAT_VERSION, descriptor, &metadata);
     } else if (strcmp(argv[1], "lstat") == 0) {
         result = lstat("/dev/null", &metadata);
-    } else if (strcmp(argv[1], "__lxstat") == 0) {
-        result = __lxstat(STAT_VERSION, "/dev/null", &metadata);
     } else if (strcmp(argv[1], "fstatat") == 0) {
         result = fstatat(AT_FDCWD, "/dev/null", &metadata, 0);
-    } else if (strcmp(argv[1], "__fxstatat") == 0) {
-        result = __fxstatat(
-            STAT_VERSION, AT_FDCWD, "/dev/null", &metadata, 0);
     } else {
         return 12;
     }

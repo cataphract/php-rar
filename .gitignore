@@ -52,3 +52,4 @@
 *.dep
 /configure~
 /.cache/
+/musl-build-env-tests/.idea/
