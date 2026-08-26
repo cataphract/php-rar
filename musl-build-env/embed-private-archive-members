@@ -1,0 +1,80 @@
+#!/bin/sh
+
+# Embed the archive members needed by an object, make their definitions local,
+# and replace the object with the resulting relocatable object.
+
+set -eu
+
+main()
+{
+    validate_arguments "$@"
+
+    work_directory=$(mktemp -d)
+    trap cleanup EXIT
+    trap 'exit 1' HUP INT TERM
+
+    embed_private_archive_members \
+        "$1" "$2" "$work_directory"
+}
+
+validate_arguments()
+{
+    if [ "$#" -ne 2 ]; then
+        printf 'Usage: %s OBJECT ARCHIVE\n' "${0##*/}" >&2
+        exit 2
+    fi
+
+    require_file "Object" "$1"
+    require_file "Archive" "$2"
+}
+
+embed_private_archive_members()
+{
+    write_external_definitions "$1" "$3/base-symbols"
+
+    ld.lld -r "$1" "$2" -o "$3/linked.o"
+    write_external_definitions "$3/linked.o" "$3/linked-symbols"
+    comm -13 "$3/base-symbols" "$3/linked-symbols" \
+        > "$3/archive-symbols"
+
+    llvm-objcopy --localize-symbols="$3/archive-symbols" \
+        "$3/linked.o" "$3/localized.o"
+    write_external_definitions "$3/localized.o" "$3/localized-symbols"
+    verify_no_external_archive_definitions \
+        "$3/base-symbols" "$3/localized-symbols" "$3/unexpected-symbols"
+
+    mv "$3/localized.o" "$1"
+}
+
+write_external_definitions()
+{
+    llvm-nm --defined-only --extern-only --format=posix "$1" \
+        > "$2.nm"
+    awk '{print $1}' "$2.nm" > "$2.unsorted"
+    sort -u "$2.unsorted" > "$2"
+}
+
+verify_no_external_archive_definitions()
+{
+    comm -13 "$1" "$2" > "$3"
+    if [ -s "$3" ]; then
+        printf '%s\n' 'Archive definitions remain externally visible:' >&2
+        sed 's/^/  /' "$3" >&2
+        exit 1
+    fi
+}
+
+require_file()
+{
+    if [ ! -f "$2" ]; then
+        printf '%s does not exist: %s\n' "$1" "$2" >&2
+        exit 1
+    fi
+}
+
+cleanup()
+{
+    rm -rf -- "$work_directory"
+}
+
+main "$@"

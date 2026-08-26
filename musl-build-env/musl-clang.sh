@@ -140,6 +140,11 @@ for arg in "${link_options[@]}"; do
     esac
 done
 
+runtime_selection_flags=()
+if $default_libraries; then
+    runtime_selection_flags=(-rtlib=compiler-rt -unwindlib=libunwind)
+fi
+
 force_pthread=false
 if $pthread_library_flag ||
    { $pthread_driver_flag && $default_libraries; }; then
@@ -217,8 +222,7 @@ fi
 exec "$driver" \
     "${common_flags[@]}" \
     "${MUSL_CLANG_COMPILE_FLAGS[@]}" \
-    -rtlib=compiler-rt \
-    -unwindlib=libunwind \
+    "${runtime_selection_flags[@]}" \
     -Wl,--gc-sections \
     -Wl,-z,nocopyreloc \
     "${sanitizer_link_flags[@]}" \

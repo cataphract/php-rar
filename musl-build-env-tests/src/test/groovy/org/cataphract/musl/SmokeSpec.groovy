@@ -1,6 +1,7 @@
 package org.cataphract.musl
 
 import org.testcontainers.containers.Container
+import spock.lang.Requires
 
 class SmokeSpec extends CrossLibcSpecification {
     def 'a program built by musl-build-env runs on glibc and musl'() {
@@ -66,6 +67,48 @@ class SmokeSpec extends CrossLibcSpecification {
                     "$work/relocatable.o"; do
                     ! readelf -d "$output" 2>/dev/null | grep -q '(NEEDED)'
                 done
+            '''.stripIndent(),
+        ])
+
+        then:
+        result.exitCode == 0
+    }
+
+    def 'nodefaultlibs link accepts compiler runtime before explicit libc'() {
+        when:
+        Container.ExecResult result = harness.buildEnvironmentCommand([
+            'sh', '-ceu', '''
+                work=$(mktemp -d)
+                trap 'rm -rf "$work"' EXIT HUP INT TERM
+                printf '%s\n' \
+                    '#include <sys/stat.h>' \
+                    'void probe(void) {' \
+                    '    struct stat result;' \
+                    '    (void)stat("/", &result);' \
+                    '}' > "$work/probe.c"
+                musl-clang -c "$work/probe.c" -o "$work/probe.o"
+                musl-clang -fuse-ld=bfd -nodefaultlibs -nostartfiles \
+                    -Wl,-e,probe "$work/probe.o" \
+                    /usr/lib/libclang_rt.builtins.a -lc \
+                    -o "$work/probe"
+            '''.stripIndent(),
+        ])
+
+        then:
+        result.exitCode == 0
+    }
+
+    @Requires({ sys['os.arch'] == 'aarch64' })
+    def 'compatibility archive keeps its compiler runtime private'() {
+        when:
+        Container.ExecResult result = harness.buildEnvironmentCommand([
+            'sh', '-ceu', '''
+                llvm-nm --defined-only --format=posix \
+                    /usr/lib/libglibc_compat.a |
+                    grep -q '^__aarch64_cas8_rel t '
+                ! llvm-nm --defined-only --extern-only --format=posix \
+                    /usr/lib/libglibc_compat.a |
+                    grep -q '^__aarch64_cas8_rel '
             '''.stripIndent(),
         ])
 

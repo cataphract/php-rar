@@ -231,15 +231,24 @@ RUN set -eux; \
 
 # Build the compatibility archive with hidden symbols (equivalent to the old
 # --exclude-libs policy) and the executable-only preinit/fini object.
-COPY glibc_compat.c glibc_compat_exe.c /build-input/
-RUN mkdir -p /opt/compat && \
+#
+# The compiler may lower operations in glibc_compat.o to compiler-rt builtins.
+# Embed the required members privately so the compatibility object's references
+# are resolved without letting that runtime satisfy references from callers.
+COPY glibc_compat.c glibc_compat_exe.c embed-private-archive-members \
+     /build-input/
+RUN set -eux; \
+    mkdir -p /opt/compat; \
     clang -fpie -O2 -fno-omit-frame-pointer -ggdb3 \
       -fvisibility=hidden -ffunction-sections -fdata-sections \
-      -c /build-input/glibc_compat.c -o /tmp/glibc_compat.o && \
-    llvm-ar rcs /opt/compat/libglibc_compat.a /tmp/glibc_compat.o && \
+      -c /build-input/glibc_compat.c -o /tmp/glibc_compat.o; \
+    BUILTINS=$(clang -rtlib=compiler-rt --print-libgcc-file-name); \
+    sh /build-input/embed-private-archive-members \
+      /tmp/glibc_compat.o "${BUILTINS}"; \
+    llvm-ar rcs /opt/compat/libglibc_compat.a /tmp/glibc_compat.o; \
     clang -fpie -O2 -fno-omit-frame-pointer -ggdb3 \
       -c /build-input/glibc_compat_exe.c \
-      -o /opt/compat/glibc_compat_exe.o && \
+      -o /opt/compat/glibc_compat_exe.o; \
     rm /tmp/glibc_compat.o
 
 # Keep patched LLVM production sources for debugging, but never copy build
