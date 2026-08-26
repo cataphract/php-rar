@@ -42,7 +42,8 @@ endif()
 #
 # For ASan and MSan, the selected library directory goes first on every link,
 # C and C++ alike. In sanitized C++ mode it also resolves libc++ to the
-# instrumented DSO instead of the static one. These are link-only options, hence
+# instrumented DSO instead of the static one. Its reduced libc.so selects only
+# the libc facade for native-musl execution. These are link-only options, hence
 # -Qunused-arguments for compile-only commands.
 #
 # As in the wrappers, only MUSL_SANITIZE drives this selection; explicit
@@ -68,8 +69,8 @@ set(CMAKE_CXX_FLAGS_INIT
     "-stdlib=libc++ ${_musl_sanitizer_runtime} ${_musl_cxx_runtime} -fno-omit-frame-pointer -Qunused-arguments ${MUSL_COMPILE_FLAGS}")
 
 # Prefer static user libraries, then restore dynamic mode before Clang adds its
-# implicit compiler runtimes and libc. libc.so itself injects compatibility
-# archives while retaining the host musl DSO as the runtime dependency.
+# implicit compiler runtimes and libc. libc.so injects compatibility archives
+# before selecting portable dependency names through linker-only facades.
 set(toolchain_link_flags
     "-rtlib=compiler-rt -unwindlib=libunwind -Wl,--gc-sections -Wl,-Bstatic")
 set(CMAKE_EXE_LINKER_FLAGS_INIT "${toolchain_link_flags}")

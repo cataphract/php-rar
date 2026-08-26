@@ -1,9 +1,6 @@
 __fpclassify
 __fpclassifyf
 __fpclassifyl
-__signbit
-__signbitf
-__signbitl
 __signgam
 acos
 acosf
@@ -74,9 +71,6 @@ clogl
 conj
 conjf
 conjl
-copysign
-copysignf
-copysignl
 cos
 cosf
 cosh
@@ -144,8 +138,6 @@ fesetexceptflag
 fesetround
 fetestexcept
 feupdateenv
-finite
-finitef
 floor
 floorf
 floorl
@@ -161,9 +153,6 @@ fminl
 fmod
 fmodf
 fmodl
-frexp
-frexpf
-frexpl
 hypot
 hypotf
 hypotl
@@ -176,9 +165,6 @@ j1
 j1f
 jn
 jnf
-ldexp
-ldexpf
-ldexpl
 lgamma
 lgamma_r
 lgammaf
@@ -212,9 +198,6 @@ lrintl
 lround
 lroundf
 lroundl
-modf
-modff
-modfl
 nan
 nanf
 nanl
@@ -250,9 +233,6 @@ scalbf
 scalbln
 scalblnf
 scalblnl
-scalbn
-scalbnf
-scalbnl
 signgam
 significand
 significandf

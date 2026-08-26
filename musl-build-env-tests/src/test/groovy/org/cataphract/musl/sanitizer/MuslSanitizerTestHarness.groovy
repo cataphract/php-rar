@@ -298,28 +298,17 @@ final class MuslSanitizerTestHarness implements Closeable {
 
     private static void assertLinkTrace(
         String resource, String libraryDirectory, String linkerTrace) {
+        String libcFacade = '/usr/lib/glibc-compat-libc.so.6'
+        if (!linkerTrace.readLines().contains(libcFacade)) {
+            throw new IllegalStateException(
+                "Sanitizer sample ${resource} did not link ${libcFacade}")
+        }
         if (libraryDirectory == DEFAULT_LIBRARY_DIRECTORY) {
-            boolean linkedNativeLibc = linkerTrace.readLines().any {
-                String line ->
-                line.startsWith('/lib/ld-musl-') && line.endsWith('.so.1')
-            }
-            if (!linkedNativeLibc) {
-                throw new IllegalStateException(
-                    "Sanitizer sample ${resource} did not link native musl " +
-                    "through ${DEFAULT_LIBRARY_DIRECTORY}")
-            }
             return
         }
         if (linkerTrace.contains('libglibc_compat.a')) {
             throw new IllegalStateException(
                 "Sanitizer sample ${resource} linked glibc_compat.a")
-        }
-        // The directory's libc.so is a linker script, which ld.lld does not
-        // report; the DSO it selects is the traceable proof it was used.
-        String nativeLibc = "${libraryDirectory}/libc-native.so"
-        if (!linkerTrace.readLines().contains(nativeLibc)) {
-            throw new IllegalStateException(
-                "Sanitizer sample ${resource} did not link ${nativeLibc}")
         }
     }
 

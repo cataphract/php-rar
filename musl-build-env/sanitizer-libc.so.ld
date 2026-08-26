@@ -2,5 +2,5 @@
  * compiler-rt's weak interceptors remain active. */
 GROUP (
   /usr/lib/libadditional_compat.a
-  AS_NEEDED ( @SANITIZER_LIB_DIR@/libc-native.so )
+  AS_NEEDED ( /usr/lib/glibc-compat-libc.so.6 )
 )

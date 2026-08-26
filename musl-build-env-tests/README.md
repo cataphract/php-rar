@@ -23,11 +23,18 @@ The runtime images and the build image are configurable:
 
 The Docker host and all three images must use the same CPU architecture. The
 cross-libc harness patches a copy of each executable's interpreter for the
-glibc run. The linker wrapper already records the portable `libc.so.6`
-dependency, plus any separate compatibility DSOs needed by glibc before 2.34.
-The original
-executable is used unchanged for the musl run, and shared libraries are used
-unchanged on both.
+glibc run. Linker-only facades selected by the `libc.so` linker script already
+record the portable `libc.so.6` dependency, plus any separate compatibility
+DSOs needed by glibc before 2.34. The original executable is used unchanged for
+the musl run, and shared libraries are used unchanged on both.
+
+Before glibc 2.34, libpthread used dependency ordering to override libc's
+non-threaded definitions with cancellable and thread-aware implementations.
+The compiler wrappers therefore make explicit `-pthread` and `-lpthread`
+options retain `libpthread.so.0` ahead of `libc.so.6`, even when all referenced
+symbols also exist in libc. Explicit `-lm` likewise retains `libm.so.6` ahead
+of `libc.so.6`. Static and relocatable links do not acquire those dynamic
+dependencies.
 
 The oldest supported glibc is CentOS 7's, version 2.17. `glibcImage` defaults
 to a current release, so checking the floor means naming it explicitly:
@@ -46,10 +53,10 @@ ASan/UBSan/vptr combination), and `/usr/lib` for other runtimes such as LSan
 and standalone UBSan. The two sanitizer directories hold a reduced `libc.so`
 linker script that omits `libglibc_compat.a`, whose wrappers would otherwise
 override the weak ASan and MSan interceptors, while still supplying the
-downstream `libadditional_compat.a`; their `libc-native.so` entry is the pinned
-musl libc. Linker traces verify the expected libc path. Shared libraries from
-the selected directory are copied alongside the executable before it runs in
-the musl container.
+downstream `libadditional_compat.a`. Because sanitizer binaries are native-musl
+only, the reduced scripts select only the libc facade from `/usr/lib`; linker
+traces verify that path. Shared libraries from the selected directory are
+copied alongside the executable before it runs in the musl container.
 
 Running binaries built with the musl LLVM sanitizer runtimes on glibc is a
 non-goal. Sanitizer binaries are supported and tested only on native musl.

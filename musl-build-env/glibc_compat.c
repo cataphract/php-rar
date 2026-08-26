@@ -454,7 +454,7 @@ int memfd_create(const char *name, unsigned flags) {
 
 // __flt_rounds is a musl internal that returns the FLT_ROUNDS value.
 // glibc doesn't export it; fegetround() provides the same information. The
-// post-link step adds glibc's libm dependency for this direct reference.
+// libm facade selects glibc's libm dependency for this direct reference.
 int __flt_rounds(void)
 {
     switch (fegetround()) {

@@ -230,9 +230,7 @@ ENV CC=musl-clang CXX=musl-clang++
 # (DT_NEEDED libc++.so.1, which pulls libc++abi.so.1 / libunwind.so.1). Otherwise
 # PHP would only load libc++ when the extension is dlopen'd, after ASAN has
 # initialized. ASAN's __cxa_throw interceptor would then cache a NULL real
-# function and abort on the first C++ exception. Recording the dependency in the
-# original link also lets musl-ld perform its dependency rewrites afterward,
-# avoiding another patchelf invocation on the already-rewritten PHP binary.
+# function and abort on the first C++ exception.
 COPY musl-clang-debug.conf /tmp/musl-clang-debug.conf
 RUN if [ "${PHP_ENABLE_DEBUG}" = "yes" ]; then \
         mv /tmp/musl-clang-debug.conf /etc/musl-clang.conf; \

@@ -45,7 +45,8 @@ if $compile_only; then
 fi
 
 # For ASan and MSan, the selected library directory goes first on every link,
-# C and C++ alike. Its libc.so omits wrappers that override weak interceptors.
+# C and C++ alike. Its reduced libc.so omits wrappers that override weak
+# interceptors and selects only the libc facade for native-musl execution.
 #
 # Only this policy setting drives the choice; explicit -fsanitize=address or
 # -fsanitize=memory arguments are deliberately not inspected.
@@ -91,6 +92,80 @@ if $sanitized_cxx; then
     done
     $previous_was_l && filtered_args+=(-l)
     link_args=("${filtered_args[@]}")
+fi
+
+# An explicit split-library option is also a runtime-selection request. On
+# glibc before 2.34, putting that library before libc preserves the requested
+# library selection even when libc exports the same symbols.
+pthread_driver_flag=false
+pthread_library_flag=false
+math_library_flag=false
+default_libraries=true
+dynamic_output=true
+previous_was_l=false
+link_options=(
+    "${MUSL_CLANG_COMPILE_FLAGS[@]}"
+    "${link_args[@]}"
+    "${MUSL_CLANG_LINK_FLAGS[@]}"
+)
+for arg in "${link_options[@]}"; do
+    if $previous_was_l; then
+        case "$arg" in
+            pthread) pthread_library_flag=true ;;
+            m) math_library_flag=true ;;
+        esac
+        previous_was_l=false
+        continue
+    fi
+    case "$arg" in
+        -l)
+            previous_was_l=true
+            ;;
+        -pthread)
+            pthread_driver_flag=true
+            ;;
+        -lpthread)
+            pthread_library_flag=true
+            ;;
+        -lm)
+            math_library_flag=true
+            ;;
+        -nostdlib|-nodefaultlibs)
+            default_libraries=false
+            ;;
+        -static|-static-pie|-r|-Wl,-r|-Wl,-r,*|-Wl,--relocatable|\
+        -Wl,--relocatable,*)
+            dynamic_output=false
+            ;;
+    esac
+done
+
+force_pthread=false
+if $pthread_library_flag ||
+   { $pthread_driver_flag && $default_libraries; }; then
+    force_pthread=true
+fi
+
+pthread_link_flags=()
+if $dynamic_output && $force_pthread; then
+    pthread_link_flags=(
+        -Wl,--push-state
+        -Wl,-Bdynamic
+        -Wl,--no-as-needed
+        /usr/lib/glibc-compat-libpthread.so.0
+        -Wl,--pop-state
+    )
+fi
+
+math_link_flags=()
+if $dynamic_output && $math_library_flag; then
+    math_link_flags=(
+        -Wl,--push-state
+        -Wl,-Bdynamic
+        -Wl,--no-as-needed
+        /usr/lib/glibc-compat-libm.so.6
+        -Wl,--pop-state
+    )
 fi
 
 # An explicit -lc from the caller (e.g. libtool's C++ tag links with -nostdlib
@@ -145,10 +220,13 @@ exec "$driver" \
     -rtlib=compiler-rt \
     -unwindlib=libunwind \
     -Wl,--gc-sections \
+    -Wl,-z,nocopyreloc \
     "${sanitizer_link_flags[@]}" \
     "${cxx_runtime_flags[@]}" \
     -Wl,--push-state \
     -Wl,-Bstatic \
     "${link_args[@]}" \
     -Wl,--pop-state \
-    "${MUSL_CLANG_LINK_FLAGS[@]}"
+    "${MUSL_CLANG_LINK_FLAGS[@]}" \
+    "${pthread_link_flags[@]}" \
+    "${math_link_flags[@]}"

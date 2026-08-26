@@ -71,6 +71,21 @@ final class CrossLibcTestHarness implements Closeable {
         return new CrossLibcResults(glibcResult, muslResult)
     }
 
+    Container.ExecResult buildEnvironmentCommand(List<String> command) {
+        return buildContainer.execInContainer(command as String[])
+    }
+
+    String buildEnvironmentOutput(String action, List<String> command) {
+        return successfulOutput(action, buildEnvironmentCommand(command))
+    }
+
+    void copyResourceToBuildEnvironment(String resource, String destination) {
+        Path hostSource = transferDirectory.resolve("resource-${UUID.randomUUID()}")
+        copyResource(resource, hostSource)
+        buildContainer.copyFileToContainer(
+            MountableFile.forHostPath(hostSource), destination)
+    }
+
     @Override
     synchronized void close() {
         if (closed) {
@@ -165,7 +180,8 @@ final class CrossLibcTestHarness implements Closeable {
             containerGlibcExecutable, hostGlibcExecutable.toString())
 
         return new CompiledProgram(
-            id, hostMuslExecutable, hostGlibcExecutable,
+            id, containerMuslExecutable,
+            hostMuslExecutable, hostGlibcExecutable,
             hostMuslSharedLibrary, hostGlibcSharedLibrary,
             muslExecutableDependencies, muslSharedLibraryDependencies,
             classpathResource)
@@ -279,6 +295,7 @@ final class CrossLibcTestHarness implements Closeable {
 @TupleConstructor
 final class CompiledProgram {
     final String id
+    final String buildContainerExecutable
     final Path muslExecutable
     final Path glibcExecutable
     final Path muslSharedLibrary

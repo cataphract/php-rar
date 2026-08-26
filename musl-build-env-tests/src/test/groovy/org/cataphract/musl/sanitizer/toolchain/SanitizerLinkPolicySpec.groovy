@@ -20,6 +20,15 @@ class SanitizerLinkPolicySpec extends MuslSanitizerSpecification {
     private static final String WORK_DIRECTORY = '/tmp/sanitizer-link-policy'
     private static final String DOWNSTREAM_ARCHIVE =
         '/usr/lib/libadditional_compat.a'
+    private static final String LIBC_FACADE =
+        '/usr/lib/glibc-compat-libc.so.6'
+    private static final List<String> SPLIT_FACADES = [
+        '/usr/lib/glibc-compat-libpthread.so.0',
+        '/usr/lib/glibc-compat-librt.so.1',
+        '/usr/lib/glibc-compat-libm.so.6',
+        '/usr/lib/glibc-compat-libdl.so.2',
+        '/usr/lib/glibc-compat-libutil.so.1',
+    ]
 
     def setupSpec() {
         harness.buildEnvironmentOutput(
@@ -58,7 +67,8 @@ class SanitizerLinkPolicySpec extends MuslSanitizerSpecification {
 
         then:
         link.exitCode == 0
-        trace.readLines().contains("${directory}/libc-native.so".toString())
+        trace.readLines().contains(LIBC_FACADE)
+        SPLIT_FACADES.every { !trace.readLines().contains(it) }
         !trace.contains('libglibc_compat.a')
 
         where:
@@ -91,7 +101,7 @@ class SanitizerLinkPolicySpec extends MuslSanitizerSpecification {
 
         then:
         link.exitCode == 0
-        trace.readLines().contains("${directory}/libc-native.so".toString())
+        trace.readLines().contains(LIBC_FACADE)
         trace.contains(DOWNSTREAM_ARCHIVE)
         !trace.contains('libglibc_compat.a')
         language != 'C++' || trace.contains("${directory}/libc++.so")
@@ -125,7 +135,7 @@ class SanitizerLinkPolicySpec extends MuslSanitizerSpecification {
 
         then:
         link.exitCode == 0
-        trace.readLines().contains("${directory}/libc-native.so".toString())
+        trace.readLines().contains(LIBC_FACADE)
         trace.contains(DOWNSTREAM_ARCHIVE)
         !trace.contains('libglibc_compat.a')
         language != 'CXX' || trace.contains("${directory}/libc++.so")
@@ -146,8 +156,7 @@ class SanitizerLinkPolicySpec extends MuslSanitizerSpecification {
         then:
         link.exitCode == 0
         trace.contains(DOWNSTREAM_ARCHIVE)
-        !trace.contains('/usr/asan/lib/libc-native.so')
-        !trace.contains('/usr/msan/lib/libc-native.so')
+        trace.readLines().contains(LIBC_FACADE)
     }
 
     private void installSanitizerPolicy(String policy) {

@@ -270,8 +270,8 @@ COPY --from=builder /llvm-project-${LLVM_VERSION}.src /llvm-project-${LLVM_VERSI
 
 COPY Toolchain.cmake /usr/local/share/musl/Toolchain.cmake
 COPY glibc-*-symbols*.txt /usr/local/share/musl/
+COPY create-glibc-link-facades /usr/local/bin/create-glibc-link-facades
 COPY musl-clang.sh /usr/local/bin/musl-clang
-COPY musl-ld.sh /usr/local/bin/musl-ld
 COPY libc.so.ld /usr/lib/libc.so.ld
 COPY sanitizer-libc.so.ld /usr/lib/sanitizer-libc.so.ld
 
@@ -279,21 +279,27 @@ COPY sanitizer-libc.so.ld /usr/lib/sanitizer-libc.so.ld
 #   - libc.so pulls hidden glibc_compat plus an extensible downstream archive;
 #   - executable CRT objects contain the preinit/fini shim;
 #   - Clang finds compiler-rt in its real resource directory;
-#   - the linker wrapper adds glibc compatibility dependencies when required.
-#     See SYMBOL_LISTS.md for the source versions and architecture differences.
+#   - linker-only facades select portable glibc dependency names in one pass.
+#     See SYMBOL_LISTS.md for their source versions and architecture differences.
 # ASan and MSan builds put /usr/{asan,msan}/lib first on the link line. The libc
 # entry there omits libglibc_compat.a while retaining the downstream archive;
-# libc-native.so is the musl DSO it selects.
+# its sole DSO input is the libc facade because sanitizer binaries are native
+# musl only.
 RUN set -eux; \
-    MUSL_LIBC=$(readlink -f /usr/lib/libc.so); \
+    MUSL_LOADER="/lib/ld-musl-$(uname -m).so.1"; \
+    MUSL_ALIAS="/lib/libc.musl-$(uname -m).so.1"; \
+    LOADER_CHECKSUM=$(sha256sum "${MUSL_LOADER}" | awk '{print $1}'); \
+    LOADER_SONAME=$(readelf -d "${MUSL_LOADER}" | sed -n \
+        's/.*Library soname: \[\(.*\)\]/\1/p'); \
+    ALIAS_TARGET=$(readlink "${MUSL_ALIAS}"); \
+    test -n "${LOADER_SONAME}"; \
+    chmod +x /usr/local/bin/create-glibc-link-facades; \
+    /usr/local/bin/create-glibc-link-facades; \
     for SANITIZER_LIB_DIR in /usr/asan/lib /usr/msan/lib; do \
         mkdir -p "${SANITIZER_LIB_DIR}"; \
-        ln -s "${MUSL_LIBC}" "${SANITIZER_LIB_DIR}/libc-native.so"; \
-        sed "s|@SANITIZER_LIB_DIR@|${SANITIZER_LIB_DIR}|" \
-            /usr/lib/sanitizer-libc.so.ld > "${SANITIZER_LIB_DIR}/libc.so"; \
+        cp /usr/lib/sanitizer-libc.so.ld "${SANITIZER_LIB_DIR}/libc.so"; \
     done; \
     rm /usr/lib/sanitizer-libc.so.ld; \
-    sed -i "s|@MUSL_LIBC@|${MUSL_LIBC}|" /usr/lib/libc.so.ld; \
     rm /usr/lib/libc.so; \
     mv /usr/lib/libc.so.ld /usr/lib/libc.so; \
     llvm-ar rcs /usr/lib/libadditional_compat.a; \
@@ -304,17 +310,19 @@ RUN set -eux; \
     rm /usr/lib/glibc_compat_exe.o; \
     BUILTINS=$(clang -rtlib=compiler-rt --print-libgcc-file-name); \
     ln -s "${BUILTINS}" /usr/lib/libclang_rt.builtins.a; \
-    chmod +x /usr/local/bin/musl-clang /usr/local/bin/musl-ld; \
+    chmod +x /usr/local/bin/musl-clang; \
     ln -s musl-clang /usr/local/bin/musl-clang++; \
-    CLANG_BIN_DIR=$(dirname "$(readlink -f "$(command -v clang)")"); \
-    ln -sf /usr/local/bin/musl-ld "${CLANG_BIN_DIR}/ld"; \
-    ln -sf /usr/local/bin/musl-ld "${CLANG_BIN_DIR}/ld.lld"; \
     LEGACY_TOOLCHAIN_DIR="/sysroot/$(uname -m)-none-linux-musl"; \
     mkdir -p "${LEGACY_TOOLCHAIN_DIR}"; \
     ln -s /usr/local/share/musl/Toolchain.cmake \
         "${LEGACY_TOOLCHAIN_DIR}/Toolchain.cmake"; \
     apk info -e "musl=${MUSL_VERSION}"; \
     apk info -e "musl-dev=${MUSL_VERSION}"; \
+    test "$(sha256sum "${MUSL_LOADER}" | awk '{print $1}')" = \
+        "${LOADER_CHECKSUM}"; \
+    test "$(readelf -d "${MUSL_LOADER}" | sed -n \
+        's/.*Library soname: \[\(.*\)\]/\1/p')" = "${LOADER_SONAME}"; \
+    test "$(readlink "${MUSL_ALIAS}")" = "${ALIAS_TARGET}"; \
     test ! -e "/llvm-project-${LLVM_VERSION}.src/build"; \
     test ! -e "/llvm-project-${LLVM_VERSION}.src/build-asan"; \
     test ! -e "/llvm-project-${LLVM_VERSION}.src/build-msan"; \

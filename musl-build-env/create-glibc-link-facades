@@ -1,0 +1,91 @@
+#!/bin/sh
+
+set -eu
+
+readonly output_directory=/usr/lib
+readonly symbol_directory=/usr/local/share/musl
+
+temporary_directory=
+
+main()
+{
+    architecture=$(uname -m)
+    loader=/lib/ld-musl-$architecture.so.1
+
+    temporary_directory=$(mktemp -d)
+    trap cleanup EXIT
+    trap 'exit 1' HUP INT TERM
+
+    libc_symbols=$temporary_directory/libc-symbols
+    defined_dynamic_symbols "$loader" > "$libc_symbols"
+    create_facades "$architecture" "$libc_symbols"
+}
+
+# Creates every split-library facade followed by the catch-all libc facade.
+create_facades()
+{
+    architecture=$1
+    libc_symbols=$2
+
+    create_facade glibc-compat-libpthread.so.0 libpthread.so.0 \
+        "$symbol_directory/glibc-2.33-libpthread-symbols-$architecture.txt"
+    create_facade glibc-compat-librt.so.1 librt.so.1 \
+        "$symbol_directory/glibc-2.33-librt-symbols.txt"
+    create_facade glibc-compat-libm.so.6 libm.so.6 \
+        "$symbol_directory/glibc-libm-symbols.txt"
+    create_facade glibc-compat-libdl.so.2 libdl.so.2 \
+        "$symbol_directory/glibc-2.33-libdl-symbols.txt"
+    create_facade glibc-compat-libutil.so.1 libutil.so.1 \
+        "$symbol_directory/glibc-2.33-libutil-symbols.txt"
+    create_facade glibc-compat-libc.so.6 libc.so.6 "$libc_symbols"
+}
+
+# Builds one symbol-only DSO with the requested public SONAME.
+create_facade()
+{
+    internal_name=$1
+    soname=$2
+    source_symbols=$3
+    symbols=$temporary_directory/symbols
+    assembly=$temporary_directory/facade.s
+    object=$temporary_directory/facade.o
+    facade=$output_directory/$internal_name
+
+    LC_ALL=C sort -u "$source_symbols" > "$symbols"
+    write_facade_assembly "$symbols" "$assembly"
+    clang -c -x assembler "$assembly" -o "$object"
+    ld.lld -shared --soname="$soname" -o "$facade" "$object"
+}
+
+# Converts a sorted symbol list into absolute assembler definitions.
+write_facade_assembly()
+{
+    symbols=$1
+    assembly=$2
+
+    awk '{
+        print ".globl " $0
+        print ".set " $0 ", 0"
+    }' "$symbols" > "$assembly"
+}
+
+# Prints the sorted defined global and weak dynamic symbols from an ELF file.
+defined_dynamic_symbols()
+{
+    readelf --dyn-syms --wide "$1" | awk '
+        $5 == "GLOBAL" || $5 == "WEAK" {
+            if ($7 != "UND" && NF >= 8) {
+                print $8
+            }
+        }
+    ' | LC_ALL=C sort -u
+}
+
+cleanup()
+{
+    if test -n "$temporary_directory"; then
+        rm -rf "$temporary_directory"
+    fi
+}
+
+main "$@"
