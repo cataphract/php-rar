@@ -21,6 +21,20 @@ FROM ${BUILD_ENV_IMAGE}
 # musl-build-env.
 RUN apk --no-cache add autoconf
 
+# Add the php_pcre2_* stub layer to the compatibility extension archive already
+# referenced by the build environment's libc.so linker script. This applies to
+# wrappers, raw Clang, CMake, and other compiler frontends without editing them.
+COPY pcre2_compat.c pcre2_compat.S /tmp/
+RUN clang \
+        -fpie -O2 -fno-omit-frame-pointer -ggdb3 \
+        -c /tmp/pcre2_compat.c -o /tmp/pcre2_compat_resolve.o && \
+    clang \
+        -c /tmp/pcre2_compat.S -o /tmp/pcre2_compat_stubs.o && \
+    llvm-ar rcs /usr/lib/libadditional_compat.a \
+        /tmp/pcre2_compat_resolve.o /tmp/pcre2_compat_stubs.o && \
+    rm /tmp/pcre2_compat.c /tmp/pcre2_compat.S \
+       /tmp/pcre2_compat_resolve.o /tmp/pcre2_compat_stubs.o
+
 # Assemble all SDK paths in one OCI layer. This lets the variant-independent
 # headers be hard-linked without repeating their contents in the image archive.
 # Hard links cannot portably refer to files in a previous OCI layer.
