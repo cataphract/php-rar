@@ -473,7 +473,7 @@ static int _rar_unrar_volume_user_callback(char* dst_buffer, // MAXPATHSIZE
 		char resolved_path[MAXPATHSIZE];
 		size_t resolved_len;
 
-		if (OPENBASEDIR_CHECKPATH(filename)) {
+		if (php_check_open_basedir(filename)) {
 			goto cleanup;
 		}
 		if (!expand_filepath(filename, resolved_path TSRMLS_CC)) {

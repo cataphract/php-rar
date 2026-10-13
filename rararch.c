@@ -276,7 +276,7 @@ static inline void rar_obj_ref_make_zv(rar_obj_ref zo, zval *zv TSRMLS_DC)
 static inline ze_rararch_object *rararch_object_fetch(zend_object *zobj)
 {
 	return (ze_rararch_object *)
-			((char *) zobj - XtOffsetOf(ze_rararch_object, parent));
+			((char *) zobj - offsetof(ze_rararch_object, parent));
 }
 static ze_rararch_object *rararch_object_from_zv(const zval *zv)
 {
@@ -436,7 +436,7 @@ static int rararch_dimensions_preamble(rar_file_t *rar,
 				return FAILURE;
 			}
 			if (Z_TYPE(newoffset) != IS_LONG) {
-				zval_dtor(&newoffset);
+				zval_ptr_dtor_nogc(&newoffset);
 				RAR_DOCREF_IF_UNQUIET(NULL TSRMLS_CC, E_WARNING,
 					"Could not convert object given as dimension index into "
 					"an integer (cast_object did not return int as asked)");
@@ -591,7 +591,7 @@ PHP_FUNCTION(rar_open)
 		return;
 	}
 
-	if (OPENBASEDIR_CHECKPATH(filename)) {
+	if (php_check_open_basedir(filename)) {
 		RETURN_FALSE;
 	}
 
@@ -1098,7 +1098,7 @@ void minit_rararch(TSRMLS_D)
 	rararch_object_handlers.unset_dimension = rararch_unset_dimension;
 	rararch_object_handlers.clone_obj = NULL;
 	rararch_object_handlers.free_obj = rararch_ce_free_object_storage;
-	rararch_object_handlers.offset = XtOffsetOf(ze_rararch_object, parent);
+	rararch_object_handlers.offset = offsetof(ze_rararch_object, parent);
 
 	INIT_CLASS_ENTRY(ce, "RarArchive", php_rararch_class_functions);
 	rararch_ce_ptr = zend_register_internal_class(&ce TSRMLS_CC);

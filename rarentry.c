@@ -298,7 +298,7 @@ PHP_METHOD(rarentry, extract)
 		considered_path = filepath;
 	}
 
-	if (OPENBASEDIR_CHECKPATH(considered_path)) {
+	if (php_check_open_basedir(considered_path)) {
 		RETURN_FALSE;
 	}
 	if (!expand_filepath(considered_path, considered_path_res TSRMLS_CC)) {

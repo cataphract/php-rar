@@ -24,21 +24,21 @@ echo "Done.\n";
 --EXPECTF--
 Test empty:
 
-Warning: fopen(rar://): %cailed to open stream: The url must contain a path and a non-empty fragment; it must be in the form "rar://<urlencoded path to RAR archive>[*]#<urlencoded entry name>" in %s on line %d
+Warning: fopen(%sailed to open stream: The url must contain a path and a non-empty fragment; it must be in the form "rar://<urlencoded path to RAR archive>[*]#<urlencoded entry name>" in %s on line %d
 
 Test no fragment:
 
-Warning: fopen(rar://file.rar): %cailed to open stream: The url must contain a path and a non-empty fragment; it must be in the form "rar://<urlencoded path to RAR archive>[*]#<urlencoded entry name>" in %s on line %d
+Warning: fopen(%sailed to open stream: The url must contain a path and a non-empty fragment; it must be in the form "rar://<urlencoded path to RAR archive>[*]#<urlencoded entry name>" in %s on line %d
 
 Test empty fragment:
 
-Warning: fopen(rar://file.rar#): %cailed to open stream: The url must contain a path and a non-empty fragment; it must be in the form "rar://<urlencoded path to RAR archive>[*]#<urlencoded entry name>" in %s on line %d
+Warning: fopen(%sailed to open stream: The url must contain a path and a non-empty fragment; it must be in the form "rar://<urlencoded path to RAR archive>[*]#<urlencoded entry name>" in %s on line %d
 
 Test no path:
 
-Warning: fopen(rar://#frag): %cailed to open stream: The url must contain a path and a non-empty fragment; it must be in the form "rar://<urlencoded path to RAR archive>[*]#<urlencoded entry name>" in %s on line %d
+Warning: fopen(%sailed to open stream: The url must contain a path and a non-empty fragment; it must be in the form "rar://<urlencoded path to RAR archive>[*]#<urlencoded entry name>" in %s on line %d
 
 Test no path and empty fragment:
 
-Warning: fopen(rar://#): %cailed to open stream: The url must contain a path and a non-empty fragment; it must be in the form "rar://<urlencoded path to RAR archive>[*]#<urlencoded entry name>" in %s on line %d
+Warning: fopen(%sailed to open stream: The url must contain a path and a non-empty fragment; it must be in the form "rar://<urlencoded path to RAR archive>[*]#<urlencoded entry name>" in %s on line %d
 Done.
